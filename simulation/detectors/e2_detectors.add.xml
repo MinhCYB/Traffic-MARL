@@ -1,0 +1,68 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+    E2 (area) detectors — 200m mỗi lane, đặt trước ngã tư
+    Đo: occupancy, meanSpeed, jamLengthVehicle, nVehSeen
+    freq=5 khớp với delta_time của RL agent
+
+    Naming: e2_<edge_id>_<lane_index>
+    Lane index: 0 = lane phải, 1 = lane trái
+-->
+<additional>
+
+    <!-- ════════════ VÀO N01 ════════════ -->
+    <!-- từ NT_N_W (bắc) -->
+    <laneAreaDetector id="e2_NT_N_W_N01_0" lane="NT_N_W_N01_0" pos="-1" length="180" freq="5" file="NUL"/>
+    <laneAreaDetector id="e2_NT_N_W_N01_1" lane="NT_N_W_N01_1" pos="-1" length="180" freq="5" file="NUL"/>
+    <!-- từ NT_W_N (tây) -->
+    <laneAreaDetector id="e2_NT_W_N_N01_0" lane="NT_W_N_N01_0" pos="-1" length="180" freq="5" file="NUL"/>
+    <laneAreaDetector id="e2_NT_W_N_N01_1" lane="NT_W_N_N01_1" pos="-1" length="180" freq="5" file="NUL"/>
+    <!-- từ SRC1 (đông, đường chính ngang) -->
+    <laneAreaDetector id="e2_SRC1_N01_0"   lane="SRC1_N01_0"   pos="-1" length="180" freq="5" file="NUL"/>
+    <laneAreaDetector id="e2_SRC1_N01_1"   lane="SRC1_N01_1"   pos="-1" length="180" freq="5" file="NUL"/>
+    <!-- từ SRC3 (nam, ngõ nhỏ) -->
+    <laneAreaDetector id="e2_SRC3_N01_0"   lane="SRC3_N01_0"   pos="-1" length="180" freq="5" file="NUL"/>
+    <laneAreaDetector id="e2_SRC3_N01_1"   lane="SRC3_N01_1"   pos="-1" length="180" freq="5" file="NUL"/>
+
+    <!-- ════════════ VÀO N02 ════════════ -->
+    <!-- từ NT_N_E (bắc) -->
+    <laneAreaDetector id="e2_NT_N_E_N02_0" lane="NT_N_E_N02_0" pos="-1" length="180" freq="5" file="NUL"/>
+    <laneAreaDetector id="e2_NT_N_E_N02_1" lane="NT_N_E_N02_1" pos="-1" length="180" freq="5" file="NUL"/>
+    <!-- từ NT_E_N (đông) -->
+    <laneAreaDetector id="e2_NT_E_N_N02_0" lane="NT_E_N_N02_0" pos="-1" length="180" freq="5" file="NUL"/>
+    <laneAreaDetector id="e2_NT_E_N_N02_1" lane="NT_E_N_N02_1" pos="-1" length="180" freq="5" file="NUL"/>
+    <!-- từ SRC1 (tây, đường chính ngang) -->
+    <laneAreaDetector id="e2_SRC1_N02_0"   lane="SRC1_N02_0"   pos="-1" length="180" freq="5" file="NUL"/>
+    <laneAreaDetector id="e2_SRC1_N02_1"   lane="SRC1_N02_1"   pos="-1" length="180" freq="5" file="NUL"/>
+    <!-- từ SRC4 (nam, ngõ nhỏ) -->
+    <laneAreaDetector id="e2_SRC4_N02_0"   lane="SRC4_N02_0"   pos="-1" length="180" freq="5" file="NUL"/>
+    <laneAreaDetector id="e2_SRC4_N02_1"   lane="SRC4_N02_1"   pos="-1" length="180" freq="5" file="NUL"/>
+
+    <!-- ════════════ VÀO N03 ════════════ -->
+    <!-- từ NT_S_W (nam) -->
+    <laneAreaDetector id="e2_NT_S_W_N03_0" lane="NT_S_W_N03_0" pos="-1" length="180" freq="5" file="NUL"/>
+    <laneAreaDetector id="e2_NT_S_W_N03_1" lane="NT_S_W_N03_1" pos="-1" length="180" freq="5" file="NUL"/>
+    <!-- từ NT_W_S (tây) -->
+    <laneAreaDetector id="e2_NT_W_S_N03_0" lane="NT_W_S_N03_0" pos="-1" length="180" freq="5" file="NUL"/>
+    <laneAreaDetector id="e2_NT_W_S_N03_1" lane="NT_W_S_N03_1" pos="-1" length="180" freq="5" file="NUL"/>
+    <!-- từ SRC2 (đông, đường chính ngang) -->
+    <laneAreaDetector id="e2_SRC2_N03_0"   lane="SRC2_N03_0"   pos="-1" length="180" freq="5" file="NUL"/>
+    <laneAreaDetector id="e2_SRC2_N03_1"   lane="SRC2_N03_1"   pos="-1" length="180" freq="5" file="NUL"/>
+    <!-- từ SRC3 (bắc, ngõ nhỏ) -->
+    <laneAreaDetector id="e2_SRC3_N03_0"   lane="SRC3_N03_0"   pos="-1" length="180" freq="5" file="NUL"/>
+    <laneAreaDetector id="e2_SRC3_N03_1"   lane="SRC3_N03_1"   pos="-1" length="180" freq="5" file="NUL"/>
+
+    <!-- ════════════ VÀO N04 ════════════ -->
+    <!-- từ NT_S_E (nam) -->
+    <laneAreaDetector id="e2_NT_S_E_N04_0" lane="NT_S_E_N04_0" pos="-1" length="180" freq="5" file="NUL"/>
+    <laneAreaDetector id="e2_NT_S_E_N04_1" lane="NT_S_E_N04_1" pos="-1" length="180" freq="5" file="NUL"/>
+    <!-- từ NT_E_S (đông) -->
+    <laneAreaDetector id="e2_NT_E_S_N04_0" lane="NT_E_S_N04_0" pos="-1" length="180" freq="5" file="NUL"/>
+    <laneAreaDetector id="e2_NT_E_S_N04_1" lane="NT_E_S_N04_1" pos="-1" length="180" freq="5" file="NUL"/>
+    <!-- từ SRC2 (tây, đường chính ngang) -->
+    <laneAreaDetector id="e2_SRC2_N04_0"   lane="SRC2_N04_0"   pos="-1" length="180" freq="5" file="NUL"/>
+    <laneAreaDetector id="e2_SRC2_N04_1"   lane="SRC2_N04_1"   pos="-1" length="180" freq="5" file="NUL"/>
+    <!-- từ SRC4 (bắc, ngõ nhỏ) -->
+    <laneAreaDetector id="e2_SRC4_N04_0"   lane="SRC4_N04_0"   pos="-1" length="180" freq="5" file="NUL"/>
+    <laneAreaDetector id="e2_SRC4_N04_1"   lane="SRC4_N04_1"   pos="-1" length="180" freq="5" file="NUL"/>
+
+</additional>

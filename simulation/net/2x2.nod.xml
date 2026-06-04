@@ -1,0 +1,35 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<nodes xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+       xsi:noNamespaceSchemaLocation="http://sumo.dlr.de/xsd/nodes_file.xsd">
+
+    <!-- ── 4 ngã tư chính (traffic light) ── -->
+    <!-- N01: Công sở + Trường học  -->
+    <node id="N01" x="-200" y="200"  type="traffic_light"/>
+    <!-- N02: Công sở mở rộng -->
+    <node id="N02" x="200"  y="200"  type="traffic_light"/>
+    <!-- N03: Khu dân cư -->
+    <node id="N03" x="-200" y="-200" type="traffic_light"/>
+    <!-- N04: Khu vui chơi + dân cư -->
+    <node id="N04" x="200"  y="-200" type="traffic_light"/>
+
+    <!-- ── Ngoại thành (source/sink) ── -->
+    <node id="NT_N_W" x="-200" y="500"  type="priority"/>
+    <node id="NT_N_E" x="200"  y="500"  type="priority"/>
+    <node id="NT_S_W" x="-200" y="-500" type="priority"/>
+    <node id="NT_S_E" x="200"  y="-500" type="priority"/>
+    <node id="NT_W_N" x="-500" y="200"  type="priority"/>
+    <node id="NT_W_S" x="-500" y="-200" type="priority"/>
+    <node id="NT_E_N" x="500"  y="200"  type="priority"/>
+    <node id="NT_E_S" x="500"  y="-200" type="priority"/>
+
+    <!-- ── Internal sources (trên edge, dùng departPos=random) ── -->
+    <!-- SRC1: giữa N01-N02 (đường chính ngang trên) -->
+    <node id="SRC1" x="0" y="200" type="priority"/>
+    <!-- SRC2: giữa N03-N04 (đường chính ngang dưới) -->
+    <node id="SRC2" x="0" y="-200" type="priority"/>
+    <!-- SRC3: giữa ngõ N01-N03 (dọc trái) -->
+    <node id="SRC3" x="-200" y="0" type="priority"/>
+    <!-- SRC4: giữa ngõ N02-N04 (dọc phải) -->
+    <node id="SRC4" x="200"  y="0" type="priority"/>
+
+</nodes>

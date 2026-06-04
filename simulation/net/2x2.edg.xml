@@ -1,0 +1,71 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<edges xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+       xsi:noNamespaceSchemaLocation="http://sumo.dlr.de/xsd/edges_file.xsd">
+
+    <!-- ════════════════════════════════════════
+         ĐƯỜNG CHÍNH NGANG
+         N01 ←→ SRC1 ←→ N02  (trên)
+         N03 ←→ SRC2 ←→ N04  (dưới)
+    ════════════════════════════════════════ -->
+    <edge id="N01_SRC1" from="N01"  to="SRC1" type="main_road"/>
+    <edge id="SRC1_N02" from="SRC1" to="N02"  type="main_road"/>
+    <edge id="N02_SRC1" from="N02"  to="SRC1" type="main_road"/>
+    <edge id="SRC1_N01" from="SRC1" to="N01"  type="main_road"/>
+
+    <edge id="N03_SRC2" from="N03"  to="SRC2" type="main_road"/>
+    <edge id="SRC2_N04" from="SRC2" to="N04"  type="main_road"/>
+    <edge id="N04_SRC2" from="N04"  to="SRC2" type="main_road"/>
+    <edge id="SRC2_N03" from="SRC2" to="N03"  type="main_road"/>
+
+    <!-- ════════════════════════════════════════
+         NGÕ NHỎ DỌC (có source giữa)
+         N01 ←→ SRC3 ←→ N03  (trái)
+         N02 ←→ SRC4 ←→ N04  (phải)
+    ════════════════════════════════════════ -->
+    <edge id="N01_SRC3" from="N01"  to="SRC3" type="alley"/>
+    <edge id="SRC3_N03" from="SRC3" to="N03"  type="alley"/>
+    <edge id="N03_SRC3" from="N03"  to="SRC3" type="alley"/>
+    <edge id="SRC3_N01" from="SRC3" to="N01"  type="alley"/>
+
+    <edge id="N02_SRC4" from="N02"  to="SRC4" type="alley"/>
+    <edge id="SRC4_N04" from="SRC4" to="N04"  type="alley"/>
+    <edge id="N04_SRC4" from="N04"  to="SRC4" type="alley"/>
+    <edge id="SRC4_N02" from="SRC4" to="N02"  type="alley"/>
+
+    <!-- ════════════════════════════════════════
+         NGOẠI THÀNH BẮC
+    ════════════════════════════════════════ -->
+    <edge id="NT_N_W_N01" from="NT_N_W" to="N01" type="outskirts"/>
+    <edge id="N01_NT_N_W" from="N01" to="NT_N_W" type="outskirts"/>
+
+    <edge id="NT_N_E_N02" from="NT_N_E" to="N02" type="outskirts"/>
+    <edge id="N02_NT_N_E" from="N02" to="NT_N_E" type="outskirts"/>
+
+    <!-- ════════════════════════════════════════
+         NGOẠI THÀNH NAM
+    ════════════════════════════════════════ -->
+    <edge id="NT_S_W_N03" from="NT_S_W" to="N03" type="outskirts"/>
+    <edge id="N03_NT_S_W" from="N03" to="NT_S_W" type="outskirts"/>
+
+    <edge id="NT_S_E_N04" from="NT_S_E" to="N04" type="outskirts"/>
+    <edge id="N04_NT_S_E" from="N04" to="NT_S_E" type="outskirts"/>
+
+    <!-- ════════════════════════════════════════
+         NGOẠI THÀNH TÂY
+    ════════════════════════════════════════ -->
+    <edge id="NT_W_N_N01" from="NT_W_N" to="N01" type="outskirts"/>
+    <edge id="N01_NT_W_N" from="N01" to="NT_W_N" type="outskirts"/>
+
+    <edge id="NT_W_S_N03" from="NT_W_S" to="N03" type="outskirts"/>
+    <edge id="N03_NT_W_S" from="N03" to="NT_W_S" type="outskirts"/>
+
+    <!-- ════════════════════════════════════════
+         NGOẠI THÀNH ĐÔNG
+    ════════════════════════════════════════ -->
+    <edge id="NT_E_N_N02" from="NT_E_N" to="N02" type="outskirts"/>
+    <edge id="N02_NT_E_N" from="N02" to="NT_E_N" type="outskirts"/>
+
+    <edge id="NT_E_S_N04" from="NT_E_S" to="N04" type="outskirts"/>
+    <edge id="N04_NT_E_S" from="N04" to="NT_E_S" type="outskirts"/>
+
+</edges>

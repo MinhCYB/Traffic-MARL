@@ -1,0 +1,113 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+    routes_peak.rou.xml — Giờ cao điểm (60% episodes)
+    Phân bố:
+      40% ngoại thành → công sở/trường (N01, N02)
+      30% khu dân cư → công sở qua ngõ nhỏ
+      20% transit ngoại thành → ngoại thành
+      10% random + internal sources
+-->
+<routes xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+        xsi:noNamespaceSchemaLocation="http://sumo.dlr.de/xsd/routes_file.xsd">
+
+    <!-- ── Vehicle types ── -->
+    <vType id="car"  accel="2.6" decel="4.5" length="5.0" maxSpeed="13.89" sigma="0.5" minGap="2.5"/>
+    <vType id="moto" accel="3.0" decel="5.0" length="2.2" maxSpeed="11.11" sigma="0.6" minGap="1.5"/>
+    <vType id="bus"  accel="1.5" decel="3.5" length="12.0" maxSpeed="11.11" sigma="0.3" minGap="3.0"/>
+
+    <!-- ════════════════════════════════════════
+         40% — Ngoại thành → Công sở / Trường
+         Hướng chủ đạo buổi sáng: đổ vào N01, N02
+    ════════════════════════════════════════ -->
+    <!-- Từ bắc tây vào N01 -->
+    <flow id="peak_NW_N01_car"  type="car"  begin="0" end="3600" number="180"
+          from="NT_N_W_N01" to="N01_NT_W_N" departLane="random" departPos="random" departSpeed="max"/>
+    <flow id="peak_NW_N01_moto" type="moto" begin="0" end="3600" number="90"
+          from="NT_N_W_N01" to="N01_NT_W_N" departLane="random" departPos="random" departSpeed="max"/>
+
+    <!-- Từ bắc đông vào N02 -->
+    <flow id="peak_NE_N02_car"  type="car"  begin="0" end="3600" number="180"
+          from="NT_N_E_N02" to="N02_NT_E_N" departLane="random" departPos="random" departSpeed="max"/>
+    <flow id="peak_NE_N02_moto" type="moto" begin="0" end="3600" number="90"
+          from="NT_N_E_N02" to="N02_NT_E_N" departLane="random" departPos="random" departSpeed="max"/>
+
+    <!-- Từ tây vào N01, N03 -->
+    <flow id="peak_W_N01_car"   type="car"  begin="0" end="3600" number="120"
+          from="NT_W_N_N01" to="N01_SRC1"   departLane="random" departPos="random" departSpeed="max"/>
+    <flow id="peak_W_N03_car"   type="car"  begin="0" end="3600" number="80"
+          from="NT_W_S_N03" to="N03_SRC2"   departLane="random" departPos="random" departSpeed="max"/>
+
+    <!-- Bus từ ngoại thành vào trung tâm -->
+    <flow id="peak_bus_N_N01"   type="bus"  begin="0" end="3600" number="30"
+          from="NT_N_W_N01" to="N01_NT_W_N" departLane="best" departPos="random" departSpeed="max"/>
+
+    <!-- ════════════════════════════════════════
+         30% — Khu dân cư → Công sở (qua ngõ nhỏ)
+         N03 → ngõ SRC3 → N01 → công sở
+         N04 → ngõ SRC4 → N02 → công sở
+    ════════════════════════════════════════ -->
+    <flow id="peak_dc_N03_N01_car"  type="car"  begin="0" end="3600" number="150"
+          from="NT_S_W_N03" to="N01_NT_N_W"
+          departLane="random" departPos="random" departSpeed="max"/>
+    <flow id="peak_dc_N03_N01_moto" type="moto" begin="0" end="3600" number="100"
+          from="NT_S_W_N03" to="N01_NT_N_W"
+          departLane="random" departPos="random" departSpeed="max"/>
+    <flow id="peak_dc_N04_N02_car"  type="car"  begin="0" end="3600" number="150"
+          from="NT_S_E_N04" to="N02_NT_N_E"
+          departLane="random" departPos="random" departSpeed="max"/>
+    <flow id="peak_dc_N04_N02_moto" type="moto" begin="0" end="3600" number="100"
+          from="NT_S_E_N04" to="N02_NT_N_E"
+          departLane="random" departPos="random" departSpeed="max"/>
+
+    <!-- ════════════════════════════════════════
+         20% — Transit: ngoại thành → ngoại thành
+    ════════════════════════════════════════ -->
+    <flow id="peak_transit_WE_car" type="car" begin="0" end="3600" number="100"
+          from="NT_W_N_N01" to="N02_NT_E_N"
+          via="N01_SRC1 SRC1_N02"
+          departLane="random" departPos="random" departSpeed="max"/>
+    <flow id="peak_transit_NS_car" type="car" begin="0" end="3600" number="100"
+          from="NT_N_W_N01" to="N03_NT_S_W"
+          via="N01_SRC3 SRC3_N03"
+          departLane="random" departPos="random" departSpeed="max"/>
+    <flow id="peak_transit_EW_car" type="car" begin="0" end="3600" number="60"
+          from="NT_E_S_N04" to="N03_NT_W_S"
+          via="N04_SRC2 SRC2_N03"
+          departLane="random" departPos="random" departSpeed="max"/>
+
+    <!-- ════════════════════════════════════════
+         10% — Random + Internal sources
+    ════════════════════════════════════════ -->
+    <!-- SRC1: bãi đỗ xe / tòa nhà giữa N01-N02 -->
+    <flow id="peak_src1_E_car"  type="car"  begin="0" end="3600" number="60"
+          from="SRC1_N02" to="N02_NT_E_N"
+          departLane="random" departPos="random" departSpeed="0"/>
+    <flow id="peak_src1_W_car"  type="car"  begin="0" end="3600" number="60"
+          from="SRC1_N01" to="N01_NT_W_N"
+          departLane="random" departPos="random" departSpeed="0"/>
+
+    <!-- SRC2: chợ / siêu thị giữa N03-N04 -->
+    <flow id="peak_src2_E_moto" type="moto" begin="0" end="3600" number="50"
+          from="SRC2_N04" to="N04_NT_S_E"
+          departLane="random" departPos="random" departSpeed="0"/>
+    <flow id="peak_src2_W_moto" type="moto" begin="0" end="3600" number="50"
+          from="SRC2_N03" to="N03_NT_S_W"
+          departLane="random" departPos="random" departSpeed="0"/>
+
+    <!-- SRC3: ngõ N01-N03 -->
+    <flow id="peak_src3_N_car"  type="car"  begin="0" end="3600" number="40"
+          from="SRC3_N01" to="N01_NT_N_W"
+          departLane="random" departPos="random" departSpeed="0"/>
+    <flow id="peak_src3_S_car"  type="car"  begin="0" end="3600" number="40"
+          from="SRC3_N03" to="N03_NT_S_W"
+          departLane="random" departPos="random" departSpeed="0"/>
+
+    <!-- SRC4: ngõ N02-N04 -->
+    <flow id="peak_src4_N_moto" type="moto" begin="0" end="3600" number="40"
+          from="SRC4_N02" to="N02_NT_N_E"
+          departLane="random" departPos="random" departSpeed="0"/>
+    <flow id="peak_src4_S_moto" type="moto" begin="0" end="3600" number="40"
+          from="SRC4_N04" to="N04_NT_S_E"
+          departLane="random" departPos="random" departSpeed="0"/>
+
+</routes>

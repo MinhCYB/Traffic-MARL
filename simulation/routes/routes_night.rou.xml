@@ -1,0 +1,68 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+    routes_night.rou.xml — Ban đêm (10% episodes)
+    Phân bố:
+      60% random, volume thấp (~40% peak)
+      40% ngoại thành → khu dân cư (về nhà)
+    Mục đích: model học policy thưa thớt, không overfit peak
+-->
+<routes xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+        xsi:noNamespaceSchemaLocation="http://sumo.dlr.de/xsd/routes_file.xsd">
+
+    <vType id="car"  accel="2.6" decel="4.5" length="5.0" maxSpeed="13.89" sigma="0.5" minGap="2.5"/>
+    <vType id="moto" accel="3.0" decel="5.0" length="2.2" maxSpeed="11.11" sigma="0.6" minGap="1.5"/>
+
+    <!-- ════════════════════════════════════════
+         40% — Ngoại thành → Khu dân cư (về nhà)
+    ════════════════════════════════════════ -->
+    <flow id="night_home_NW_car"  type="car"  begin="0" end="3600" number="70"
+          from="NT_N_W_N01" to="NT_S_W_N03"
+          departLane="random" departPos="random" departSpeed="max"/>
+    <flow id="night_home_NW_moto" type="moto" begin="0" end="3600" number="50"
+          from="NT_N_W_N01" to="NT_S_W_N03"
+          departLane="random" departPos="random" departSpeed="max"/>
+    <flow id="night_home_NE_car"  type="car"  begin="0" end="3600" number="70"
+          from="NT_N_E_N02" to="NT_S_E_N04"
+          departLane="random" departPos="random" departSpeed="max"/>
+    <flow id="night_home_NE_moto" type="moto" begin="0" end="3600" number="50"
+          from="NT_N_E_N02" to="NT_S_E_N04"
+          departLane="random" departPos="random" departSpeed="max"/>
+    <flow id="night_home_E_car"   type="car"  begin="0" end="3600" number="40"
+          from="NT_E_N_N02" to="NT_S_E_N04"
+          departLane="random" departPos="random" departSpeed="max"/>
+
+    <!-- ════════════════════════════════════════
+         60% — Random, volume thấp
+    ════════════════════════════════════════ -->
+    <flow id="night_rand_WE_car"  type="car"  begin="0" end="3600" number="50"
+          from="NT_W_N_N01" to="NT_E_N_N02"
+          via="N01_SRC1 SRC1_N02"
+          departLane="random" departPos="random" departSpeed="max"/>
+    <flow id="night_rand_EW_car"  type="car"  begin="0" end="3600" number="50"
+          from="NT_E_S_N04" to="NT_W_S_N03"
+          via="N04_SRC2 SRC2_N03"
+          departLane="random" departPos="random" departSpeed="max"/>
+    <flow id="night_rand_SN_car"  type="car"  begin="0" end="3600" number="40"
+          from="NT_S_W_N03" to="NT_N_W_N01"
+          via="N03_SRC3 SRC3_N01"
+          departLane="random" departPos="random" departSpeed="max"/>
+    <flow id="night_rand_SN_moto" type="moto" begin="0" end="3600" number="30"
+          from="NT_S_E_N04" to="NT_N_E_N02"
+          via="N04_SRC4 SRC4_N02"
+          departLane="random" departPos="random" departSpeed="max"/>
+
+    <!-- Internal sources — rất thưa -->
+    <flow id="night_src1"         type="car"  begin="0" end="3600" number="20"
+          from="SRC1_N01" to="N01_NT_W_N"
+          departLane="random" departPos="random" departSpeed="0"/>
+    <flow id="night_src2"         type="moto" begin="0" end="3600" number="20"
+          from="SRC2_N04" to="N04_NT_S_E"
+          departLane="random" departPos="random" departSpeed="0"/>
+    <flow id="night_src3"         type="car"  begin="0" end="3600" number="15"
+          from="SRC3_N03" to="N03_NT_S_W"
+          departLane="random" departPos="random" departSpeed="0"/>
+    <flow id="night_src4"         type="moto" begin="0" end="3600" number="15"
+          from="SRC4_N04" to="N04_NT_S_E"
+          departLane="random" departPos="random" departSpeed="0"/>
+
+</routes>

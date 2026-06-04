@@ -1,0 +1,76 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+    routes_weekend.rou.xml — Cuối tuần (30% episodes)
+    Phân bố:
+      50% khu dân cư → ngoại thành (đi chơi)
+      30% transit
+      20% random + internal sources
+    Volume thấp hơn peak ~30%
+-->
+<routes xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+        xsi:noNamespaceSchemaLocation="http://sumo.dlr.de/xsd/routes_file.xsd">
+
+    <vType id="car"  accel="2.6" decel="4.5" length="5.0" maxSpeed="13.89" sigma="0.5" minGap="2.5"/>
+    <vType id="moto" accel="3.0" decel="5.0" length="2.2" maxSpeed="11.11" sigma="0.6" minGap="1.5"/>
+    <vType id="bus"  accel="1.5" decel="3.5" length="12.0" maxSpeed="11.11" sigma="0.3" minGap="3.0"/>
+
+    <!-- ════════════════════════════════════════
+         50% — Khu dân cư → Ngoại thành
+         Hướng ngược với peak: N03/N04 → ngoại thành
+    ════════════════════════════════════════ -->
+    <flow id="wknd_N03_NW_car"  type="car"  begin="0" end="3600" number="140"
+          from="NT_S_W_N03" to="NT_N_W_N01"
+          departLane="random" departPos="random" departSpeed="max"/>
+    <flow id="wknd_N03_NW_moto" type="moto" begin="0" end="3600" number="80"
+          from="NT_S_W_N03" to="NT_N_W_N01"
+          departLane="random" departPos="random" departSpeed="max"/>
+    <flow id="wknd_N04_NE_car"  type="car"  begin="0" end="3600" number="140"
+          from="NT_S_E_N04" to="NT_N_E_N02"
+          departLane="random" departPos="random" departSpeed="max"/>
+    <flow id="wknd_N04_NE_moto" type="moto" begin="0" end="3600" number="80"
+          from="NT_S_E_N04" to="NT_N_E_N02"
+          departLane="random" departPos="random" departSpeed="max"/>
+    <flow id="wknd_N03_W_car"   type="car"  begin="0" end="3600" number="80"
+          from="NT_S_W_N03" to="NT_W_N_N01"
+          departLane="random" departPos="random" departSpeed="max"/>
+    <flow id="wknd_N04_E_car"   type="car"  begin="0" end="3600" number="80"
+          from="NT_S_E_N04" to="NT_E_N_N02"
+          departLane="random" departPos="random" departSpeed="max"/>
+
+    <!-- ════════════════════════════════════════
+         30% — Transit
+    ════════════════════════════════════════ -->
+    <flow id="wknd_transit_NS"  type="car"  begin="0" end="3600" number="90"
+          from="NT_N_W_N01" to="NT_S_E_N04"
+          via="N01_SRC1 SRC1_N02 N02_SRC4 SRC4_N04"
+          departLane="random" departPos="random" departSpeed="max"/>
+    <flow id="wknd_transit_SN"  type="car"  begin="0" end="3600" number="90"
+          from="NT_S_E_N04" to="NT_N_W_N01"
+          via="N04_SRC2 SRC2_N03 N03_SRC3 SRC3_N01"
+          departLane="random" departPos="random" departSpeed="max"/>
+    <flow id="wknd_transit_WE"  type="car"  begin="0" end="3600" number="60"
+          from="NT_W_N_N01" to="NT_E_S_N04"
+          via="N01_SRC1 SRC1_N02 N02_SRC4 SRC4_N04"
+          departLane="random" departPos="random" departSpeed="max"/>
+    <flow id="wknd_bus_tour"    type="bus"  begin="0" end="3600" number="20"
+          from="NT_N_W_N01" to="NT_S_E_N04"
+          via="N01_SRC1 SRC1_N02 N02_SRC4 SRC4_N04"
+          departLane="best"   departPos="random" departSpeed="max"/>
+
+    <!-- ════════════════════════════════════════
+         20% — Random + Internal sources (volume thấp)
+    ════════════════════════════════════════ -->
+    <flow id="wknd_src1_rand"   type="car"  begin="0" end="3600" number="40"
+          from="SRC1_N01" to="N01_NT_W_N"
+          departLane="random" departPos="random" departSpeed="0"/>
+    <flow id="wknd_src2_rand"   type="moto" begin="0" end="3600" number="50"
+          from="SRC2_N04" to="N04_NT_S_E"
+          departLane="random" departPos="random" departSpeed="0"/>
+    <flow id="wknd_src3_rand"   type="car"  begin="0" end="3600" number="30"
+          from="SRC3_N01" to="N01_NT_N_W"
+          departLane="random" departPos="random" departSpeed="0"/>
+    <flow id="wknd_src4_rand"   type="moto" begin="0" end="3600" number="30"
+          from="SRC4_N02" to="N02_NT_N_E"
+          departLane="random" departPos="random" departSpeed="0"/>
+
+</routes>

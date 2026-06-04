@@ -1,0 +1,26 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<types xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+       xsi:noNamespaceSchemaLocation="http://sumo.dlr.de/xsd/types_file.xsd">
+
+    <!-- Đường chính: 2 lane, 50 km/h -->
+    <type id="main_road"
+          numLanes="2"
+          speed="13.89"
+          priority="12"
+          allow="passenger motorcycle bus"/>
+
+    <!-- Ngõ nhỏ: 2 lane, 30 km/h, capacity thấp hơn -->
+    <type id="alley"
+          numLanes="2"
+          speed="8.33"
+          priority="8"
+          allow="passenger motorcycle"/>
+
+    <!-- Ngoại thành: 2 lane, 70 km/h — source/sink liên tục -->
+    <type id="outskirts"
+          numLanes="2"
+          speed="19.44"
+          priority="10"
+          allow="passenger motorcycle bus"/>
+
+</types>

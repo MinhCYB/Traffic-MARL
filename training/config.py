@@ -16,6 +16,7 @@ CHECKPOINT_DIR.mkdir(exist_ok=True)
 LOG_DIR.mkdir(exist_ok=True)
 
 # ── Simulation ────────────────────────────────────────────────────────────────
+TOPOLOGY            = "2x2"   # "2x2" | "2x3" — đổi ở đây khi scale
 DELTA_TIME          = 5       # giây — agent quyết định mỗi 5s
 MIN_GREEN_TIME      = 10      # giây — enforce ở env wrapper
 YELLOW_TIME         = 3       # giây

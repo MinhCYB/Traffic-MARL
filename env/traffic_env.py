@@ -36,13 +36,18 @@ from env.reward import compute_reward, compute_global_reward
 
 # ── Cấu hình ─────────────────────────────────────────────────────────────────
 
-SUMO_CFG = Path(__file__).parent.parent / "simulation" / "2x2.sumocfg"
+SIM_ROOT = Path(__file__).parent.parent / "simulation"
 
-ROUTE_FILES = {
-    "peak":    Path(__file__).parent.parent / "simulation" / "routes" / "routes_peak.rou.xml",
-    "weekend": Path(__file__).parent.parent / "simulation" / "routes" / "routes_weekend.rou.xml",
-    "night":   Path(__file__).parent.parent / "simulation" / "routes" / "routes_night.rou.xml",
-}
+def _get_sumo_cfg(topology: str) -> Path:
+    return SIM_ROOT / topology / f"{topology}.sumocfg"
+
+def _get_route_files(topology: str) -> dict[str, Path]:
+    base = SIM_ROOT / topology / "routes"
+    return {
+        "peak":    base / "routes_peak.rou.xml",
+        "weekend": base / "routes_weekend.rou.xml",
+        "night":   base / "routes_night.rou.xml",
+    }
 
 ROUTE_WEIGHTS = {"peak": 0.6, "weekend": 0.3, "night": 0.1}
 
@@ -59,7 +64,7 @@ SIM_END        = 3600 # giây — 1 episode = 1 giờ
 
 class TrafficEnv:
     """
-    SUMO traffic environment cho 4 ngã tư 2x2.
+    SUMO traffic environment — hỗ trợ nhiều topology (2x2, 2x3, ...).
 
     Actions:
         0 → giữ nguyên phase hiện tại
@@ -67,7 +72,7 @@ class TrafficEnv:
 
     Observation:
         states: dict {intersection_id: np.ndarray (21,)}
-        node_features: np.ndarray (4, 21) — dùng cho GAT
+        node_features: np.ndarray (N, 21) — dùng cho GAT
 
     Reward:
         dict {intersection_id: float} — Max Pressure per agent
@@ -75,13 +80,15 @@ class TrafficEnv:
 
     def __init__(
         self,
-        port: int = 8813,
-        use_gui: bool = False,
-        seed: int = 42,
+        port:     int  = 8813,
+        topology: str  = "2x2",   # "2x2" | "2x3" | ...
+        use_gui:  bool = False,
+        seed:     int  = 42,
     ):
-        self.port = port
-        self.use_gui = use_gui
-        self.seed = seed
+        self.port     = port
+        self.topology = topology
+        self.use_gui  = use_gui
+        self.seed     = seed
 
         # State tracking
         self._step = 0
@@ -110,16 +117,17 @@ class TrafficEnv:
             self._connected = False
 
         route_type = route_type or self._sample_route()
-        route_file = str(ROUTE_FILES[route_type])
+        route_files = _get_route_files(self.topology)
+        route_file  = str(route_files[route_type])
 
         sumo_bin = "sumo-gui" if self.use_gui else "sumo"
         sumo_cmd = [
             sumo_bin,
-            "-c", str(SUMO_CFG),
+            "-c", str(_get_sumo_cfg(self.topology)),
             "--route-files", route_file,
             "--seed", str(self.seed),
             "--no-step-log", "true",
-            "--no-warnings", "false",
+            "--no-warnings", "true",
             "--time-to-teleport", "300",
         ]
 

@@ -96,14 +96,20 @@ sumo -c simulation/2x2.sumocfg --no-step-log --end 100
 
 ```bash
 # Fixed-time baseline (nhanh, không cần GPU)
-python training/train.py --model fixed_time
+python -m training.train --model fixed_time
 
 # GAT-MARL
-python training/train.py --model gat_marl
+python -m training.train --model gat_marl
 
 # IDQN (đồng đội)
-python training/train.py --model idqn
+python -m training.train --model idqn
 ```
+
+> **Ẩn SUMO warnings** (emergency braking, teleporting, v.v.):
+> ```bash
+> python -m training.train --model gat_marl 2>/dev/null
+> ```
+> `2>/dev/null` redirect stderr — console chỉ còn log episode.
 
 ### Train tất cả
 
@@ -114,7 +120,7 @@ bash scripts/run_training.sh
 ### Resume từ checkpoint
 
 ```bash
-python training/train.py --model gat_marl --resume checkpoints/gat_marl_ep200.pt
+python -m training.train --model gat_marl --resume checkpoints/gat_marl_ep200.pt
 ```
 
 Logs được lưu tại `logs/<model>/training_log.csv`.

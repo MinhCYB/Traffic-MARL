@@ -19,41 +19,47 @@
          Hướng ngược với peak: N03/N04 → ngoại thành
     ════════════════════════════════════════ -->
     <flow id="wknd_N03_NW_car"  type="car"  begin="0" end="3600" number="140"
-          from="NT_S_W_N03" to="NT_N_W_N01"
+          from="NT_S_W_N03" to="N01_NT_N_W"
+          via="N03_SRC3 SRC3_N01"
           departLane="random" departPos="random" departSpeed="max"/>
     <flow id="wknd_N03_NW_moto" type="moto" begin="0" end="3600" number="80"
-          from="NT_S_W_N03" to="NT_N_W_N01"
+          from="NT_S_W_N03" to="N01_NT_N_W"
+          via="N03_SRC3 SRC3_N01"
           departLane="random" departPos="random" departSpeed="max"/>
     <flow id="wknd_N04_NE_car"  type="car"  begin="0" end="3600" number="140"
-          from="NT_S_E_N04" to="NT_N_E_N02"
+          from="NT_S_E_N04" to="N02_NT_N_E"
+          via="N04_SRC4 SRC4_N02"
           departLane="random" departPos="random" departSpeed="max"/>
     <flow id="wknd_N04_NE_moto" type="moto" begin="0" end="3600" number="80"
-          from="NT_S_E_N04" to="NT_N_E_N02"
+          from="NT_S_E_N04" to="N02_NT_N_E"
+          via="N04_SRC4 SRC4_N02"
           departLane="random" departPos="random" departSpeed="max"/>
     <flow id="wknd_N03_W_car"   type="car"  begin="0" end="3600" number="80"
-          from="NT_S_W_N03" to="NT_W_N_N01"
+          from="NT_S_W_N03" to="N01_NT_W_N"
+          via="N03_SRC3 SRC3_N01"
           departLane="random" departPos="random" departSpeed="max"/>
     <flow id="wknd_N04_E_car"   type="car"  begin="0" end="3600" number="80"
-          from="NT_S_E_N04" to="NT_E_N_N02"
+          from="NT_S_E_N04" to="N02_NT_E_N"
+          via="N04_SRC4 SRC4_N02"
           departLane="random" departPos="random" departSpeed="max"/>
 
     <!-- ════════════════════════════════════════
          30% — Transit
     ════════════════════════════════════════ -->
     <flow id="wknd_transit_NS"  type="car"  begin="0" end="3600" number="90"
-          from="NT_N_W_N01" to="NT_S_E_N04"
+          from="NT_N_W_N01" to="N04_NT_S_E"
           via="N01_SRC1 SRC1_N02 N02_SRC4 SRC4_N04"
           departLane="random" departPos="random" departSpeed="max"/>
     <flow id="wknd_transit_SN"  type="car"  begin="0" end="3600" number="90"
-          from="NT_S_E_N04" to="NT_N_W_N01"
+          from="NT_S_E_N04" to="N01_NT_N_W"
           via="N04_SRC2 SRC2_N03 N03_SRC3 SRC3_N01"
           departLane="random" departPos="random" departSpeed="max"/>
     <flow id="wknd_transit_WE"  type="car"  begin="0" end="3600" number="60"
-          from="NT_W_N_N01" to="NT_E_S_N04"
+          from="NT_W_N_N01" to="N04_NT_S_E"
           via="N01_SRC1 SRC1_N02 N02_SRC4 SRC4_N04"
           departLane="random" departPos="random" departSpeed="max"/>
     <flow id="wknd_bus_tour"    type="bus"  begin="0" end="3600" number="20"
-          from="NT_N_W_N01" to="NT_S_E_N04"
+          from="NT_N_W_N01" to="N04_NT_S_E"
           via="N01_SRC1 SRC1_N02 N02_SRC4 SRC4_N04"
           departLane="best"   departPos="random" departSpeed="max"/>
 

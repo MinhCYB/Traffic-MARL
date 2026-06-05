@@ -16,38 +16,43 @@
          40% — Ngoại thành → Khu dân cư (về nhà)
     ════════════════════════════════════════ -->
     <flow id="night_home_NW_car"  type="car"  begin="0" end="3600" number="70"
-          from="NT_N_W_N01" to="NT_S_W_N03"
+          from="NT_N_W_N01" to="N03_NT_S_W"
+          via="N01_SRC3 SRC3_N03"
           departLane="random" departPos="random" departSpeed="max"/>
     <flow id="night_home_NW_moto" type="moto" begin="0" end="3600" number="50"
-          from="NT_N_W_N01" to="NT_S_W_N03"
+          from="NT_N_W_N01" to="N03_NT_S_W"
+          via="N01_SRC3 SRC3_N03"
           departLane="random" departPos="random" departSpeed="max"/>
     <flow id="night_home_NE_car"  type="car"  begin="0" end="3600" number="70"
-          from="NT_N_E_N02" to="NT_S_E_N04"
+          from="NT_N_E_N02" to="N04_NT_S_E"
+          via="N02_SRC4 SRC4_N04"
           departLane="random" departPos="random" departSpeed="max"/>
     <flow id="night_home_NE_moto" type="moto" begin="0" end="3600" number="50"
-          from="NT_N_E_N02" to="NT_S_E_N04"
+          from="NT_N_E_N02" to="N04_NT_S_E"
+          via="N02_SRC4 SRC4_N04"
           departLane="random" departPos="random" departSpeed="max"/>
     <flow id="night_home_E_car"   type="car"  begin="0" end="3600" number="40"
-          from="NT_E_N_N02" to="NT_S_E_N04"
+          from="NT_E_N_N02" to="N04_NT_S_E"
+          via="N02_SRC4 SRC4_N04"
           departLane="random" departPos="random" departSpeed="max"/>
 
     <!-- ════════════════════════════════════════
          60% — Random, volume thấp
     ════════════════════════════════════════ -->
     <flow id="night_rand_WE_car"  type="car"  begin="0" end="3600" number="50"
-          from="NT_W_N_N01" to="NT_E_N_N02"
+          from="NT_W_N_N01" to="N02_NT_E_N"
           via="N01_SRC1 SRC1_N02"
           departLane="random" departPos="random" departSpeed="max"/>
     <flow id="night_rand_EW_car"  type="car"  begin="0" end="3600" number="50"
-          from="NT_E_S_N04" to="NT_W_S_N03"
+          from="NT_E_S_N04" to="N03_NT_W_S"
           via="N04_SRC2 SRC2_N03"
           departLane="random" departPos="random" departSpeed="max"/>
     <flow id="night_rand_SN_car"  type="car"  begin="0" end="3600" number="40"
-          from="NT_S_W_N03" to="NT_N_W_N01"
+          from="NT_S_W_N03" to="N01_NT_N_W"
           via="N03_SRC3 SRC3_N01"
           departLane="random" departPos="random" departSpeed="max"/>
     <flow id="night_rand_SN_moto" type="moto" begin="0" end="3600" number="30"
-          from="NT_S_E_N04" to="NT_N_E_N02"
+          from="NT_S_E_N04" to="N02_NT_N_E"
           via="N04_SRC4 SRC4_N02"
           departLane="random" departPos="random" departSpeed="max"/>
 

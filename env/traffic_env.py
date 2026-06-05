@@ -80,15 +80,17 @@ class TrafficEnv:
 
     def __init__(
         self,
-        port:     int  = 8813,
-        topology: str  = "2x2",   # "2x2" | "2x3" | ...
-        use_gui:  bool = False,
-        seed:     int  = 42,
+        port:       int  = 8813,
+        topology:   str  = "2x2",
+        use_gui:    bool = False,
+        seed:       int  = 42,
+        delta_time: int  = 5,
     ):
-        self.port     = port
-        self.topology = topology
-        self.use_gui  = use_gui
-        self.seed     = seed
+        self.port       = port
+        self.topology   = topology
+        self.use_gui    = use_gui
+        self.seed       = seed
+        self.delta_time = delta_time
 
         # State tracking
         self._step = 0
@@ -166,8 +168,8 @@ class TrafficEnv:
         for nid in INTERSECTION_IDS:
             self._apply_action(nid, actions.get(nid, 0))
 
-        # Advance simulation DELTA_TIME steps
-        for _ in range(DELTA_TIME):
+        # Advance simulation delta_time steps
+        for _ in range(self.delta_time):
             traci.simulationStep()
             self._step += 1
             self._update_timers()

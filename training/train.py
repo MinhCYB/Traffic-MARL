@@ -24,10 +24,9 @@ from training.config import (
     EPSILON_START, EPSILON_MIN, EPSILON_DECAY,
     LR, GAMMA, TARGET_UPDATE_FREQ,
     STATE_DIM, HIDDEN_DIM, NUM_HEADS, NUM_ACTIONS, DROPOUT,
-    TOPOLOGY,
+    TOPOLOGY, DELTA_TIME,
 )
 from training.replay_buffer import ReplayBuffer
-from training.scheduler import EpsilonScheduler
 from env.traffic_env import TrafficEnv
 from env.state_builder import build_node_features
 
@@ -81,17 +80,23 @@ def setup_logger(model_name: str) -> tuple[Path, list[str]]:
     return log_dir, fieldnames
 
 
-def train(model_name: str, device: str = "auto", resume: str | None = None):
+def train(model_name: str, device: str = "auto", resume: str | None = None,
+          episodes: int | None = None, delta_time: int | None = None):
+
+    num_episodes = episodes or NUM_EPISODES
+    dt           = delta_time or DELTA_TIME
+
     print(f"\n{'='*50}")
     print(f"  Training: {model_name.upper()}")
     print(f"  Device  : {device}")
-    print(f"  Episodes: {NUM_EPISODES}")
+    print(f"  Episodes: {num_episodes}")
+    print(f"  Delta T : {dt}s/step")
     print(f"{'='*50}\n")
 
     agent  = build_agent(model_name, device)
     buffer = ReplayBuffer(REPLAY_BUFFER_SIZE)
     port   = get_port(model_name)
-    env    = TrafficEnv(port=port, topology=TOPOLOGY, use_gui=False, seed=SEED)
+    env    = TrafficEnv(port=port, topology=TOPOLOGY, use_gui=False, seed=SEED, delta_time=dt)
 
     log_dir, fieldnames = setup_logger(model_name)
     log_path = log_dir / "training_log.csv"
@@ -113,7 +118,7 @@ def train(model_name: str, device: str = "auto", resume: str | None = None):
 
         total_steps = 0
 
-        for episode in range(start_episode, NUM_EPISODES):
+        for episode in range(start_episode, num_episodes):
             t_start = time.time()
             obs = env.reset()
 
@@ -178,8 +183,7 @@ def train(model_name: str, device: str = "auto", resume: str | None = None):
 
             # Console log mỗi 10 episode
             if episode % 10 == 0:
-                eps_done     = episode - start_episode + 1
-                eps_left     = NUM_EPISODES - episode - 1
+                eps_left     = num_episodes - episode - 1
                 eta_s        = eps_left * duration
                 eta_str      = (
                     f"{int(eta_s // 3600)}h {int((eta_s % 3600) // 60)}m"
@@ -187,7 +191,7 @@ def train(model_name: str, device: str = "auto", resume: str | None = None):
                     else f"{int(eta_s // 60)}m {int(eta_s % 60)}s"
                 )
                 print(
-                    f"Ep {episode:4d}/{NUM_EPISODES} | "
+                    f"Ep {episode:4d}/{num_episodes} | "
                     f"Reward: {episode_reward:8.2f} | "
                     f"Speed: {info['avg_speed']:5.1f} km/h | "
                     f"Wait: {info['avg_waiting_time']:5.1f}s | "
@@ -231,5 +235,13 @@ if __name__ == "__main__":
         "--resume", type=str, default=None,
         help="Path tới checkpoint để resume training",
     )
+    parser.add_argument(
+        "--episodes", type=int, default=None,
+        help="Override NUM_EPISODES trong config (vd: 100 cho fixed_time)",
+    )
+    parser.add_argument(
+        "--delta-time", type=int, default=None,
+        help="Override DELTA_TIME trong config (vd: 10 để train nhanh hơn)",
+    )
     args = parser.parse_args()
-    train(args.model, args.device, args.resume)
+    train(args.model, args.device, args.resume, args.episodes, args.delta_time)

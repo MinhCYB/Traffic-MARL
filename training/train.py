@@ -24,6 +24,7 @@ from training.config import (
     EPSILON_START, EPSILON_MIN, EPSILON_DECAY,
     LR, GAMMA, TARGET_UPDATE_FREQ,
     STATE_DIM, HIDDEN_DIM, NUM_HEADS, NUM_ACTIONS, DROPOUT,
+    TOPOLOGY,
 )
 from training.replay_buffer import ReplayBuffer
 from training.scheduler import EpsilonScheduler
@@ -90,7 +91,7 @@ def train(model_name: str, device: str = "auto", resume: str | None = None):
     agent  = build_agent(model_name, device)
     buffer = ReplayBuffer(REPLAY_BUFFER_SIZE)
     port   = get_port(model_name)
-    env    = TrafficEnv(port=port, use_gui=False, seed=SEED)
+    env    = TrafficEnv(port=port, topology=TOPOLOGY, use_gui=False, seed=SEED)
 
     log_dir, fieldnames = setup_logger(model_name)
     log_path = log_dir / "training_log.csv"
@@ -177,6 +178,14 @@ def train(model_name: str, device: str = "auto", resume: str | None = None):
 
             # Console log mỗi 10 episode
             if episode % 10 == 0:
+                eps_done     = episode - start_episode + 1
+                eps_left     = NUM_EPISODES - episode - 1
+                eta_s        = eps_left * duration
+                eta_str      = (
+                    f"{int(eta_s // 3600)}h {int((eta_s % 3600) // 60)}m"
+                    if eta_s >= 3600
+                    else f"{int(eta_s // 60)}m {int(eta_s % 60)}s"
+                )
                 print(
                     f"Ep {episode:4d}/{NUM_EPISODES} | "
                     f"Reward: {episode_reward:8.2f} | "
@@ -184,7 +193,8 @@ def train(model_name: str, device: str = "auto", resume: str | None = None):
                     f"Wait: {info['avg_waiting_time']:5.1f}s | "
                     f"Loss: {avg_loss:.5f} | "
                     f"ε: {epsilon:.3f} | "
-                    f"{duration:.1f}s"
+                    f"{duration:.1f}s/ep | "
+                    f"ETA: {eta_str}"
                 )
 
             # Checkpoint

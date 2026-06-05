@@ -1,3 +1,52 @@
-.env
+# ── Python ────────────────────────────────────────────────────────────────────
+__pycache__/
+*.py[cod]
+*.pyo
+*.pyd
+.Python
+*.egg-info/
+dist/
+build/
+.eggs/
 
+# ── Môi trường ────────────────────────────────────────────────────────────────
+.env
+venv/
+.venv/
+env/
+*.conda
+conda-meta/
+
+# ── Checkpoints & logs ────────────────────────────────────────────────────────
+checkpoints/*.pt
+logs/*/
+logs/merged.json
+# Giữ lại cấu trúc folder
+!checkpoints/.gitkeep
+!logs/.gitkeep
+
+# ── SUMO output ───────────────────────────────────────────────────────────────
+simulation/net/2x2.net.xml
+*.xml.bak
+*.sumo.cfg.bak
+tripinfo*.xml
+summary*.xml
+
+# ── Demo artifacts ────────────────────────────────────────────────────────────
+*.mp4
+*.avi
+.demo_pids
+
+# ── Node / Dashboard ──────────────────────────────────────────────────────────
+dashboard/node_modules/
+dashboard/dist/
+dashboard/.vite/
+
+# ── IDE ───────────────────────────────────────────────────────────────────────
+.vscode/
+.idea/
+*.swp
+*.swo
+.DS_Store
+Thumbs.db
 repomix*

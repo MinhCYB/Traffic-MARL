@@ -16,6 +16,6 @@ requests>=2.32.0
 numpy>=1.26.0
 
 # ── Optional: video backup ────────────────────────────────────────────────────
-# pillow
-# pyautogui
-# opencv-python
+pillow
+pyautogui
+opencv-python

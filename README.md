@@ -2,7 +2,7 @@
 
 > **GAT-MARL Traffic Signal Control** — Hệ thống điều khiển đèn giao thông thông minh sử dụng Multi-Agent Reinforcement Learning kết hợp Graph Attention Network.
 
-Bài tập lớn môn Machine Learning — Mô phỏng mạng lưới giao thông đô thị 2×2, so sánh trực quan 3 phương pháp điều khiển đèn tín hiệu: Fixed-time, IDQN, và GAT-MARL.
+Đồ án môn Machine Learning — Mô phỏng mạng lưới giao thông đô thị 2×2, so sánh trực quan 3 phương pháp điều khiển đèn tín hiệu: Fixed-time, IDQN, và GAT-MARL.
 
 ---
 
@@ -57,10 +57,11 @@ Dashboard gồm 3 tab: **Slides** (presentation), **Live Demo** (3 panel song so
 smart-traffic-marl/
 │
 ├── simulation/                  # SUMO map, routes, detectors
-│   ├── net/                     # Network files (nod, edg, typ, net)
-│   ├── routes/                  # 3 route files: peak, weekend, night
-│   ├── detectors/               # E2 detector 200m mỗi lane
-│   └── accident/                # Script inject tai nạn qua TraCI
+│   └── 2x2/                     # Topology 2x2 (mặc định)
+│       ├── net/                 # Network files (nod, edg, typ, net)
+│       ├── routes/              # 3 route files: peak, weekend, night
+│       ├── detectors/           # E2 detector 180m mỗi lane
+│       └── 2x2.sumocfg
 │
 ├── env/                         # RL Environment layer
 │   ├── traffic_env.py           # Wrapper sumo-rl, enforce min_green 10s
@@ -110,6 +111,69 @@ smart-traffic-marl/
 ├── requirements.txt
 └── README.md
 ```
+
+## Simulation & Episode
+
+### Simulation layer
+
+SUMO chạy vật lý xe, đèn, đường. Python điều khiển và đọc data qua TraCI API mỗi 5 giây.
+
+**Topology 2x2:**
+```
+         [Ngoại thành Bắc]
+               │
+[NT Tây]──────N01────SRC1────N02──────[NT Đông]
+               │      ↑      │
+              SRC3   bãi đỗ SRC4
+               │      ↓      │
+[NT Tây]──────N03────SRC2────N04──────[NT Đông]
+               │
+         [Ngoại thành Nam]
+
+N01: Công sở + Trường    N02: Công sở mở rộng
+N03: Khu dân cư          N04: Vui chơi + dân cư
+SRC1-4: Internal sources — xe xuất hiện giữa chừng (departPos=random)
+```
+
+**3 loại đường:**
+
+| Loại | Speed | Lanes | Dùng cho |
+|------|-------|-------|----------|
+| main_road | 50 km/h | 2 | Đường chính ngang/dọc |
+| alley | 30 km/h | 2 | Ngõ nhỏ N01↔N03, N02↔N04 |
+| outskirts | 70 km/h | 2 | Kết nối ngoại thành |
+
+**E2 Detector:** đặt 180m trước mỗi ngã tư, đọc mỗi 5s — đo queue length và density từng lane. Đây là nguồn data duy nhất agent nhìn thấy.
+
+---
+
+### 1 Episode
+
+```
+reset()
+    └── SUMO khởi động, chọn ngẫu nhiên 1 route file
+        peak (60%) | weekend (30%) | night (10%)
+        seed=42 → cùng scenario khi so sánh 3 models
+        Đặt tất cả đèn về phase 0
+
+        ↓ lặp 720 lần (3600s / 5s)
+
+step() mỗi 5s:
+    ├── Agent đọc state → chọn action (keep/switch)
+    ├── Env enforce min_green = 10s
+    ├── Apply action → TraCI setPhase
+    ├── simulationStep() × 5 lần
+    ├── E2 detector đọc queue + density
+    ├── reward = -|Σqueue_incoming - Σqueue_outgoing|
+    └── trả về (obs, reward, done, info)
+
+Episode kết thúc (step = 3600):
+    └── Log: reward, speed, waiting_time, throughput
+        Agent update từ replay buffer
+        Epsilon decay
+```
+
+**Route files** tạo ra traffic pattern khác nhau — model không biết đang chạy route nào, tự học từ observation.
 
 ---
 

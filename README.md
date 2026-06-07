@@ -235,6 +235,39 @@ bash scripts/run_demo.sh
 
 Truy cập `http://localhost:5173` → Tab **Live Demo**.
 
+Hoặc khởi động thủ công từng process:
+
+```bash
+# Terminal 1 — Server
+python -m server.main
+
+# Terminal 2 — Fixed-time worker
+python -m workers.worker_fixed
+
+# Terminal 3 — GAT-MARL worker
+python -m workers.worker_gat
+
+# Terminal 4 — IDQN worker (đồng đội)
+python -m workers.worker_idqn
+
+# Terminal 5 — Dashboard
+cd dashboard && npm run dev
+```
+
+### Xem simulation thực tế (sumo-gui)
+
+Mỗi worker hỗ trợ flag `--gui` để mở cửa sổ SUMO trực quan.
+Khuyến nghị **chỉ mở GUI cho GAT-MARL** — chạy cả 3 GUI cùng lúc sẽ quá tải hệ thống.
+
+```bash
+# Chỉ GAT-MARL có GUI — recommended cho demo
+python -m workers.worker_gat --gui
+python -m workers.worker_fixed          # không GUI
+python -m workers.worker_idqn          # không GUI
+```
+
+> **Lưu ý:** sumo-gui tốn thêm ~30% CPU so với chạy headless. Nếu máy yếu thì bỏ `--gui`, dùng dashboard để theo dõi metrics.
+
 ---
 
 ## Tham khảo

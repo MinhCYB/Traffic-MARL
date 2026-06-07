@@ -29,7 +29,11 @@ class IDQNWorker(WorkerBase):
 
 
 if __name__ == "__main__":
-    worker = IDQNWorker()
+    import argparse
+    parser = argparse.ArgumentParser()
+    parser.add_argument("--gui", action="store_true", help="Mở sumo-gui")
+    args = parser.parse_args()
+    worker = IDQNWorker(use_gui=args.gui)
     try:
         worker.run()
     finally:

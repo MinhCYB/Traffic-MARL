@@ -15,7 +15,7 @@ import numpy as np
 from abc import ABC, abstractmethod
 
 from training.config import (
-    SERVER_HOST, SERVER_PORT, DELTA_TIME, SEED,
+    SERVER_HOST, SERVER_PORT, DELTA_TIME, SEED, TOPOLOGY,
 )
 from env.traffic_env import TrafficEnv
 from env.state_builder import INTERSECTION_IDS, EDGE_INDEX
@@ -35,7 +35,7 @@ class WorkerBase(ABC):
 
     def __init__(self, port: int, use_gui: bool = False):
         self.port    = port
-        self.env     = TrafficEnv(port=port, use_gui=use_gui, seed=SEED)
+        self.env     = TrafficEnv(port=port, topology=TOPOLOGY, use_gui=use_gui, seed=SEED)
         self.agent   = self.build_agent()
         self.base_url = f"http://{SERVER_HOST}:{SERVER_PORT}"
         self._running = False
@@ -63,30 +63,40 @@ class WorkerBase(ABC):
         self._wait_for_start()
 
         while True:
-            obs  = self.env.reset()
-            done = False
-            self._step = 0
+            try:
+                obs  = self.env.reset()
+                done = False
+                self._step = 0
 
-            while not done:
-                actions = self.agent.select_actions(obs)
-                next_obs, rewards, done, info = self.env.step(actions)
-                self._step += 1
+                while not done:
+                    actions = self.agent.select_actions(obs)
+                    next_obs, rewards, done, info = self.env.step(actions)
+                    self._step += 1
 
-                payload = self._build_payload(next_obs, rewards, info)
-                self._post(payload)
+                    payload = self._build_payload(next_obs, rewards, info)
+                    self._post(payload)
 
-                # Kiểm tra lệnh từ server
-                cmd = self._poll_command()
-                if cmd == "reset":
-                    break
-                elif cmd and cmd.startswith("inject_accident"):
-                    edge_id = cmd.split(":")[1] if ":" in cmd else "SRC1_N02"
-                    self.env.inject_accident(edge_id)
+                    # Kiểm tra lệnh từ server
+                    cmd = self._poll_command()
+                    if cmd == "reset":
+                        break
+                    elif cmd and cmd.startswith("inject_accident"):
+                        edge_id = cmd.split(":")[1] if ":" in cmd else "SRC1_N02"
+                        self.env.inject_accident(edge_id)
 
-                obs = next_obs
+                    obs = next_obs
 
-            # Báo server episode kết thúc
-            self._post({"mode": self.model_name, "event": "episode_done", "step": self._step})
+                # Báo server episode kết thúc
+                self._post({"mode": self.model_name, "event": "episode_done", "step": self._step})
+
+            except Exception as e:
+                print(f"[{self.model_name}] Error: {e} — restarting...")
+                try:
+                    self.env.close()
+                except Exception:
+                    pass
+                import time
+                time.sleep(2)
 
             # Chờ lệnh start cho episode mới
             self._wait_for_start()

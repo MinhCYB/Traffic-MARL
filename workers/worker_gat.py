@@ -45,7 +45,11 @@ class GATWorker(WorkerBase):
 
 
 if __name__ == "__main__":
-    worker = GATWorker()
+    import argparse
+    parser = argparse.ArgumentParser()
+    parser.add_argument("--gui", action="store_true", help="Mở sumo-gui")
+    args = parser.parse_args()
+    worker = GATWorker(use_gui=args.gui)
     try:
         worker.run()
     finally:

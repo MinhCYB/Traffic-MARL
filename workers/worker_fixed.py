@@ -19,7 +19,11 @@ class FixedWorker(WorkerBase):
 
 
 if __name__ == "__main__":
-    worker = FixedWorker()
+    import argparse
+    parser = argparse.ArgumentParser()
+    parser.add_argument("--gui", action="store_true", help="Mở sumo-gui")
+    args = parser.parse_args()
+    worker = FixedWorker(use_gui=args.gui)
     try:
         worker.run()
     finally:

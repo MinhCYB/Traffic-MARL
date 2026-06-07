@@ -86,9 +86,13 @@ def train(model_name: str, device: str = "auto", resume: str | None = None,
     num_episodes = episodes or NUM_EPISODES
     dt           = delta_time or DELTA_TIME
 
+    import torch
+    actual_device = "cuda" if (device == "auto" and torch.cuda.is_available()) else device
+    device_name   = torch.cuda.get_device_name(0) if actual_device == "cuda" else "CPU"
+
     print(f"\n{'='*50}")
     print(f"  Training: {model_name.upper()}")
-    print(f"  Device  : {device}")
+    print(f"  Device  : {actual_device.upper()} ({device_name})")
     print(f"  Episodes: {num_episodes}")
     print(f"  Delta T : {dt}s/step")
     print(f"{'='*50}\n")

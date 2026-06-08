@@ -23,14 +23,25 @@ class MetricsData(BaseModel):
     global_reward:    float
 
 
+class VehicleData(BaseModel):
+    id:    str
+    edge:  str
+    lane:  int
+    pos:   float
+    speed: float
+    type:  str
+    angle: float
+
+
 class WorkerPayload(BaseModel):
-    mode:               str                          # "gat_marl" | "idqn" | "fixed_time"
+    mode:               str
     step:               int
     timestamp:          float
     intersections:      list[IntersectionData]
     metrics:            MetricsData
+    vehicles:           Optional[list[VehicleData]] = None
     attention_weights:  Optional[list[list[float]]] = None
-    event:              Optional[str] = None         # "episode_done"
+    event:              Optional[str] = None
 
 
 class CommandPayload(BaseModel):

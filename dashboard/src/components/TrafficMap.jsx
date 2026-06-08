@@ -1,0 +1,278 @@
+// dashboard/src/components/TrafficMap.jsx
+import { useEffect, useRef, useState } from "react";
+
+const W = 360;
+const H = 320;
+
+const NODE = {
+  N01: { x: 110, y: 100 },
+  N02: { x: 250, y: 100 },
+  N03: { x: 110, y: 220 },
+  N04: { x: 250, y: 220 },
+};
+
+const SRC = {
+  SRC1: { x: 180, y: 100 },
+  SRC2: { x: 180, y: 220 },
+  SRC3: { x: 110, y: 160 },
+  SRC4: { x: 250, y: 160 },
+};
+
+const EDGES = {
+  "N01_SRC1": { from: "N01", to: "SRC1", type: "main" },
+  "SRC1_N02": { from: "SRC1", to: "N02", type: "main" },
+  "N02_SRC1": { from: "N02", to: "SRC1", type: "main" },
+  "SRC1_N01": { from: "SRC1", to: "N01", type: "main" },
+  "N03_SRC2": { from: "N03", to: "SRC2", type: "main" },
+  "SRC2_N04": { from: "SRC2", to: "N04", type: "main" },
+  "N04_SRC2": { from: "N04", to: "SRC2", type: "main" },
+  "SRC2_N03": { from: "SRC2", to: "N03", type: "main" },
+  "N01_SRC3": { from: "N01", to: "SRC3", type: "alley" },
+  "SRC3_N03": { from: "SRC3", to: "N03", type: "alley" },
+  "N03_SRC3": { from: "N03", to: "SRC3", type: "alley" },
+  "SRC3_N01": { from: "SRC3", to: "N01", type: "alley" },
+  "N02_SRC4": { from: "N02", to: "SRC4", type: "alley" },
+  "SRC4_N04": { from: "SRC4", to: "N04", type: "alley" },
+  "N04_SRC4": { from: "N04", to: "SRC4", type: "alley" },
+  "SRC4_N02": { from: "SRC4", to: "N02", type: "alley" },
+  "NT_N_W_N01": { from: { x: 110, y: 20 }, to: "N01", type: "outskirts" },
+  "N01_NT_N_W": { from: "N01", to: { x: 110, y: 20 }, type: "outskirts" },
+  "NT_N_E_N02": { from: { x: 250, y: 20 }, to: "N02", type: "outskirts" },
+  "N02_NT_N_E": { from: "N02", to: { x: 250, y: 20 }, type: "outskirts" },
+  "NT_S_W_N03": { from: { x: 110, y: 300 }, to: "N03", type: "outskirts" },
+  "N03_NT_S_W": { from: "N03", to: { x: 110, y: 300 }, type: "outskirts" },
+  "NT_S_E_N04": { from: { x: 250, y: 300 }, to: "N04", type: "outskirts" },
+  "N04_NT_S_E": { from: "N04", to: { x: 250, y: 300 }, type: "outskirts" },
+  "NT_W_N_N01": { from: { x: 20, y: 100 }, to: "N01", type: "outskirts" },
+  "N01_NT_W_N": { from: "N01", to: { x: 20, y: 100 }, type: "outskirts" },
+  "NT_W_S_N03": { from: { x: 20, y: 220 }, to: "N03", type: "outskirts" },
+  "N03_NT_W_S": { from: "N03", to: { x: 20, y: 220 }, type: "outskirts" },
+  "NT_E_N_N02": { from: { x: 340, y: 100 }, to: "N02", type: "outskirts" },
+  "N02_NT_E_N": { from: "N02", to: { x: 340, y: 100 }, type: "outskirts" },
+  "NT_E_S_N04": { from: { x: 340, y: 220 }, to: "N04", type: "outskirts" },
+  "N04_NT_E_S": { from: "N04", to: { x: 340, y: 220 }, type: "outskirts" },
+};
+
+const PHASE_LIGHTS = {
+  0: { N: "green",  S: "green",  E: "red",    W: "red"    },
+  1: { N: "yellow", S: "yellow", E: "red",    W: "red"    },
+  2: { N: "red",    S: "red",    E: "green",  W: "green"  },
+  3: { N: "red",    S: "red",    E: "yellow", W: "yellow" },
+};
+
+const LIGHT_COLORS = { green: "#1d9e75", yellow: "#ef9f27", red: "#e24b4a" };
+const ROAD_WIDTH   = { main: 10, alley: 6, outskirts: 8 };
+const LANE_DASH    = { main: "6 4", alley: "4 3", outskirts: "6 4" };
+const VEHICLE_SHAPES = {
+  car:  { w: 10, h: 6, rx: 2 },
+  moto: { w: 8,  h: 4, rx: 1 },
+  bus:  { w: 14, h: 7, rx: 2 },
+};
+const MODEL_COLORS = {
+  fixed_time: "#e24b4a",
+  idqn:       "#ba7517",
+  gat_marl:   "#534ab7",
+};
+
+function getPos(key) {
+  if (!key) return null;
+  if (typeof key === "object") return key;
+  return NODE[key] || SRC[key] || null;
+}
+
+function interpPos(from, to, t) {
+  if (!from || !to) return from || to;
+  return { x: from.x + (to.x - from.x) * t, y: from.y + (to.y - from.y) * t };
+}
+
+function getVehicleXY(vehicle) {
+  const edge = EDGES[vehicle.edge];
+  if (!edge) return null;
+  const from = getPos(edge.from);
+  const to   = getPos(edge.to);
+  if (!from || !to) return null;
+  const pos  = interpPos(from, to, vehicle.pos);
+  const dx   = to.x - from.x;
+  const dy   = to.y - from.y;
+  const len  = Math.sqrt(dx * dx + dy * dy) || 1;
+  const nx   = -dy / len;
+  const ny   =  dx / len;
+  const offset = vehicle.lane === 0 ? 2.5 : -2.5;
+  return {
+    x:     pos.x + nx * offset,
+    y:     pos.y + ny * offset,
+    angle: Math.atan2(dy, dx) * 180 / Math.PI,
+  };
+}
+
+function Roads({ accidentEdge }) {
+  const drawn = new Set();
+  return (
+    <g>
+      {Object.entries(EDGES).map(([id, e]) => {
+        const key = [JSON.stringify(e.from), JSON.stringify(e.to)].sort().join("|");
+        if (drawn.has(key)) return null;
+        drawn.add(key);
+        const from = getPos(e.from);
+        const to   = getPos(e.to);
+        if (!from || !to) return null;
+        const w     = ROAD_WIDTH[e.type];
+        const isAcc = id === accidentEdge;
+        return (
+          <g key={key}>
+            <line x1={from.x} y1={from.y} x2={to.x} y2={to.y}
+              stroke={isAcc ? "#e24b4a" : "#d3d1c7"}
+              strokeWidth={w} strokeLinecap="round"/>
+            <line x1={from.x} y1={from.y} x2={to.x} y2={to.y}
+              stroke="white" strokeWidth={0.5}
+              strokeDasharray={LANE_DASH[e.type]} opacity={0.6}/>
+          </g>
+        );
+      })}
+    </g>
+  );
+}
+
+function TrafficLights({ intersections }) {
+  const lookup = {};
+  (intersections || []).forEach(i => { lookup[i.id] = i; });
+  return (
+    <g>
+      {Object.entries(NODE).map(([nid, pos]) => {
+        const phase  = lookup[nid]?.phase ?? 0;
+        const lights = PHASE_LIGHTS[phase] || PHASE_LIGHTS[0];
+        const offset = 16;
+        return (
+          <g key={nid}>
+            {[
+              { dir: "N", x: pos.x,          y: pos.y - offset },
+              { dir: "S", x: pos.x,          y: pos.y + offset },
+              { dir: "W", x: pos.x - offset, y: pos.y          },
+              { dir: "E", x: pos.x + offset, y: pos.y          },
+            ].map(({ dir, x, y }) => (
+              <circle key={dir} cx={x} cy={y} r={3.5}
+                fill={LIGHT_COLORS[lights[dir]]}
+                stroke="white" strokeWidth={0.5}/>
+            ))}
+          </g>
+        );
+      })}
+    </g>
+  );
+}
+
+function Intersections({ intersections }) {
+  const lookup = {};
+  (intersections || []).forEach(i => { lookup[i.id] = i; });
+  const LABELS = { N01: "Công sở", N02: "Văn phòng", N03: "Dân cư", N04: "Vui chơi" };
+  return (
+    <g>
+      {Object.entries(NODE).map(([nid, pos]) => {
+        const data  = lookup[nid];
+        const queue = data ? data.queue_per_lane.reduce((a, b) => a + b, 0) : 0;
+        const color = queue > 10 ? "#e24b4a" : queue > 5 ? "#ef9f27" : "#1d9e75";
+        return (
+          <g key={nid}>
+            <rect x={pos.x - 13} y={pos.y - 11} width={26} height={22} rx={3}
+              fill="white" stroke={color} strokeWidth={1.5}/>
+            <text x={pos.x} y={pos.y - 1} textAnchor="middle"
+              fontSize={8} fontWeight="600" fill={color}>{nid}</text>
+            <text x={pos.x} y={pos.y + 7} textAnchor="middle"
+              fontSize={6} fill="#888780">{LABELS[nid]}</text>
+          </g>
+        );
+      })}
+    </g>
+  );
+}
+
+function Vehicles({ vehicles, color }) {
+  return (
+    <g>
+      {(vehicles || []).slice(0, 80).map((v) => {
+        const xy = getVehicleXY(v);
+        if (!xy) return null;
+        const vtype = v.type?.includes("bus") ? "bus"
+          : v.type?.includes("moto") ? "moto" : "car";
+        const s = VEHICLE_SHAPES[vtype];
+        return (
+          <g key={v.id}
+            transform={`translate(${xy.x.toFixed(1)},${xy.y.toFixed(1)}) rotate(${xy.angle.toFixed(1)})`}>
+            <rect x={-s.w/2} y={-s.h/2} width={s.w} height={s.h} rx={s.rx}
+              fill={color} opacity={0.85} stroke="white" strokeWidth={0.4}/>
+          </g>
+        );
+      })}
+    </g>
+  );
+}
+
+function AccidentMarker({ accidentEdge }) {
+  if (!accidentEdge) return null;
+  const edge = EDGES[accidentEdge];
+  if (!edge) return null;
+  const from = getPos(edge.from);
+  const to   = getPos(edge.to);
+  if (!from || !to) return null;
+  const mid = interpPos(from, to, 0.5);
+  return (
+    <g>
+      <circle cx={mid.x} cy={mid.y} r={10} fill="#e24b4a" opacity={0.15}/>
+      <circle cx={mid.x} cy={mid.y} r={5}  fill="#e24b4a" opacity={0.5}/>
+      <text x={mid.x} y={mid.y + 18} textAnchor="middle" fontSize={8} fill="#e24b4a">TAI NẠN</text>
+    </g>
+  );
+}
+
+function AttentionArrows({ attentionWeights }) {
+  if (!attentionWeights) return null;
+  const IDS = ["N01", "N02", "N03", "N04"];
+  const arrows = [];
+  IDS.forEach((dst, di) => {
+    IDS.forEach((src, si) => {
+      if (src === dst) return;
+      const w = attentionWeights[di]?.[si] ?? 0;
+      if (w < 0.4) return;
+      const f = NODE[src];
+      const t = NODE[dst];
+      arrows.push(
+        <line key={`${src}-${dst}`}
+          x1={f.x} y1={f.y} x2={t.x} y2={t.y}
+          stroke="#534ab7" strokeWidth={0.5 + w * 2}
+          strokeDasharray="4 3" opacity={0.25 + w * 0.5}
+          markerEnd="url(#attn-a)"/>
+      );
+    });
+  });
+  return (
+    <g>
+      <defs>
+        <marker id="attn-a" viewBox="0 0 8 8" refX="6" refY="4"
+          markerWidth="4" markerHeight="4" orient="auto">
+          <path d="M1 1L7 4L1 7" fill="none" stroke="#534ab7" strokeWidth="1.5"/>
+        </marker>
+      </defs>
+      {arrows}
+    </g>
+  );
+}
+
+export function TrafficMap({ data, modelName, accidentEdge }) {
+  const color = MODEL_COLORS[modelName] || "#534ab7";
+  return (
+    <div className="traffic-map-wrap">
+      <svg viewBox={`0 0 ${W} ${H}`} className="traffic-map-svg"
+        role="img" aria-label={`Traffic map ${modelName}`}>
+        <rect width={W} height={H} fill="#f8f7f4" rx="8"/>
+        <Roads accidentEdge={accidentEdge}/>
+        <TrafficLights intersections={data?.intersections}/>
+        <AccidentMarker accidentEdge={accidentEdge}/>
+        <Vehicles vehicles={data?.vehicles} color={color}/>
+        {modelName === "gat_marl" && (
+          <AttentionArrows attentionWeights={data?.attention_weights}/>
+        )}
+        <Intersections intersections={data?.intersections}/>
+      </svg>
+    </div>
+  );
+}

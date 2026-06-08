@@ -130,6 +130,7 @@ class WorkerBase(ABC):
             "step":           self._step,
             "timestamp":      time.time(),
             "intersections":  intersections,
+            "vehicles":       self._read_vehicles(),
             "metrics": {
                 "avg_speed":        round(info.get("avg_speed", 0), 2),
                 "avg_waiting_time": round(info.get("avg_waiting_time", 0), 2),
@@ -142,6 +143,43 @@ class WorkerBase(ABC):
         # Merge extra data từ subclass (vd: attention weights)
         payload.update(self.get_extra_payload())
         return payload
+
+    def _read_vehicles(self) -> list[dict]:
+        """Đọc vị trí, tốc độ, loại xe từ TraCI để frontend vẽ trên map."""
+        try:
+            import traci
+            vehicles = []
+            for vid in traci.vehicle.getIDList():
+                try:
+                    edge_id  = traci.vehicle.getRoadID(vid)
+                    lane_idx = traci.vehicle.getLaneIndex(vid)
+                    lane_pos = traci.vehicle.getLanePosition(vid)
+                    speed    = traci.vehicle.getSpeed(vid)
+                    vtype    = traci.vehicle.getTypeID(vid)
+                    angle    = traci.vehicle.getAngle(vid)
+
+                    try:
+                        lane_len = traci.lane.getLength(f"{edge_id}_{lane_idx}")
+                        pos_norm = round(lane_pos / lane_len, 3) if lane_len > 0 else 0.0
+                    except Exception:
+                        pos_norm = 0.0
+
+                    vehicles.append({
+                        "id":    vid,
+                        "edge":  edge_id,
+                        "lane":  lane_idx,
+                        "pos":   pos_norm,
+                        "speed": round(speed * 3.6, 1),
+                        "type":  vtype,
+                        "angle": round(angle, 1),
+                    })
+                except Exception:
+                    continue
+            # print(f"[{self.model_name}] vehicles count: {len(vehicles)}")
+            return vehicles
+        except Exception as e:
+            # print(f"[{self.model_name}] vehicle error: {e}")
+            return []
 
     def _post(self, payload: dict):
         """POST JSON lên server, bỏ qua nếu server chưa sẵn sàng."""

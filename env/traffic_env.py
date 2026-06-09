@@ -130,6 +130,8 @@ class TrafficEnv:
             "--no-step-log", "true",
             "--no-warnings", "true",
             "--time-to-teleport", "300",
+            "--device.rerouting.probability", "1.0",
+            "--device.rerouting.period", "10",
         ]
 
         traci.start(sumo_cmd, port=self.port)

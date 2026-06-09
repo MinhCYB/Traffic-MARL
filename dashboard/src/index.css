@@ -72,6 +72,23 @@ body {
 .ctrl-btn--accident { background: var(--red);   color: white; }
 .ctrl-btn--reset    { background: var(--bg); color: var(--text); border: 1px solid var(--border2); }
 
+/* ── Accident dropdown ── */
+.accident-dropdown { position: relative; }
+.accident-menu {
+  position: absolute; top: calc(100% + 4px); right: 0;
+  background: white; border: 1px solid var(--border2);
+  border-radius: 8px; padding: 4px;
+  box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+  z-index: 50; min-width: 160px;
+}
+.accident-option {
+  display: block; width: 100%; text-align: left;
+  padding: 7px 12px; border: none; background: none;
+  font-family: var(--font-ui); font-size: 12px; font-weight: 600;
+  color: var(--text); cursor: pointer; border-radius: 5px;
+}
+.accident-option:hover { background: var(--bg); }
+
 /* ── Model toggles ── */
 .model-toggles { display: flex; gap: 6px; }
 .toggle-btn {

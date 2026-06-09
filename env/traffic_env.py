@@ -213,63 +213,23 @@ class TrafficEnv:
 
     def inject_accident(self, edge_id: str, block_mode: str = "1"):
         """
-        Giả lập tai nạn bằng obstacle vehicle.
+        Giả lập tai nạn bằng cách giảm maxSpeed lane xuống gần 0.
 
         Args:
             edge_id   : edge bị tai nạn (vd: "SRC1_N02")
             block_mode: "1" = block 1 lane, "all" = block tất cả lanes
         """
-        try:
-            # Tìm route hợp lệ cho obstacle — dùng edge hiện tại
-            route_id = f"accident_route_{edge_id}"
+        lanes = [0] if block_mode == "1" else list(range(NUM_LANES))
+        for lane_idx in lanes:
+            lane_id = f"{edge_id}_{lane_idx}"
             try:
-                traci.route.add(route_id, [edge_id])
+                traci.lane.setMaxSpeed(lane_id, 0.3)  # 0.3 m/s ~ dừng hẳn
             except Exception:
-                pass  # route đã tồn tại
-
-            lanes = [0] if block_mode == "1" else list(range(NUM_LANES))
-
-            for i, lane_idx in enumerate(lanes):
-                veh_id = f"accident_{edge_id}_l{lane_idx}"
-                # Xóa nếu đã tồn tại
-                if veh_id in traci.vehicle.getIDList():
-                    traci.vehicle.remove(veh_id)
-
-                try:
-                    traci.vehicle.add(
-                        vehID=veh_id,
-                        routeID=route_id,
-                        typeID="car",
-                        departLane=lane_idx,
-                        departPos=80.0,
-                        departSpeed=0,
-                    )
-                    traci.vehicle.setSpeed(veh_id, 0)
-                    traci.vehicle.setSpeedMode(veh_id, 0)  # không tự tăng tốc
-                    traci.vehicle.setLength(veh_id, 8.0)   # xe to hơn bình thường
-                    traci.vehicle.setColor(veh_id, (255, 50, 50, 255))  # đỏ
-                except Exception:
-                    # Fallback: giảm tốc độ lane
-                    lane_id = f"{edge_id}_{lane_idx}"
-                    try:
-                        traci.lane.setMaxSpeed(lane_id, 0.5)
-                    except Exception:
-                        pass
-
-            self._accident_edges[edge_id] = block_mode
-        except Exception as e:
-            print(f"[inject_accident] error: {e}")
+                pass
+        self._accident_edges[edge_id] = block_mode
 
     def clear_accident(self, edge_id: str):
         """Restore lane sau tai nạn."""
-        # Xóa obstacle vehicles
-        for vid in list(traci.vehicle.getIDList()):
-            if vid.startswith(f"accident_{edge_id}"):
-                try:
-                    traci.vehicle.remove(vid)
-                except Exception:
-                    pass
-        # Restore lane speed
         for lane_idx in range(NUM_LANES):
             lane_id = f"{edge_id}_{lane_idx}"
             try:

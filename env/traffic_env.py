@@ -101,8 +101,7 @@ class TrafficEnv:
         self._green_time: dict[str, float] = {nid: 0.0 for nid in INTERSECTION_IDS}
 
         self._connected = False
-
-    # ── Public API ────────────────────────────────────────────────────────────
+        self._accident_edges: dict[str, str] = {}  # edge_id -> block_mode
 
     def reset(self, route_type: str | None = None) -> dict:
         """
@@ -143,6 +142,7 @@ class TrafficEnv:
         self._yellow_countdown = {nid: 0 for nid in INTERSECTION_IDS}
         self._in_yellow = {nid: False for nid in INTERSECTION_IDS}
         self._green_time = {nid: 0.0 for nid in INTERSECTION_IDS}
+        self._accident_edges = {}
 
         # Set initial phase
         for nid in INTERSECTION_IDS:
@@ -209,28 +209,72 @@ class TrafficEnv:
             traci.close()
             self._connected = False
 
-    def inject_accident(self, edge_id: str, duration: int = 300):
+    def inject_accident(self, edge_id: str, block_mode: str = "1"):
         """
-        Block một lane trên edge bằng cách set maxSpeed = 0.
-        Dùng cho demo scenario hồi 2.
+        Giả lập tai nạn bằng obstacle vehicle.
 
         Args:
-            edge_id : edge bị tai nạn (vd: "SRC1_N02")
-            duration: giây — sau đó tự clear (0 = vĩnh viễn)
+            edge_id   : edge bị tai nạn (vd: "SRC1_N02")
+            block_mode: "1" = block 1 lane, "all" = block tất cả lanes
         """
-        for lane_idx in range(NUM_LANES):
-            lane_id = f"{edge_id}_{lane_idx}"
-            traci.lane.setMaxSpeed(lane_id, 0.0)
-            if duration > 0:
-                traci.lane.setAllowed(lane_id, [])
+        try:
+            # Tìm route hợp lệ cho obstacle — dùng edge hiện tại
+            route_id = f"accident_route_{edge_id}"
+            try:
+                traci.route.add(route_id, [edge_id])
+            except Exception:
+                pass  # route đã tồn tại
+
+            lanes = [0] if block_mode == "1" else list(range(NUM_LANES))
+
+            for i, lane_idx in enumerate(lanes):
+                veh_id = f"accident_{edge_id}_l{lane_idx}"
+                # Xóa nếu đã tồn tại
+                if veh_id in traci.vehicle.getIDList():
+                    traci.vehicle.remove(veh_id)
+
+                try:
+                    traci.vehicle.add(
+                        vehID=veh_id,
+                        routeID=route_id,
+                        typeID="car",
+                        departLane=lane_idx,
+                        departPos=80.0,
+                        departSpeed=0,
+                    )
+                    traci.vehicle.setSpeed(veh_id, 0)
+                    traci.vehicle.setSpeedMode(veh_id, 0)  # không tự tăng tốc
+                    traci.vehicle.setLength(veh_id, 8.0)   # xe to hơn bình thường
+                    traci.vehicle.setColor(veh_id, (255, 50, 50, 255))  # đỏ
+                except Exception:
+                    # Fallback: giảm tốc độ lane
+                    lane_id = f"{edge_id}_{lane_idx}"
+                    try:
+                        traci.lane.setMaxSpeed(lane_id, 0.5)
+                    except Exception:
+                        pass
+
+            self._accident_edges[edge_id] = block_mode
+        except Exception as e:
+            print(f"[inject_accident] error: {e}")
 
     def clear_accident(self, edge_id: str):
         """Restore lane sau tai nạn."""
-        from env.state_builder import INCOMING_EDGES
+        # Xóa obstacle vehicles
+        for vid in list(traci.vehicle.getIDList()):
+            if vid.startswith(f"accident_{edge_id}"):
+                try:
+                    traci.vehicle.remove(vid)
+                except Exception:
+                    pass
+        # Restore lane speed
         for lane_idx in range(NUM_LANES):
             lane_id = f"{edge_id}_{lane_idx}"
-            traci.lane.setMaxSpeed(lane_id, 13.89)  # main road speed
-            traci.lane.setAllowed(lane_id, ["passenger", "motorcycle", "bus"])
+            try:
+                traci.lane.setMaxSpeed(lane_id, 13.89)
+            except Exception:
+                pass
+        self._accident_edges.pop(edge_id, None)
 
     # ── Internal ──────────────────────────────────────────────────────────────
 
@@ -325,11 +369,26 @@ class TrafficEnv:
             "step": self._step,
             "global_reward": compute_global_reward(pressures),
             "pressures": pressures,
-            "avg_speed": float(np.mean(speeds)) * 3.6,       # m/s → km/h
+            "avg_speed": float(np.mean(speeds)) * 3.6,
             "avg_waiting_time": float(np.mean(waits)),
             "throughput": traci.simulation.getArrivedNumber(),
             "n_vehicles": len(vehicles),
+            "edge_speeds": self._read_edge_speeds(),
+            "accident_edges": dict(self._accident_edges),
         }
+
+    def _read_edge_speeds(self) -> dict[str, float]:
+        """Tính avg speed (km/h) trên từng edge — dùng cho heatmap."""
+        edge_speeds = {}
+        try:
+            for edge_id in traci.edge.getIDList():
+                if edge_id.startswith(":"):  # bỏ internal junction edges
+                    continue
+                speed = traci.edge.getLastStepMeanSpeed(edge_id) * 3.6  # m/s → km/h
+                edge_speeds[edge_id] = round(speed, 1)
+        except Exception:
+            pass
+        return edge_speeds
 
     @staticmethod
     def _sample_route() -> str:

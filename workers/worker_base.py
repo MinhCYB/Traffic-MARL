@@ -81,8 +81,10 @@ class WorkerBase(ABC):
                     if cmd == "reset":
                         break
                     elif cmd and cmd.startswith("inject_accident"):
-                        edge_id = cmd.split(":")[1] if ":" in cmd else "SRC1_N02"
-                        self.env.inject_accident(edge_id)
+                        parts      = cmd.split(":")
+                        edge_id    = parts[1] if len(parts) > 1 else "SRC1_N02"
+                        block_mode = parts[2] if len(parts) > 2 else "1"
+                        self.env.inject_accident(edge_id, block_mode)
 
                     obs = next_obs
 
@@ -131,6 +133,8 @@ class WorkerBase(ABC):
             "timestamp":      time.time(),
             "intersections":  intersections,
             "vehicles":       self._read_vehicles(),
+            "edge_speeds":    info.get("edge_speeds", {}),
+            "accident_edges": info.get("accident_edges", {}),
             "metrics": {
                 "avg_speed":        round(info.get("avg_speed", 0), 2),
                 "avg_waiting_time": round(info.get("avg_waiting_time", 0), 2),
@@ -175,10 +179,8 @@ class WorkerBase(ABC):
                     })
                 except Exception:
                     continue
-            # print(f"[{self.model_name}] vehicles count: {len(vehicles)}")
             return vehicles
-        except Exception as e:
-            # print(f"[{self.model_name}] vehicle error: {e}")
+        except Exception:
             return []
 
     def _post(self, payload: dict):

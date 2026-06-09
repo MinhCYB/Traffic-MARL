@@ -39,9 +39,11 @@ class WorkerPayload(BaseModel):
     timestamp:          float
     intersections:      list[IntersectionData]
     metrics:            MetricsData
-    vehicles:           Optional[list[VehicleData]] = None
-    attention_weights:  Optional[list[list[float]]] = None
-    event:              Optional[str] = None
+    vehicles:           Optional[list[VehicleData]]    = None
+    edge_speeds:        Optional[dict[str, float]]     = None
+    accident_edges:     Optional[dict[str, str]]       = None
+    attention_weights:  Optional[list[list[float]]]    = None
+    event:              Optional[str]                  = None
 
 
 class CommandPayload(BaseModel):

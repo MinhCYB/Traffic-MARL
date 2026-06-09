@@ -103,12 +103,13 @@ class TrafficEnv:
         self._connected = False
         self._accident_edges: dict[str, str] = {}  # edge_id -> block_mode
 
-    def reset(self, route_type: str | None = None) -> dict:
+    def reset(self, route_type: str | None = None, volume_scale: float = 1.0) -> dict:
         """
         Khởi động / restart SUMO, trả về initial states.
 
         Args:
-            route_type: "peak" | "weekend" | "night" | None (random theo weight)
+            route_type  : "peak" | "weekend" | "night" | None (random theo weight)
+            volume_scale: 0.5 = thưa, 1.0 = bình thường, 1.8 = đông
 
         Returns:
             {"states": dict, "node_features": np.ndarray}
@@ -119,7 +120,13 @@ class TrafficEnv:
 
         route_type = route_type or self._sample_route()
         route_files = _get_route_files(self.topology)
-        route_file  = str(route_files[route_type])
+        base_route  = str(route_files[route_type])
+
+        # Scale volume nếu cần
+        if volume_scale != 1.0:
+            route_file = self._scale_route_file(base_route, volume_scale)
+        else:
+            route_file = base_route
 
         sumo_bin = "sumo-gui" if self.use_gui else "sumo"
         sumo_cmd = [
@@ -355,8 +362,33 @@ class TrafficEnv:
     @staticmethod
     def _sample_route() -> str:
         r = random.random()
-        if r < 0.6:
-            return "peak"
-        elif r < 0.9:
-            return "weekend"
+        if r < 0.6:   return "peak"
+        elif r < 0.9: return "weekend"
         return "night"
+
+    @staticmethod
+    def _scale_route_file(base_path: str, scale: float) -> str:
+        """
+        Tạo route file tạm với volume scale.
+        Nhân tất cả attribute 'number' trong <flow> tags theo scale.
+        Trả về path file tạm.
+        """
+        import re, tempfile, os
+        with open(base_path, "r", encoding="utf-8") as f:
+            content = f.read()
+
+        def replace_number(m):
+            orig = int(m.group(1))
+            scaled = max(1, round(orig * scale))
+            return f'number="{scaled}"'
+
+        scaled_content = re.sub(r'number="(\d+)"', replace_number, content)
+
+        tmp = tempfile.NamedTemporaryFile(
+            mode="w", suffix=".rou.xml",
+            delete=False, encoding="utf-8",
+            prefix="scaled_route_"
+        )
+        tmp.write(scaled_content)
+        tmp.close()
+        return tmp.name

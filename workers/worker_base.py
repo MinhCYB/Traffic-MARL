@@ -60,11 +60,11 @@ class WorkerBase(ABC):
     def run(self):
         """Main loop — chạy đến khi nhận lệnh stop."""
         print(f"[{self.model_name}] Worker started, port={self.port}")
-        self._wait_for_start()
+        route_type, volume = self._wait_for_start()
 
         while True:
             try:
-                obs  = self.env.reset()
+                obs  = self.env.reset(route_type=route_type, volume_scale=volume)
                 done = False
                 self._step = 0
 
@@ -76,9 +76,14 @@ class WorkerBase(ABC):
                     payload = self._build_payload(next_obs, rewards, info)
                     self._post(payload)
 
-                    # Kiểm tra lệnh từ server
                     cmd = self._poll_command()
-                    if cmd == "reset":
+                    if cmd and cmd.startswith("reset"):
+                        break
+                    elif cmd and cmd.startswith("start"):
+                        # Restart với config mới
+                        parts      = cmd.split(":")
+                        route_type = parts[1] if len(parts) > 1 else None
+                        volume     = float(parts[2]) if len(parts) > 2 else 1.0
                         break
                     elif cmd and cmd.startswith("inject_accident"):
                         parts      = cmd.split(":")
@@ -88,7 +93,6 @@ class WorkerBase(ABC):
 
                     obs = next_obs
 
-                # Báo server episode kết thúc
                 self._post({"mode": self.model_name, "event": "episode_done", "step": self._step})
 
             except Exception as e:
@@ -100,8 +104,7 @@ class WorkerBase(ABC):
                 import time
                 time.sleep(2)
 
-            # Chờ lệnh start cho episode mới
-            self._wait_for_start()
+            route_type, volume = self._wait_for_start()
 
     # ── Helpers ───────────────────────────────────────────────────────────────
 
@@ -208,14 +211,17 @@ class WorkerBase(ABC):
             pass
         return None
 
-    def _wait_for_start(self):
-        """Block cho đến khi nhận lệnh start từ server."""
+    def _wait_for_start(self) -> tuple[str | None, float]:
+        """Block cho đến khi nhận lệnh start. Trả về (route_type, volume_scale)."""
         print(f"[{self.model_name}] Waiting for start command...")
         while True:
             cmd = self._poll_command()
-            if cmd == "start":
-                print(f"[{self.model_name}] Start received.")
-                return
+            if cmd and cmd.startswith("start"):
+                parts      = cmd.split(":")
+                route_type = parts[1] if len(parts) > 1 and parts[1] else None
+                volume     = float(parts[2]) if len(parts) > 2 else 1.0
+                print(f"[{self.model_name}] Start received — route={route_type}, volume={volume}x")
+                return route_type, volume
             time.sleep(0.5)
 
     def close(self):

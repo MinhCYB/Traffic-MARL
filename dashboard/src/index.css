@@ -72,6 +72,26 @@ body {
 .ctrl-btn--accident { background: var(--red);   color: white; }
 .ctrl-btn--reset    { background: var(--bg); color: var(--text); border: 1px solid var(--border2); }
 
+/* ── Start dropdown ── */
+.start-dropdown { position: relative; }
+.start-menu {
+  position: absolute; top: calc(100% + 4px); left: 0;
+  background: white; border: 1px solid var(--border2);
+  border-radius: 8px; padding: 8px;
+  box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+  z-index: 50; min-width: 180px;
+}
+.start-menu-section { display: flex; flex-direction: column; gap: 2px; }
+.start-menu-label   { font-size: 10px; font-weight: 700; color: var(--muted); padding: 2px 4px 4px; text-transform: uppercase; letter-spacing: 0.5px; }
+.start-menu-divider { height: 1px; background: var(--border); margin: 6px 0; }
+.start-option {
+  text-align: left; padding: 6px 10px; border: none; background: none;
+  font-family: var(--font-ui); font-size: 12px; font-weight: 500;
+  color: var(--text); cursor: pointer; border-radius: 5px; transition: background 0.1s;
+}
+.start-option:hover        { background: var(--bg); }
+.start-option--active      { background: color-mix(in srgb, var(--accent) 10%, transparent); color: var(--accent); font-weight: 700; }
+
 /* ── Accident dropdown ── */
 .accident-dropdown { position: relative; }
 .accident-menu {
@@ -88,6 +108,11 @@ body {
   color: var(--text); cursor: pointer; border-radius: 5px;
 }
 .accident-option:hover { background: var(--bg); }
+
+/* ── Realtime charts ── */
+.realtime-charts {
+  display: grid; grid-template-columns: repeat(2, 1fr); gap: 14px;
+}
 
 /* ── Model toggles ── */
 .model-toggles { display: flex; gap: 6px; }

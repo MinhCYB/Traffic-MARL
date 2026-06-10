@@ -1,15 +1,14 @@
 // dashboard/src/hooks/useWebSocket.js
 import { useEffect, useRef, useState, useCallback } from "react";
 
-const WS_URL = import.meta.env.VITE_WS_URL || "ws://localhost:8000/ws";
+const WS_URL  = import.meta.env.VITE_WS_URL  || "ws://localhost:8000/ws";
 const API_URL = import.meta.env.VITE_API_URL || "http://localhost:8000";
-const PANELS_KEYS = ["fixed_time", "idqn", "gat_marl"]; // for logging only
 
 export function useWebSocket() {
-  const [data, setData] = useState(null);
-  const [status, setStatus] = useState({ gat_marl: "reconnecting", idqn: "reconnecting", fixed_time: "reconnecting" });
+  const [data,      setData]      = useState(null);
+  const [status,    setStatus]    = useState({ gat_marl: "reconnecting", idqn: "reconnecting", fixed_time: "reconnecting" });
   const [connected, setConnected] = useState(false);
-  const wsRef = useRef(null);
+  const wsRef        = useRef(null);
   const reconnectRef = useRef(null);
 
   const connect = useCallback(() => {
@@ -25,14 +24,7 @@ export function useWebSocket() {
 
     ws.onmessage = (e) => {
       try {
-        console.log("[WS] raw message received, size:", e.data.length);
         const parsed = JSON.parse(e.data);
-        console.log("[WS] parsed — workers keys:", Object.keys(parsed.workers || {}), "| status:", parsed.status);
-        PANELS_KEYS.forEach(key => {
-          const w = parsed.workers?.[key];
-          if (w) console.log(`[WS]   ${key} step=${w.step} vehicles_completed=${w.metrics?.vehicles_completed} total_waiting_time=${w.metrics?.total_waiting_time}`);
-          else   console.log(`[WS]   ${key} — missing`);
-        });
         setData(parsed.workers || null);
         setStatus(parsed.status || {});
       } catch (err) {

@@ -225,15 +225,10 @@ export default function LiveDemo() {
 
   useEffect(() => {
     if (!data) return;
-    console.log("[LiveDemo] useEffect triggered, data keys:", Object.keys(data));
 
     // Lấy step từ bất kỳ worker nào đang connected
     const anyStep = PANELS.reduce((s, p) => data?.[p.key]?.step ?? s, 0);
-    console.log(`[LiveDemo] anyStep=${anyStep} lastStep=${lastStepRef.current}`);
-    if (!anyStep || anyStep <= lastStepRef.current) {
-      console.log("[LiveDemo] skipped — step không tăng");
-      return;
-    }
+    if (!anyStep || anyStep <= lastStepRef.current) return;
     lastStepRef.current = anyStep;
 
     const point = { step: anyStep };
@@ -247,9 +242,6 @@ export default function LiveDemo() {
       const tw = data?.[p.key]?.metrics?.total_waiting_time ?? 0;
       totalWaitRef.current[p.key] = (totalWaitRef.current[p.key] ?? 0) + tw;
     });
-
-    console.log("[LiveDemo] point:", point);
-    console.log("[LiveDemo] cumulativeRef:", { ...cumulativeRef.current });
 
     // setState chỉ để trigger re-render UI — giá trị đã tính xong ở trên
     setTotalWait({ ...totalWaitRef.current });

@@ -10,7 +10,8 @@ import asyncio
 import time
 from training.config import SYNC_TIMEOUT
 
-WORKER_MODES = ["gat_marl", "idqn", "fixed_time"]
+# WORKER_MODES = ["gat_marl", "idqn", "fixed_time"]
+WORKER_MODES = ["gat_marl", "fixed_time"]
 
 # Worker được coi là "active" nếu có data trong vòng ACTIVE_TTL giây
 ACTIVE_TTL = 10.0

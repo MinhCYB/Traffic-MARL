@@ -16,11 +16,14 @@ class IntersectionData(BaseModel):
 
 
 class MetricsData(BaseModel):
-    avg_speed:        float
-    avg_waiting_time: float
-    throughput:       int
-    n_vehicles:       int
-    global_reward:    float
+    avg_speed:          float
+    avg_waiting_time:   float
+    total_waiting_time: float = 0.0
+    throughput:         int
+    n_vehicles:         int
+    vehicles_spawned:   int   = 0
+    vehicles_completed: int   = 0
+    global_reward:      float
 
 
 class VehicleData(BaseModel):

@@ -122,7 +122,7 @@ function AccidentDropdown({ onInject }) {
 }
 
 // ── Realtime Charts ───────────────────────────────────────────────────────────
-function RealtimeCharts({ history, totalCompleted, totalWait }) {
+function RealtimeCharts({ history, totalWait }) {
   if (!history.length) return null;
 
   const waitBarData = PANELS.map(p => ({
@@ -214,54 +214,54 @@ function Panel({ cfg, data, status }) {
 // ── Main ──────────────────────────────────────────────────────────────────────
 export default function LiveDemo() {
   const { data, status, connected, sendCommand } = useWebSocket();
-  const [visible, setVisible] = useState({ fixed_time:true, idqn:true, gat_marl:true });
-  const [history,        setHistory]        = useState([]);
-  const [totalCompleted, setTotalCompleted] = useState(ZERO_TOTALS());
-  const [totalWait,      setTotalWait]      = useState(ZERO_TOTALS());
+  const [visible,   setVisible]   = useState({ fixed_time:true, idqn:true, gat_marl:true });
+  const [history,   setHistory]   = useState([]);
+  const [totalWait, setTotalWait] = useState(ZERO_TOTALS());
 
-  // useRef để track step đã xử lý — tránh duplicate khi React strict mode re-render
-  const lastStepRef = useRef(0);
+  // Refs để track state synchronously — tránh stale closure trong setState
+  const lastStepRef    = useRef(0);
+  const cumulativeRef  = useRef(ZERO_TOTALS()); // xe hoàn thành cộng dồn
+  const totalWaitRef   = useRef(ZERO_TOTALS()); // tổng chờ cộng dồn
 
   useEffect(() => {
     if (!data) return;
+    console.log("[LiveDemo] useEffect triggered, data keys:", Object.keys(data));
 
     // Lấy step từ bất kỳ worker nào đang connected
     const anyStep = PANELS.reduce((s, p) => data?.[p.key]?.step ?? s, 0);
-    if (!anyStep || anyStep <= lastStepRef.current) return;
+    console.log(`[LiveDemo] anyStep=${anyStep} lastStep=${lastStepRef.current}`);
+    if (!anyStep || anyStep <= lastStepRef.current) {
+      console.log("[LiveDemo] skipped — step không tăng");
+      return;
+    }
     lastStepRef.current = anyStep;
 
     const point = { step: anyStep };
 
-    // Cập nhật totals (dùng functional update để luôn có giá trị mới nhất)
-    setTotalCompleted(prev => {
-      const next = { ...prev };
-      PANELS.forEach(p => {
-        const completed = data?.[p.key]?.metrics?.vehicles_completed ?? 0;
-        next[p.key] = (prev[p.key] ?? 0) + completed;
-        point[`${p.key}_cum`] = next[p.key]; // snapshot tại step này
-      });
-      return next;
+    // Cập nhật cumulative bằng ref — synchronous, không phụ thuộc setState callback
+    PANELS.forEach(p => {
+      const completed = data?.[p.key]?.metrics?.vehicles_completed ?? 0;
+      cumulativeRef.current[p.key] = (cumulativeRef.current[p.key] ?? 0) + completed;
+      point[`${p.key}_cum`] = cumulativeRef.current[p.key];
+
+      const tw = data?.[p.key]?.metrics?.total_waiting_time ?? 0;
+      totalWaitRef.current[p.key] = (totalWaitRef.current[p.key] ?? 0) + tw;
     });
 
-    setTotalWait(prev => {
-      const next = { ...prev };
-      PANELS.forEach(p => {
-        // total_waiting_time = tổng waiting của TẤT CẢ xe hiện tại (snapshot, không phải delta)
-        // → cộng dồn qua các step để ra tổng effort chờ đợi của mạng
-        const tw = data?.[p.key]?.metrics?.total_waiting_time ?? 0;
-        next[p.key] = (prev[p.key] ?? 0) + tw;
-      });
-      return next;
-    });
+    console.log("[LiveDemo] point:", point);
+    console.log("[LiveDemo] cumulativeRef:", { ...cumulativeRef.current });
 
+    // setState chỉ để trigger re-render UI — giá trị đã tính xong ở trên
+    setTotalWait({ ...totalWaitRef.current });
     setHistory(prev => [...prev, point].slice(-MAX_CHART_POINTS));
 
   }, [data]);
 
   const doReset = () => {
-    lastStepRef.current = 0;
+    lastStepRef.current       = 0;
+    cumulativeRef.current     = ZERO_TOTALS();
+    totalWaitRef.current      = ZERO_TOTALS();
     setHistory([]);
-    setTotalCompleted(ZERO_TOTALS());
     setTotalWait(ZERO_TOTALS());
   };
 
@@ -311,7 +311,6 @@ export default function LiveDemo() {
 
       <RealtimeCharts
         history={history}
-        totalCompleted={totalCompleted}
         totalWait={totalWait}
       />
     </div>

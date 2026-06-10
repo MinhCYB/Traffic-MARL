@@ -184,7 +184,7 @@ class IDQNAgent(BaseAgent):
 
     def load(self, path: str):
         """Load checkpoint — dùng map_location để tương thích CPU/GPU."""
-        ckpt = torch.load(path, map_location=self.device)
+        ckpt = torch.load(path, map_location=self.device, weights_only=True)
         self.online_net.load_state_dict(ckpt["online_net"])
         self.target_net.load_state_dict(ckpt["target_net"])
         self.optimizer.load_state_dict(ckpt["optimizer"])

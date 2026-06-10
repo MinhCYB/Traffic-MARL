@@ -50,3 +50,4 @@ dashboard/.vite/
 .DS_Store
 Thumbs.db
 repomix*
+*.txt

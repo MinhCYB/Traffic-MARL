@@ -4,8 +4,8 @@ import { useWebSocket } from "../hooks/useWebSocket";
 import { MetricsPanel } from "../components/MetricsPanel";
 import { TrafficMap }   from "../components/TrafficMap";
 import {
-  LineChart, Line, XAxis, YAxis, CartesianGrid,
-  Tooltip, ResponsiveContainer, Legend,
+  LineChart, Line, BarChart, Bar, XAxis, YAxis, CartesianGrid,
+  Tooltip, ResponsiveContainer, Legend, Cell,
 } from "recharts";
 
 const PANELS = [
@@ -120,37 +120,54 @@ function AccidentDropdown({ onInject }) {
   );
 }
 
-// ── Realtime Chart — Throughput In vs Out ────────────────────────────────────
-function RealtimeCharts({ history }) {
+// ── Realtime Charts ───────────────────────────────────────────────────────────
+function RealtimeCharts({ history, latestData }) {
   if (!history.length) return null;
+
+  // Bar chart data — tổng waiting time tại step hiện tại
+  const barData = PANELS.map(p => ({
+    name:  p.label,
+    value: latestData?.[p.key]?.metrics?.total_waiting_time ?? 0,
+    color: p.color,
+  }));
+
   return (
     <div className="realtime-charts">
-      {[
-        { key: "vehicles_spawned",   label: "Xe vào mạng",         dash: "5 5"   },
-        { key: "vehicles_completed", label: "Xe hoàn thành hành trình", dash: "0" },
-      ].map(({ key, label, dash }) => (
-        <div key={key} className="chart-card">
-          <div className="chart-card-title">{label} (xe/step)</div>
-          <ResponsiveContainer width="100%" height={160}>
-            <LineChart data={history} margin={{ top:4, right:8, bottom:0, left:-16 }}>
-              <CartesianGrid strokeDasharray="3 3" stroke="#e8e6df"/>
-              <XAxis dataKey="step" tick={{ fontSize:10, fill:"#888780" }} interval="preserveStartEnd"/>
-              <YAxis tick={{ fontSize:10, fill:"#888780" }} width={40}/>
-              <Tooltip
-                contentStyle={{ background:"white", border:"1px solid #e2e0d8", borderRadius:6, fontSize:11 }}
-                labelStyle={{ color:"#888780" }}/>
-              <Legend wrapperStyle={{ fontSize:11 }}/>
-              {PANELS.map(p => (
-                <Line key={p.key} type="monotone"
-                  dataKey={`${p.key}_${key}`} name={p.label}
-                  stroke={p.color} dot={false} strokeWidth={1.5}
-                  strokeDasharray={dash}
-                  isAnimationActive={false}/>
-              ))}
-            </LineChart>
-          </ResponsiveContainer>
-        </div>
-      ))}
+      {/* Line chart — cumulative throughput */}
+      <div className="chart-card">
+        <div className="chart-card-title">Tổng xe hoàn thành (cộng dồn)</div>
+        <ResponsiveContainer width="100%" height={160}>
+          <LineChart data={history} margin={{ top:4, right:8, bottom:0, left:-16 }}>
+            <CartesianGrid strokeDasharray="3 3" stroke="#e8e6df"/>
+            <XAxis dataKey="step" tick={{ fontSize:10, fill:"#888780" }} interval="preserveStartEnd"/>
+            <YAxis tick={{ fontSize:10, fill:"#888780" }} width={40}/>
+            <Tooltip contentStyle={{ background:"white", border:"1px solid #e2e0d8", borderRadius:6, fontSize:11 }} labelStyle={{ color:"#888780" }}/>
+            <Legend wrapperStyle={{ fontSize:11 }}/>
+            {PANELS.map(p => (
+              <Line key={p.key} type="monotone"
+                dataKey={`${p.key}_cum`} name={p.label}
+                stroke={p.color} dot={false} strokeWidth={2}
+                isAnimationActive={false}/>
+            ))}
+          </LineChart>
+        </ResponsiveContainer>
+      </div>
+
+      {/* Bar chart — tổng waiting time */}
+      <div className="chart-card">
+        <div className="chart-card-title">Tổng thời gian chờ toàn mạng (giây)</div>
+        <ResponsiveContainer width="100%" height={160}>
+          <BarChart data={barData} margin={{ top:4, right:8, bottom:0, left:-16 }}>
+            <CartesianGrid strokeDasharray="3 3" stroke="#e8e6df"/>
+            <XAxis dataKey="name" tick={{ fontSize:11, fill:"#888780" }}/>
+            <YAxis tick={{ fontSize:10, fill:"#888780" }} width={50}/>
+            <Tooltip contentStyle={{ background:"white", border:"1px solid #e2e0d8", borderRadius:6, fontSize:11 }} labelStyle={{ color:"#888780" }}/>
+            <Bar dataKey="value" name="Tổng chờ (s)" radius={[4,4,0,0]}>
+              {barData.map((entry, i) => <Cell key={i} fill={entry.color}/>)}
+            </Bar>
+          </BarChart>
+        </ResponsiveContainer>
+      </div>
     </div>
   );
 }
@@ -191,11 +208,12 @@ export default function LiveDemo() {
     const anyStep = data?.fixed_time?.step ?? data?.gat_marl?.step ?? 0;
     if (!anyStep) return;
     setHistory(prev => {
+      const last  = prev[prev.length - 1] || {};
       const point = { step: anyStep };
       PANELS.forEach(p => {
-        const m = data?.[p.key]?.metrics;
-        point[`${p.key}_vehicles_spawned`]   = m?.vehicles_spawned   ?? null;
-        point[`${p.key}_vehicles_completed`] = m?.vehicles_completed ?? null;
+        const m    = data?.[p.key]?.metrics;
+        const prev_cum = last[`${p.key}_cum`] ?? 0;
+        point[`${p.key}_cum`] = prev_cum + (m?.vehicles_completed ?? 0);
       });
       const next = [...prev, point];
       return next.slice(-MAX_CHART_POINTS);
@@ -249,7 +267,7 @@ export default function LiveDemo() {
         </div>
       )}
 
-      <RealtimeCharts history={history}/>
+      <RealtimeCharts history={history} latestData={data}/>
     </div>
   );
 }

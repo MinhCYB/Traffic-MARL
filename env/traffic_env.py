@@ -178,10 +178,14 @@ class TrafficEnv:
             self._apply_action(nid, actions.get(nid, 0))
 
         # Advance simulation delta_time steps
+        departed_count  = 0
+        arrived_count   = 0
         for _ in range(self.delta_time):
             traci.simulationStep()
             self._step += 1
             self._update_timers()
+            departed_count += traci.simulation.getDepartedNumber()
+            arrived_count  += traci.simulation.getArrivedNumber()
 
         # Đọc detector data
         queue_data, density_data = self._read_detectors()
@@ -208,7 +212,7 @@ class TrafficEnv:
 
         done = self._step >= SIM_END
 
-        info = self._get_info(pressures)
+        info = self._get_info(pressures, departed_count, arrived_count)
 
         obs = {"states": states, "node_features": node_features}
         return obs, rewards, done, info
@@ -328,11 +332,12 @@ class TrafficEnv:
         )
         return {"states": states, "node_features": build_node_features(states)}
 
-    def _get_info(self, pressures: dict[str, float]) -> dict:
+    def _get_info(self, pressures: dict[str, float], departed: int = 0, arrived: int = 0) -> dict:
         """Metrics cho logging — không dùng để train."""
         vehicles = traci.vehicle.getIDList()
-        speeds = [traci.vehicle.getSpeed(v) for v in vehicles] if vehicles else [0.0]
-        waits  = [traci.vehicle.getWaitingTime(v) for v in vehicles] if vehicles else [0.0]
+        speeds   = [traci.vehicle.getSpeed(v) for v in vehicles] if vehicles else [0.0]
+        waits    = [traci.vehicle.getWaitingTime(v) for v in vehicles] if vehicles else [0.0]
+        total_wait = sum(waits)
 
         return {
             "step": self._step,
@@ -340,9 +345,10 @@ class TrafficEnv:
             "pressures": pressures,
             "avg_speed": float(np.mean(speeds)) * 3.6,
             "avg_waiting_time": float(np.mean(waits)),
-            "throughput": traci.simulation.getArrivedNumber(),
-            "vehicles_spawned":   traci.simulation.getDepartedNumber(),
-            "vehicles_completed": traci.simulation.getArrivedNumber(),
+            "total_waiting_time": round(total_wait, 1),
+            "throughput":         arrived,
+            "vehicles_spawned":   departed,
+            "vehicles_completed": arrived,
             "n_vehicles": len(vehicles),
             "edge_speeds": self._read_edge_speeds(),
             "accident_edges": dict(self._accident_edges),

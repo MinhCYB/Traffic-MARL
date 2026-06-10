@@ -121,65 +121,142 @@ function AccidentDropdown({ onInject }) {
   );
 }
 
-// ── Realtime Charts ───────────────────────────────────────────────────────────
-function RealtimeCharts({ history, totalWait }) {
+// ── Rank Table ───────────────────────────────────────────────────────────────
+function RankTable({ history, totalWait, speedHistory }) {
   if (!history.length) return null;
 
-  const waitBarData = PANELS.map(p => ({
-    name:  p.label,
-    value: Math.round(totalWait[p.key] ?? 0),
-    color: p.color,
+  const last = history[history.length - 1];
+
+  // Score: normalize mỗi metric rồi tổng hợp (higher = better)
+  const raw = PANELS.map(p => ({
+    ...p,
+    completed: last?.[`${p.key}_cum`]          ?? 0,
+    wait:      totalWait[p.key]                 ?? 0,  // lower better
+    speed:     speedHistory[speedHistory.length - 1]?.[`${p.key}_speed`] ?? 0,
+  }));
+
+  const maxCompleted = Math.max(...raw.map(r => r.completed)) || 1;
+  const maxWait      = Math.max(...raw.map(r => r.wait))      || 1;
+  const maxSpeed     = Math.max(...raw.map(r => r.speed))     || 1;
+
+  const ranked = raw.map(r => ({
+    ...r,
+    score: Math.round(
+      (r.completed / maxCompleted) * 40 +       // throughput 40%
+      (1 - r.wait / maxWait)       * 40 +       // ít chờ 40%
+      (r.speed / maxSpeed)         * 20          // tốc độ 20%
+    ),
+  })).sort((a, b) => b.score - a.score);
+
+  const medals = ["🥇", "🥈", "🥉"];
+
+  return (
+    <div className="chart-card rank-table-card">
+      <div className="chart-card-title">Bảng xếp hạng</div>
+      <table className="rank-table">
+        <thead>
+          <tr>
+            <th>#</th>
+            <th>Model</th>
+            <th title="Xe đã qua mạng">🚗 Xe HT</th>
+            <th title="Tổng thời gian chờ tích lũy">⏱ Chờ (k s)</th>
+            <th title="Tốc độ trung bình hiện tại">⚡ Tốc độ</th>
+            <th>Score</th>
+          </tr>
+        </thead>
+        <tbody>
+          {ranked.map((r, i) => (
+            <tr key={r.key} style={{ "--row-color": r.color }}>
+              <td className="rank-medal">{medals[i]}</td>
+              <td className="rank-name">
+                <span className="rank-dot" style={{ background: r.color }}/>
+                {r.label}
+              </td>
+              <td>{r.completed}</td>
+              <td>{(r.wait / 1000).toFixed(1)}</td>
+              <td>{r.speed > 0 ? `${r.speed} km/h` : "—"}</td>
+              <td className="rank-score" style={{ color: r.color }}>{r.score}</td>
+            </tr>
+          ))}
+        </tbody>
+      </table>
+    </div>
+  );
+}
+
+// ── Realtime Charts ───────────────────────────────────────────────────────────
+function RealtimeCharts({ history, totalWait, speedHistory }) {
+  if (!history.length) return null;
+
+  // Bar chart gộp: xe hoàn thành + tổng chờ cạnh nhau theo model
+  const summaryData = PANELS.map(p => ({
+    name:      p.label,
+    completed: history[history.length - 1]?.[`${p.key}_cum`] ?? 0,
+    wait:      Math.round((totalWait[p.key] ?? 0) / 1000 * 10) / 10, // đổi sang nghìn giây
+    color:     p.color,
   }));
 
   return (
     <div className="realtime-charts">
 
-      {/* Line chart — xe hoàn thành tích lũy */}
+      {/* Bảng xếp hạng */}
+      <RankTable history={history} totalWait={totalWait} speedHistory={speedHistory}/>
+
+      {/* Bar chart gộp — xe hoàn thành + tổng chờ */}
       <div className="chart-card">
         <div className="chart-card-title">
-          Tổng xe hoàn thành (cộng dồn)
-          <span style={{ fontSize:10, color:"#888780", fontWeight:400, marginLeft:6 }}>— cao hơn = thông thoáng hơn</span>
+          So sánh tổng kết
+          <span style={{ fontSize:10, color:"#888780", fontWeight:400, marginLeft:6 }}>
+            xe hoàn thành (cao hơn tốt hơn) · tổng chờ nghìn giây (thấp hơn tốt hơn)
+          </span>
         </div>
         <ResponsiveContainer width="100%" height={160}>
-          <LineChart data={history} margin={{ top:4, right:8, bottom:0, left:-16 }}>
-            <CartesianGrid strokeDasharray="3 3" stroke="#e8e6df"/>
-            <XAxis dataKey="step" tick={{ fontSize:10, fill:"#888780" }} interval="preserveStartEnd"/>
-            <YAxis tick={{ fontSize:10, fill:"#888780" }} width={40}/>
+          <BarChart data={summaryData} margin={{ top:4, right:48, bottom:0, left:-8 }} barCategoryGap="28%" barGap={3}>
+            <CartesianGrid strokeDasharray="3 3" stroke="#e8e6df" vertical={false}/>
+            <XAxis dataKey="name" tick={{ fontSize:11, fill:"#888780" }} axisLine={false} tickLine={false}/>
+            <YAxis yAxisId="left"  orientation="left"  tick={{ fontSize:10, fill:"#888780" }} width={36}
+              label={{ value:"xe", angle:-90, position:"insideLeft", offset:14, style:{ fontSize:9, fill:"#aaa9a3" } }}/>
+            <YAxis yAxisId="right" orientation="right" tick={{ fontSize:10, fill:"#888780" }} width={36}
+              tickFormatter={v => v >= 1 ? `${v}k` : v}
+              label={{ value:"k s", angle:90, position:"insideRight", offset:14, style:{ fontSize:9, fill:"#aaa9a3" } }}/>
             <Tooltip
               contentStyle={{ background:"white", border:"1px solid #e2e0d8", borderRadius:6, fontSize:11 }}
-              labelStyle={{ color:"#888780" }}
-              formatter={(v, name) => [`${v} xe`, name]}/>
+              formatter={(v, name) => name === "Xe hoàn thành" ? [`${v} xe`, name] : [`${v}k s`, name]}/>
             <Legend wrapperStyle={{ fontSize:11 }}/>
-            {PANELS.map(p => (
-              <Line key={p.key} type="monotone"
-                dataKey={`${p.key}_cum`} name={p.label}
-                stroke={p.color} dot={false} strokeWidth={2}
-                isAnimationActive={false}/>
-            ))}
-          </LineChart>
+            <Bar yAxisId="left"  dataKey="completed" name="Xe hoàn thành" radius={[3,3,0,0]} maxBarSize={48}>
+              {summaryData.map((e, i) => <Cell key={i} fill={e.color} fillOpacity={0.9}/>)}
+            </Bar>
+            <Bar yAxisId="right" dataKey="wait" name="Tổng chờ (k s)" radius={[3,3,0,0]} maxBarSize={48}>
+              {summaryData.map((e, i) => <Cell key={i} fill={e.color} fillOpacity={0.35}/>)}
+            </Bar>
+          </BarChart>
         </ResponsiveContainer>
       </div>
 
-      {/* Bar chart — tổng thời gian chờ tích lũy */}
+      {/* Line chart — tốc độ TB realtime, thể hiện recovery sau tai nạn */}
       <div className="chart-card">
         <div className="chart-card-title">
-          Tổng thời gian chờ toàn mạng (cộng dồn, giây)
-          <span style={{ fontSize:10, color:"#888780", fontWeight:400, marginLeft:6 }}>— thấp hơn = tốt hơn</span>
+          Tốc độ trung bình (km/h) theo thời gian
+          <span style={{ fontSize:10, color:"#888780", fontWeight:400, marginLeft:6 }}>— recovery sau tai nạn</span>
         </div>
         <ResponsiveContainer width="100%" height={160}>
-          <BarChart data={waitBarData} margin={{ top:4, right:8, bottom:0, left:-8 }} barCategoryGap="32%">
-            <CartesianGrid strokeDasharray="3 3" stroke="#e8e6df" vertical={false}/>
-            <XAxis dataKey="name" tick={{ fontSize:11, fill:"#888780" }} axisLine={false} tickLine={false}/>
-            <YAxis
-              tick={{ fontSize:10, fill:"#888780" }} width={55}
-              tickFormatter={v => v >= 1000 ? `${(v/1000).toFixed(1)}k` : v}/>
+          <LineChart data={speedHistory} margin={{ top:4, right:8, bottom:0, left:-16 }}>
+            <CartesianGrid strokeDasharray="3 3" stroke="#e8e6df"/>
+            <XAxis dataKey="step" tick={{ fontSize:10, fill:"#888780" }} interval="preserveStartEnd"/>
+            <YAxis tick={{ fontSize:10, fill:"#888780" }} width={40} domain={[0, "auto"]}/>
             <Tooltip
               contentStyle={{ background:"white", border:"1px solid #e2e0d8", borderRadius:6, fontSize:11 }}
-              formatter={(v, _n, props) => [`${v.toLocaleString()} s`, props.payload.name]}/>
-            <Bar dataKey="value" name="Tổng chờ (s)" radius={[4,4,0,0]} maxBarSize={80}>
-              {waitBarData.map((entry, i) => <Cell key={i} fill={entry.color} fillOpacity={0.85}/>)}
-            </Bar>
-          </BarChart>
+              labelStyle={{ color:"#888780" }}
+              formatter={(v, name) => [v != null ? `${v} km/h` : "—", name]}/>
+            <Legend wrapperStyle={{ fontSize:11 }}/>
+            {PANELS.map(p => (
+              <Line key={p.key} type="monotone"
+                dataKey={`${p.key}_speed`} name={p.label}
+                stroke={p.color} dot={false} strokeWidth={2}
+                connectNulls={false}
+                isAnimationActive={false}/>
+            ))}
+          </LineChart>
         </ResponsiveContainer>
       </div>
 
@@ -223,6 +300,8 @@ export default function LiveDemo() {
   const cumulativeRef  = useRef(ZERO_TOTALS()); // xe hoàn thành cộng dồn
   const totalWaitRef   = useRef(ZERO_TOTALS()); // tổng chờ cộng dồn
 
+  const [speedHistory, setSpeedHistory] = useState([]); // tốc độ TB realtime
+
   useEffect(() => {
     if (!data) return;
 
@@ -243,9 +322,16 @@ export default function LiveDemo() {
       totalWaitRef.current[p.key] = (totalWaitRef.current[p.key] ?? 0) + tw;
     });
 
+    // Tốc độ TB snapshot — không cộng dồn, lấy giá trị tức thời
+    const speedPoint = { step: anyStep };
+    PANELS.forEach(p => {
+      speedPoint[`${p.key}_speed`] = data?.[p.key]?.metrics?.avg_speed ?? null;
+    });
+
     // setState chỉ để trigger re-render UI — giá trị đã tính xong ở trên
     setTotalWait({ ...totalWaitRef.current });
     setHistory(prev => [...prev, point].slice(-MAX_CHART_POINTS));
+    setSpeedHistory(prev => [...prev, speedPoint].slice(-MAX_CHART_POINTS));
 
   }, [data]);
 
@@ -255,6 +341,7 @@ export default function LiveDemo() {
     totalWaitRef.current      = ZERO_TOTALS();
     setHistory([]);
     setTotalWait(ZERO_TOTALS());
+    setSpeedHistory([]);
   };
 
   const handleStart  = (route, volume) => { doReset(); sendCommand(`start:${route}:${volume}`); };
@@ -304,6 +391,7 @@ export default function LiveDemo() {
       <RealtimeCharts
         history={history}
         totalWait={totalWait}
+        speedHistory={speedHistory}
       />
     </div>
   );

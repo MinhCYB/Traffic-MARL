@@ -113,6 +113,9 @@ body {
 .realtime-charts {
   display: grid; grid-template-columns: repeat(2, 1fr); gap: 14px;
 }
+.realtime-charts .rank-table-card {
+  grid-column: 1 / -1;
+}
 
 /* ── Model toggles ── */
 .model-toggles { display: flex; gap: 6px; }
@@ -215,3 +218,44 @@ body {
   text-align: center; font-size: 13px;
 }
 .placeholder-sections li::before { content: "○  "; color: var(--accent); }
+
+/* ── Rank Table ── */
+.rank-table-card {
+  grid-column: 1 / -1;
+}
+
+.rank-table {
+  width: 100%; border-collapse: collapse; font-size: 12px; margin-top: 4px;
+}
+.rank-table th {
+  text-align: right; padding: 6px 12px;
+  font-size: 10px; font-weight: 700; color: var(--muted);
+  text-transform: uppercase; letter-spacing: 0.4px;
+  border-bottom: 1px solid var(--border);
+}
+.rank-table th:first-child,
+.rank-table th:nth-child(2) { text-align: left; }
+
+.rank-table td {
+  padding: 10px 12px; text-align: right;
+  border-bottom: 1px solid var(--border);
+  font-family: var(--font-mono); font-size: 12px;
+}
+.rank-table tbody tr:last-child td { border-bottom: none; }
+.rank-table tbody tr { transition: background 0.1s; }
+.rank-table tbody tr:hover { background: var(--bg); }
+
+.rank-medal { font-size: 16px; text-align: left !important; width: 32px; }
+.rank-name  {
+  text-align: left !important; font-family: var(--font-ui);
+  font-weight: 700; font-size: 13px;
+  display: flex; align-items: center; gap: 8px;
+}
+.rank-dot {
+  display: inline-block; width: 8px; height: 8px;
+  border-radius: 50%; flex-shrink: 0;
+}
+.rank-score {
+  font-size: 14px; font-weight: 800;
+  font-family: var(--font-ui);
+}

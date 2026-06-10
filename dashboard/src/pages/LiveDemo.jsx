@@ -21,13 +21,15 @@ const ROUTE_OPTIONS = [
 ];
 
 const VOLUME_OPTIONS = [
-  { value: 0.5,  label: "🚗 Thưa"        },
+  { value: 0.5,  label: "🚗 Thưa"         },
   { value: 1.0,  label: "🚗🚗 Bình thường" },
-  { value: 1.8,  label: "🚗🚗🚗 Đông"     },
+  { value: 1.8,  label: "🚗🚗🚗 Đông"      },
 ];
 
-const ACCIDENT_EDGE = "SRC1_N02";
+const ACCIDENT_EDGE    = "SRC1_N02";
 const MAX_CHART_POINTS = 60;
+
+const ZERO_TOTALS = () => ({ fixed_time: 0, idqn: 0, gat_marl: 0 });
 
 function StatusDot({ state }) {
   const c = state === "connected" ? "#1d9e75" : "#ef9f27";
@@ -121,27 +123,36 @@ function AccidentDropdown({ onInject }) {
 }
 
 // ── Realtime Charts ───────────────────────────────────────────────────────────
-function RealtimeCharts({ history, latestData }) {
+function RealtimeCharts({ history, totalCompleted, totalWait }) {
   if (!history.length) return null;
 
-  // Bar chart data — tổng waiting time tại step hiện tại
-  const barData = PANELS.map(p => ({
+  // Data cho bar chart — lấy từ state tổng hợp riêng (không phụ thuộc history slice)
+  const waitBarData = PANELS.map(p => ({
     name:  p.label,
-    value: latestData?.[p.key]?.metrics?.total_waiting_time ?? 0,
+    value: Math.round(totalWait[p.key] ?? 0),
     color: p.color,
   }));
 
   return (
     <div className="realtime-charts">
-      {/* Line chart — cumulative throughput */}
+
+      {/* Line chart — xe hoàn thành tích lũy theo thời gian */}
       <div className="chart-card">
-        <div className="chart-card-title">Tổng xe hoàn thành (cộng dồn)</div>
+        <div className="chart-card-title">
+          Tổng xe hoàn thành (cộng dồn)
+          <span style={{ fontSize:10, color:"#888780", fontWeight:400, marginLeft:6 }}>
+            — cao hơn = thông thoáng hơn
+          </span>
+        </div>
         <ResponsiveContainer width="100%" height={160}>
           <LineChart data={history} margin={{ top:4, right:8, bottom:0, left:-16 }}>
             <CartesianGrid strokeDasharray="3 3" stroke="#e8e6df"/>
             <XAxis dataKey="step" tick={{ fontSize:10, fill:"#888780" }} interval="preserveStartEnd"/>
             <YAxis tick={{ fontSize:10, fill:"#888780" }} width={40}/>
-            <Tooltip contentStyle={{ background:"white", border:"1px solid #e2e0d8", borderRadius:6, fontSize:11 }} labelStyle={{ color:"#888780" }}/>
+            <Tooltip
+              contentStyle={{ background:"white", border:"1px solid #e2e0d8", borderRadius:6, fontSize:11 }}
+              labelStyle={{ color:"#888780" }}
+              formatter={(v, name) => [`${v} xe`, name]}/>
             <Legend wrapperStyle={{ fontSize:11 }}/>
             {PANELS.map(p => (
               <Line key={p.key} type="monotone"
@@ -153,21 +164,31 @@ function RealtimeCharts({ history, latestData }) {
         </ResponsiveContainer>
       </div>
 
-      {/* Bar chart — tổng waiting time */}
+      {/* Bar chart — tổng thời gian chờ tích lũy (state riêng, không bị mất khi history slice) */}
       <div className="chart-card">
-        <div className="chart-card-title">Tổng thời gian chờ toàn mạng (giây)</div>
+        <div className="chart-card-title">
+          Tổng thời gian chờ toàn mạng (cộng dồn, giây)
+          <span style={{ fontSize:10, color:"#888780", fontWeight:400, marginLeft:6 }}>
+            — thấp hơn = tốt hơn
+          </span>
+        </div>
         <ResponsiveContainer width="100%" height={160}>
-          <BarChart data={barData} margin={{ top:4, right:8, bottom:0, left:-16 }}>
-            <CartesianGrid strokeDasharray="3 3" stroke="#e8e6df"/>
-            <XAxis dataKey="name" tick={{ fontSize:11, fill:"#888780" }}/>
-            <YAxis tick={{ fontSize:10, fill:"#888780" }} width={50}/>
-            <Tooltip contentStyle={{ background:"white", border:"1px solid #e2e0d8", borderRadius:6, fontSize:11 }} labelStyle={{ color:"#888780" }}/>
-            <Bar dataKey="value" name="Tổng chờ (s)" radius={[4,4,0,0]}>
-              {barData.map((entry, i) => <Cell key={i} fill={entry.color}/>)}
+          <BarChart data={waitBarData} margin={{ top:4, right:8, bottom:0, left:-8 }} barCategoryGap="32%">
+            <CartesianGrid strokeDasharray="3 3" stroke="#e8e6df" vertical={false}/>
+            <XAxis dataKey="name" tick={{ fontSize:11, fill:"#888780" }} axisLine={false} tickLine={false}/>
+            <YAxis
+              tick={{ fontSize:10, fill:"#888780" }} width={55}
+              tickFormatter={v => v >= 1000 ? `${(v/1000).toFixed(1)}k` : v}/>
+            <Tooltip
+              contentStyle={{ background:"white", border:"1px solid #e2e0d8", borderRadius:6, fontSize:11 }}
+              formatter={(v, _name, props) => [`${v.toLocaleString()} s`, props.payload.name]}/>
+            <Bar dataKey="value" name="Tổng chờ (s)" radius={[4,4,0,0]} maxBarSize={80}>
+              {waitBarData.map((entry, i) => <Cell key={i} fill={entry.color} fillOpacity={0.85}/>)}
             </Bar>
           </BarChart>
         </ResponsiveContainer>
       </div>
+
     </div>
   );
 }
@@ -202,31 +223,60 @@ export default function LiveDemo() {
   const [visible, setVisible] = useState({ fixed_time:true, idqn:true, gat_marl:true });
   const [history, setHistory] = useState([]);
 
-  // Collect realtime chart data
+  // State tổng hợp riêng — KHÔNG bị ảnh hưởng bởi history slice
+  // totalCompleted: tổng xe đã ra khỏi mạng (vehicles_completed tích lũy)
+  // totalWait: tổng thời gian chờ toàn mạng (total_waiting_time tích lũy)
+  const [totalCompleted, setTotalCompleted] = useState(ZERO_TOTALS());
+  const [totalWait,      setTotalWait]      = useState(ZERO_TOTALS());
+
   useEffect(() => {
     if (!data) return;
     const anyStep = data?.fixed_time?.step ?? data?.gat_marl?.step ?? 0;
     if (!anyStep) return;
-    setHistory(prev => {
-      const last  = prev[prev.length - 1] || {};
-      const point = { step: anyStep };
+
+    // Cập nhật totals (state riêng — không bị mất khi history bị trim)
+    setTotalCompleted(prev => {
+      const next = { ...prev };
       PANELS.forEach(p => {
-        const m    = data?.[p.key]?.metrics;
-        const prev_cum = last[`${p.key}_cum`] ?? 0;
-        point[`${p.key}_cum`] = prev_cum + (m?.vehicles_completed ?? 0);
+        const m = data?.[p.key]?.metrics;
+        if (m != null) next[p.key] = (prev[p.key] ?? 0) + (m.vehicles_completed ?? 0);
       });
-      const next = [...prev, point];
-      return next.slice(-MAX_CHART_POINTS);
+      return next;
+    });
+
+    setTotalWait(prev => {
+      const next = { ...prev };
+      PANELS.forEach(p => {
+        const m = data?.[p.key]?.metrics;
+        if (m != null) next[p.key] = (prev[p.key] ?? 0) + (m.total_waiting_time ?? 0);
+      });
+      return next;
+    });
+
+    // History chỉ dùng cho line chart — lưu snapshot cumulative tại mỗi step
+    setHistory(prev => {
+      const lastPoint = prev[prev.length - 1];
+      const point     = { step: anyStep };
+      PANELS.forEach(p => {
+        const m           = data?.[p.key]?.metrics;
+        const prevCum     = lastPoint?.[`${p.key}_cum`] ?? 0;
+        // Cộng thêm xe hoàn thành trong step này vào snapshot
+        point[`${p.key}_cum`] = prevCum + (m?.vehicles_completed ?? 0);
+      });
+      return [...prev, point].slice(-MAX_CHART_POINTS);
     });
   }, [data]);
 
-  const handleStart  = (route, volume) => {
+  const reset = () => {
     setHistory([]);
-    sendCommand(`start:${route}:${volume}`);
+    setTotalCompleted(ZERO_TOTALS());
+    setTotalWait(ZERO_TOTALS());
   };
-  const handleInject = (mode)  => sendCommand(`inject_accident:${ACCIDENT_EDGE}:${mode}`);
-  const handleReset  = ()      => { setHistory([]); sendCommand("reset"); };
-  const togglePanel  = (key)   => setVisible(v => ({ ...v, [key]: !v[key] }));
+
+  const handleStart  = (route, volume) => { reset(); sendCommand(`start:${route}:${volume}`); };
+  const handleInject = (mode)           => sendCommand(`inject_accident:${ACCIDENT_EDGE}:${mode}`);
+  const handleReset  = ()               => { reset(); sendCommand("reset"); };
+  const togglePanel  = (key)            => setVisible(v => ({ ...v, [key]: !v[key] }));
 
   const visiblePanels = PANELS.filter(p => visible[p.key]);
   const cols = visiblePanels.length;
@@ -267,7 +317,11 @@ export default function LiveDemo() {
         </div>
       )}
 
-      <RealtimeCharts history={history} latestData={data}/>
+      <RealtimeCharts
+        history={history}
+        totalCompleted={totalCompleted}
+        totalWait={totalWait}
+      />
     </div>
   );
 }

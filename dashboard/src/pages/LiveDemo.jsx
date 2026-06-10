@@ -120,17 +120,17 @@ function AccidentDropdown({ onInject }) {
   );
 }
 
-// ── Realtime Charts ───────────────────────────────────────────────────────────
+// ── Realtime Chart — Throughput In vs Out ────────────────────────────────────
 function RealtimeCharts({ history }) {
   if (!history.length) return null;
   return (
     <div className="realtime-charts">
       {[
-        { key:"avg_speed",        label:"Tốc độ TB (km/h)",    yLabel:"km/h" },
-        { key:"avg_waiting_time", label:"Thời gian chờ TB (s)", yLabel:"s"    },
-      ].map(({ key, label }) => (
+        { key: "vehicles_spawned",   label: "Xe vào mạng",         dash: "5 5"   },
+        { key: "vehicles_completed", label: "Xe hoàn thành hành trình", dash: "0" },
+      ].map(({ key, label, dash }) => (
         <div key={key} className="chart-card">
-          <div className="chart-card-title">{label}</div>
+          <div className="chart-card-title">{label} (xe/step)</div>
           <ResponsiveContainer width="100%" height={160}>
             <LineChart data={history} margin={{ top:4, right:8, bottom:0, left:-16 }}>
               <CartesianGrid strokeDasharray="3 3" stroke="#e8e6df"/>
@@ -144,6 +144,7 @@ function RealtimeCharts({ history }) {
                 <Line key={p.key} type="monotone"
                   dataKey={`${p.key}_${key}`} name={p.label}
                   stroke={p.color} dot={false} strokeWidth={1.5}
+                  strokeDasharray={dash}
                   isAnimationActive={false}/>
               ))}
             </LineChart>
@@ -193,8 +194,8 @@ export default function LiveDemo() {
       const point = { step: anyStep };
       PANELS.forEach(p => {
         const m = data?.[p.key]?.metrics;
-        point[`${p.key}_avg_speed`]        = m?.avg_speed ?? null;
-        point[`${p.key}_avg_waiting_time`] = m?.avg_waiting_time ?? null;
+        point[`${p.key}_vehicles_spawned`]   = m?.vehicles_spawned   ?? null;
+        point[`${p.key}_vehicles_completed`] = m?.vehicles_completed ?? null;
       });
       const next = [...prev, point];
       return next.slice(-MAX_CHART_POINTS);

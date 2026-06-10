@@ -341,6 +341,8 @@ class TrafficEnv:
             "avg_speed": float(np.mean(speeds)) * 3.6,
             "avg_waiting_time": float(np.mean(waits)),
             "throughput": traci.simulation.getArrivedNumber(),
+            "vehicles_spawned":   traci.simulation.getDepartedNumber(),
+            "vehicles_completed": traci.simulation.getArrivedNumber(),
             "n_vehicles": len(vehicles),
             "edge_speeds": self._read_edge_speeds(),
             "accident_edges": dict(self._accident_edges),

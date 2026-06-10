@@ -139,12 +139,15 @@ class WorkerBase(ABC):
             "edge_speeds":    info.get("edge_speeds", {}),
             "accident_edges": info.get("accident_edges", {}),
             "metrics": {
-                "avg_speed":        round(info.get("avg_speed", 0), 2),
-                "avg_waiting_time": round(info.get("avg_waiting_time", 0), 2),
-                "throughput":       info.get("throughput", 0),
-                "n_vehicles":       info.get("n_vehicles", 0),
-                "global_reward":    round(info.get("global_reward", 0), 4),
+                "avg_speed":          round(info.get("avg_speed", 0), 2),
+                "avg_waiting_time":   round(info.get("avg_waiting_time", 0), 2),
+                "throughput":         info.get("throughput", 0),
+                "n_vehicles":         info.get("n_vehicles", 0),
+                "vehicles_spawned":   info.get("vehicles_spawned", 0),
+                "vehicles_completed": info.get("vehicles_completed", 0),
+                "global_reward":      round(info.get("global_reward", 0), 4),
             },
+                "global_reward":    round(info.get("global_reward", 0), 4),
         }
 
         # Merge extra data từ subclass (vd: attention weights)

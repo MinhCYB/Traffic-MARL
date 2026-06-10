@@ -28,8 +28,7 @@ const VOLUME_OPTIONS = [
 
 const ACCIDENT_EDGE    = "SRC1_N02";
 const MAX_CHART_POINTS = 60;
-
-const ZERO_TOTALS = () => ({ fixed_time: 0, idqn: 0, gat_marl: 0 });
+const ZERO_TOTALS      = () => ({ fixed_time: 0, idqn: 0, gat_marl: 0 });
 
 function StatusDot({ state }) {
   const c = state === "connected" ? "#1d9e75" : "#ef9f27";
@@ -126,7 +125,6 @@ function AccidentDropdown({ onInject }) {
 function RealtimeCharts({ history, totalCompleted, totalWait }) {
   if (!history.length) return null;
 
-  // Data cho bar chart — lấy từ state tổng hợp riêng (không phụ thuộc history slice)
   const waitBarData = PANELS.map(p => ({
     name:  p.label,
     value: Math.round(totalWait[p.key] ?? 0),
@@ -136,13 +134,11 @@ function RealtimeCharts({ history, totalCompleted, totalWait }) {
   return (
     <div className="realtime-charts">
 
-      {/* Line chart — xe hoàn thành tích lũy theo thời gian */}
+      {/* Line chart — xe hoàn thành tích lũy */}
       <div className="chart-card">
         <div className="chart-card-title">
           Tổng xe hoàn thành (cộng dồn)
-          <span style={{ fontSize:10, color:"#888780", fontWeight:400, marginLeft:6 }}>
-            — cao hơn = thông thoáng hơn
-          </span>
+          <span style={{ fontSize:10, color:"#888780", fontWeight:400, marginLeft:6 }}>— cao hơn = thông thoáng hơn</span>
         </div>
         <ResponsiveContainer width="100%" height={160}>
           <LineChart data={history} margin={{ top:4, right:8, bottom:0, left:-16 }}>
@@ -164,13 +160,11 @@ function RealtimeCharts({ history, totalCompleted, totalWait }) {
         </ResponsiveContainer>
       </div>
 
-      {/* Bar chart — tổng thời gian chờ tích lũy (state riêng, không bị mất khi history slice) */}
+      {/* Bar chart — tổng thời gian chờ tích lũy */}
       <div className="chart-card">
         <div className="chart-card-title">
           Tổng thời gian chờ toàn mạng (cộng dồn, giây)
-          <span style={{ fontSize:10, color:"#888780", fontWeight:400, marginLeft:6 }}>
-            — thấp hơn = tốt hơn
-          </span>
+          <span style={{ fontSize:10, color:"#888780", fontWeight:400, marginLeft:6 }}>— thấp hơn = tốt hơn</span>
         </div>
         <ResponsiveContainer width="100%" height={160}>
           <BarChart data={waitBarData} margin={{ top:4, right:8, bottom:0, left:-8 }} barCategoryGap="32%">
@@ -181,7 +175,7 @@ function RealtimeCharts({ history, totalCompleted, totalWait }) {
               tickFormatter={v => v >= 1000 ? `${(v/1000).toFixed(1)}k` : v}/>
             <Tooltip
               contentStyle={{ background:"white", border:"1px solid #e2e0d8", borderRadius:6, fontSize:11 }}
-              formatter={(v, _name, props) => [`${v.toLocaleString()} s`, props.payload.name]}/>
+              formatter={(v, _n, props) => [`${v.toLocaleString()} s`, props.payload.name]}/>
             <Bar dataKey="value" name="Tổng chờ (s)" radius={[4,4,0,0]} maxBarSize={80}>
               {waitBarData.map((entry, i) => <Cell key={i} fill={entry.color} fillOpacity={0.85}/>)}
             </Bar>
@@ -221,25 +215,30 @@ function Panel({ cfg, data, status }) {
 export default function LiveDemo() {
   const { data, status, connected, sendCommand } = useWebSocket();
   const [visible, setVisible] = useState({ fixed_time:true, idqn:true, gat_marl:true });
-  const [history, setHistory] = useState([]);
-
-  // State tổng hợp riêng — KHÔNG bị ảnh hưởng bởi history slice
-  // totalCompleted: tổng xe đã ra khỏi mạng (vehicles_completed tích lũy)
-  // totalWait: tổng thời gian chờ toàn mạng (total_waiting_time tích lũy)
+  const [history,        setHistory]        = useState([]);
   const [totalCompleted, setTotalCompleted] = useState(ZERO_TOTALS());
   const [totalWait,      setTotalWait]      = useState(ZERO_TOTALS());
 
+  // useRef để track step đã xử lý — tránh duplicate khi React strict mode re-render
+  const lastStepRef = useRef(0);
+
   useEffect(() => {
     if (!data) return;
-    const anyStep = data?.fixed_time?.step ?? data?.gat_marl?.step ?? 0;
-    if (!anyStep) return;
 
-    // Cập nhật totals (state riêng — không bị mất khi history bị trim)
+    // Lấy step từ bất kỳ worker nào đang connected
+    const anyStep = PANELS.reduce((s, p) => data?.[p.key]?.step ?? s, 0);
+    if (!anyStep || anyStep <= lastStepRef.current) return;
+    lastStepRef.current = anyStep;
+
+    const point = { step: anyStep };
+
+    // Cập nhật totals (dùng functional update để luôn có giá trị mới nhất)
     setTotalCompleted(prev => {
       const next = { ...prev };
       PANELS.forEach(p => {
-        const m = data?.[p.key]?.metrics;
-        if (m != null) next[p.key] = (prev[p.key] ?? 0) + (m.vehicles_completed ?? 0);
+        const completed = data?.[p.key]?.metrics?.vehicles_completed ?? 0;
+        next[p.key] = (prev[p.key] ?? 0) + completed;
+        point[`${p.key}_cum`] = next[p.key]; // snapshot tại step này
       });
       return next;
     });
@@ -247,35 +246,28 @@ export default function LiveDemo() {
     setTotalWait(prev => {
       const next = { ...prev };
       PANELS.forEach(p => {
-        const m = data?.[p.key]?.metrics;
-        if (m != null) next[p.key] = (prev[p.key] ?? 0) + (m.total_waiting_time ?? 0);
+        // total_waiting_time = tổng waiting của TẤT CẢ xe hiện tại (snapshot, không phải delta)
+        // → cộng dồn qua các step để ra tổng effort chờ đợi của mạng
+        const tw = data?.[p.key]?.metrics?.total_waiting_time ?? 0;
+        next[p.key] = (prev[p.key] ?? 0) + tw;
       });
       return next;
     });
 
-    // History chỉ dùng cho line chart — lưu snapshot cumulative tại mỗi step
-    setHistory(prev => {
-      const lastPoint = prev[prev.length - 1];
-      const point     = { step: anyStep };
-      PANELS.forEach(p => {
-        const m           = data?.[p.key]?.metrics;
-        const prevCum     = lastPoint?.[`${p.key}_cum`] ?? 0;
-        // Cộng thêm xe hoàn thành trong step này vào snapshot
-        point[`${p.key}_cum`] = prevCum + (m?.vehicles_completed ?? 0);
-      });
-      return [...prev, point].slice(-MAX_CHART_POINTS);
-    });
+    setHistory(prev => [...prev, point].slice(-MAX_CHART_POINTS));
+
   }, [data]);
 
-  const reset = () => {
+  const doReset = () => {
+    lastStepRef.current = 0;
     setHistory([]);
     setTotalCompleted(ZERO_TOTALS());
     setTotalWait(ZERO_TOTALS());
   };
 
-  const handleStart  = (route, volume) => { reset(); sendCommand(`start:${route}:${volume}`); };
+  const handleStart  = (route, volume) => { doReset(); sendCommand(`start:${route}:${volume}`); };
   const handleInject = (mode)           => sendCommand(`inject_accident:${ACCIDENT_EDGE}:${mode}`);
-  const handleReset  = ()               => { reset(); sendCommand("reset"); };
+  const handleReset  = ()               => { doReset(); sendCommand("reset"); };
   const togglePanel  = (key)            => setVisible(v => ({ ...v, [key]: !v[key] }));
 
   const visiblePanels = PANELS.filter(p => visible[p.key]);

@@ -9,8 +9,10 @@ Endpoints:
 """
 
 import asyncio
-from fastapi import FastAPI, WebSocket, WebSocketDisconnect
+from fastapi import FastAPI, WebSocket, WebSocketDisconnect, Request
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.exceptions import RequestValidationError
+from fastapi.responses import JSONResponse
 
 from server.schemas import WorkerPayload, CommandPayload
 from server.sync_buffer import SyncBuffer, WORKER_MODES
@@ -111,6 +113,12 @@ async def broadcast_loop():
 
         for ws in dead:
             ws_clients.remove(ws)
+
+
+@app.exception_handler(RequestValidationError)
+async def validation_exception_handler(request: Request, exc: RequestValidationError):
+    print(f"[422] {exc.errors()}")
+    return JSONResponse(status_code=422, content={"detail": exc.errors()})
 
 
 @app.on_event("startup")

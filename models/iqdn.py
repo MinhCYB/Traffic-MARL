@@ -10,11 +10,6 @@ Kiến trúc:
     [MLP Encoder]    → h_i ∈ R^64
         │
     [Q-head]         → Q(s, keep), Q(s, switch)
-
-TODO (teammate):
-    [ ] Implement IDQNNet.forward()
-    [ ] Verify output shape: (N, 2)
-    [ ] Test với random input trước khi kết nối vào agent
 """
 
 import torch
@@ -41,9 +36,14 @@ class IDQNNet(nn.Module):
         num_actions: int = NUM_ACTIONS,
     ):
         super().__init__()
-        # TODO: định nghĩa các layers ở đây
-        # Gợi ý: 2-3 lớp Linear + ReLU, output = num_actions
-        raise NotImplementedError
+
+        self.net = nn.Sequential(
+            nn.Linear(state_dim, hidden_dim),
+            nn.ReLU(),
+            nn.Linear(hidden_dim, hidden_dim),
+            nn.ReLU(),
+            nn.Linear(hidden_dim, num_actions),   # output: [Q(keep), Q(switch)]
+        )
 
     def forward(self, x: torch.Tensor) -> torch.Tensor:
         """
@@ -53,5 +53,4 @@ class IDQNNet(nn.Module):
         Returns:
             q_values: (N, num_actions)
         """
-        # TODO: implement forward pass
-        raise NotImplementedError
+        return self.net(x)

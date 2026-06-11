@@ -18,7 +18,7 @@ env/
 conda-meta/
 
 # ── Checkpoints & logs ────────────────────────────────────────────────────────
-checkpoints/*.pt
+!checkpoints/*.pt
 logs/*/
 logs/merged.json
 # Giữ lại cấu trúc folder

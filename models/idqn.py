@@ -7,14 +7,14 @@ Không có GAT layer — mỗi ngã tư chỉ nhìn vào observation của bản
 Kiến trúc:
     obs_i (21,)
         │
-    [MLP Encoder]    → h_i ∈ R^64
+    [Linear(21→64) + ReLU]
         │
-    [Q-head]         → Q(s, keep), Q(s, switch)
+    [Linear(64→64) + ReLU]
+        │
+    [Linear(64→2)]         → Q(s, keep), Q(s, switch)
 
-TODO (teammate):
-    [ ] Implement IDQNNet.forward()
-    [ ] Verify output shape: (N, 2)
-    [ ] Test với random input trước khi kết nối vào agent
+Parameter sharing: 1 network dùng chung cho tất cả 4 agents.
+Không có agent_id — giống MPLight, so sánh công bằng với GAT-MARL.
 """
 
 import torch
@@ -32,6 +32,10 @@ class IDQNNet(nn.Module):
 
     Dùng chung 1 network cho tất cả agents (parameter sharing)
     để so sánh công bằng với GAT-MARL.
+
+    Kiến trúc đơn giản hơn GAT-MARL đúng 1 điểm:
+        GAT-MARL: Encoder → GATLayer → QHead  (có communication)
+        IDQN    : Encoder            → QHead  (không communication)
     """
 
     def __init__(
@@ -41,17 +45,20 @@ class IDQNNet(nn.Module):
         num_actions: int = NUM_ACTIONS,
     ):
         super().__init__()
-        # TODO: định nghĩa các layers ở đây
-        # Gợi ý: 2-3 lớp Linear + ReLU, output = num_actions
-        raise NotImplementedError
+        self.net = nn.Sequential(
+            nn.Linear(state_dim, hidden_dim),   # 21 → 64
+            nn.ReLU(),
+            nn.Linear(hidden_dim, hidden_dim),  # 64 → 64
+            nn.ReLU(),
+            nn.Linear(hidden_dim, num_actions), # 64 → 2
+        )
 
     def forward(self, x: torch.Tensor) -> torch.Tensor:
         """
         Args:
-            x: (N, state_dim) — N agents, mỗi agent xử lý độc lập
+            x: (N, state_dim) — N agents, mỗi agent xử lý hoàn toàn độc lập
 
         Returns:
-            q_values: (N, num_actions)
+            q_values: (N, num_actions) — Q(s,keep) và Q(s,switch) cho mỗi agent
         """
-        # TODO: implement forward pass
-        raise NotImplementedError
+        return self.net(x)

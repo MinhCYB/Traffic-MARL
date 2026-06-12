@@ -1,0 +1,123 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+    E2 (laneArea) detectors — đặt trên tất cả incoming edges của 8 ngã tư
+    - pos="-1"      : tính từ cuối edge (sát vạch dừng)
+    - length="200"  : đo 200m queue
+    - freq="5"      : sync với delta_time của RL agent
+    - file="NUL"    : không ghi file, đọc qua TraCI
+
+    Arterial: 3 lanes (0,1,2) | Secondary/Outskirts: 2 lanes (0,1)
+-->
+<additional>
+
+    <!-- ════════════ N01: Nguyễn Cơ Thạch / Hồ Tùng Mậu ════════════ -->
+    <!-- từ Tây (EXT_W) — outskirts 2 lane -->
+    <laneAreaDetector id="e2_EXT_W_N01_in_0" lane="EXT_W_N01_in_0" pos="-1" length="200" freq="5" file="NUL"/>
+    <laneAreaDetector id="e2_EXT_W_N01_in_1" lane="EXT_W_N01_in_1" pos="-1" length="200" freq="5" file="NUL"/>
+    <!-- từ Bắc (EXT_N) — outskirts 2 lane -->
+    <laneAreaDetector id="e2_EXT_N_N01_in_0" lane="EXT_N_N01_in_0" pos="-1" length="200" freq="5" file="NUL"/>
+    <laneAreaDetector id="e2_EXT_N_N01_in_1" lane="EXT_N_N01_in_1" pos="-1" length="200" freq="5" file="NUL"/>
+    <!-- từ Đông (SRC_HTM_W) — arterial 3 lane -->
+    <laneAreaDetector id="e2_SRC_HTM_W_N01_0" lane="SRC_HTM_W_N01_0" pos="-1" length="200" freq="5" file="NUL"/>
+    <laneAreaDetector id="e2_SRC_HTM_W_N01_1" lane="SRC_HTM_W_N01_1" pos="-1" length="200" freq="5" file="NUL"/>
+    <laneAreaDetector id="e2_SRC_HTM_W_N01_2" lane="SRC_HTM_W_N01_2" pos="-1" length="200" freq="5" file="NUL"/>
+    <!-- từ Nam (SRC_NCT_N) — secondary 2 lane -->
+    <laneAreaDetector id="e2_SRC_NCT_N_N01_0" lane="SRC_NCT_N_N01_0" pos="-1" length="200" freq="5" file="NUL"/>
+    <laneAreaDetector id="e2_SRC_NCT_N_N01_1" lane="SRC_NCT_N_N01_1" pos="-1" length="200" freq="5" file="NUL"/>
+
+    <!-- ════════════ N02: Lê Đức Thọ / Hồ Tùng Mậu ════════════ -->
+    <!-- từ Bắc (EXT_N) -->
+    <laneAreaDetector id="e2_EXT_N_N02_in_0" lane="EXT_N_N02_in_0" pos="-1" length="200" freq="5" file="NUL"/>
+    <laneAreaDetector id="e2_EXT_N_N02_in_1" lane="EXT_N_N02_in_1" pos="-1" length="200" freq="5" file="NUL"/>
+    <!-- từ Tây (SRC_HTM_W) — arterial -->
+    <laneAreaDetector id="e2_SRC_HTM_W_N02_0" lane="SRC_HTM_W_N02_0" pos="-1" length="200" freq="5" file="NUL"/>
+    <laneAreaDetector id="e2_SRC_HTM_W_N02_1" lane="SRC_HTM_W_N02_1" pos="-1" length="200" freq="5" file="NUL"/>
+    <laneAreaDetector id="e2_SRC_HTM_W_N02_2" lane="SRC_HTM_W_N02_2" pos="-1" length="200" freq="5" file="NUL"/>
+    <!-- từ Đông (SRC_HTM_E) — arterial -->
+    <laneAreaDetector id="e2_SRC_HTM_E_N02_0" lane="SRC_HTM_E_N02_0" pos="-1" length="200" freq="5" file="NUL"/>
+    <laneAreaDetector id="e2_SRC_HTM_E_N02_1" lane="SRC_HTM_E_N02_1" pos="-1" length="200" freq="5" file="NUL"/>
+    <laneAreaDetector id="e2_SRC_HTM_E_N02_2" lane="SRC_HTM_E_N02_2" pos="-1" length="200" freq="5" file="NUL"/>
+    <!-- từ Nam (SRC_LDT_N) — arterial -->
+    <laneAreaDetector id="e2_SRC_LDT_N_N02_0" lane="SRC_LDT_N_N02_0" pos="-1" length="200" freq="5" file="NUL"/>
+    <laneAreaDetector id="e2_SRC_LDT_N_N02_1" lane="SRC_LDT_N_N02_1" pos="-1" length="200" freq="5" file="NUL"/>
+    <laneAreaDetector id="e2_SRC_LDT_N_N02_2" lane="SRC_LDT_N_N02_2" pos="-1" length="200" freq="5" file="NUL"/>
+
+    <!-- ════════════ N03: Phạm Hùng / Hồ Tùng Mậu (Mai Dịch) ════════════ -->
+    <!-- từ Bắc (EXT_N) -->
+    <laneAreaDetector id="e2_EXT_N_N03_in_0" lane="EXT_N_N03_in_0" pos="-1" length="200" freq="5" file="NUL"/>
+    <laneAreaDetector id="e2_EXT_N_N03_in_1" lane="EXT_N_N03_in_1" pos="-1" length="200" freq="5" file="NUL"/>
+    <!-- từ Đông (EXT_E) -->
+    <laneAreaDetector id="e2_EXT_E_N03_in_0" lane="EXT_E_N03_in_0" pos="-1" length="200" freq="5" file="NUL"/>
+    <laneAreaDetector id="e2_EXT_E_N03_in_1" lane="EXT_E_N03_in_1" pos="-1" length="200" freq="5" file="NUL"/>
+    <!-- từ Tây (SRC_HTM_E) — arterial -->
+    <laneAreaDetector id="e2_SRC_HTM_E_N03_0" lane="SRC_HTM_E_N03_0" pos="-1" length="200" freq="5" file="NUL"/>
+    <laneAreaDetector id="e2_SRC_HTM_E_N03_1" lane="SRC_HTM_E_N03_1" pos="-1" length="200" freq="5" file="NUL"/>
+    <laneAreaDetector id="e2_SRC_HTM_E_N03_2" lane="SRC_HTM_E_N03_2" pos="-1" length="200" freq="5" file="NUL"/>
+    <!-- từ Nam (SRC_PH) — arterial -->
+    <laneAreaDetector id="e2_SRC_PH_N03_0" lane="SRC_PH_N03_0" pos="-1" length="200" freq="5" file="NUL"/>
+    <laneAreaDetector id="e2_SRC_PH_N03_1" lane="SRC_PH_N03_1" pos="-1" length="200" freq="5" file="NUL"/>
+    <laneAreaDetector id="e2_SRC_PH_N03_2" lane="SRC_PH_N03_2" pos="-1" length="200" freq="5" file="NUL"/>
+
+    <!-- ════════════ N04: Nguyễn Cơ Thạch / Hàm Nghi ════════════ -->
+    <!-- từ Tây (EXT_W) -->
+    <laneAreaDetector id="e2_EXT_W_N04_in_0" lane="EXT_W_N04_in_0" pos="-1" length="200" freq="5" file="NUL"/>
+    <laneAreaDetector id="e2_EXT_W_N04_in_1" lane="EXT_W_N04_in_1" pos="-1" length="200" freq="5" file="NUL"/>
+    <!-- từ Bắc (SRC_NCT_N) — secondary -->
+    <laneAreaDetector id="e2_SRC_NCT_N_N04_0" lane="SRC_NCT_N_N04_0" pos="-1" length="200" freq="5" file="NUL"/>
+    <laneAreaDetector id="e2_SRC_NCT_N_N04_1" lane="SRC_NCT_N_N04_1" pos="-1" length="200" freq="5" file="NUL"/>
+    <!-- từ Đông (SRC_HN) — secondary -->
+    <laneAreaDetector id="e2_SRC_HN_N04_0" lane="SRC_HN_N04_0" pos="-1" length="200" freq="5" file="NUL"/>
+    <laneAreaDetector id="e2_SRC_HN_N04_1" lane="SRC_HN_N04_1" pos="-1" length="200" freq="5" file="NUL"/>
+    <!-- từ Nam (SRC_NCT_S) — secondary -->
+    <laneAreaDetector id="e2_SRC_NCT_S_N04_0" lane="SRC_NCT_S_N04_0" pos="-1" length="200" freq="5" file="NUL"/>
+    <laneAreaDetector id="e2_SRC_NCT_S_N04_1" lane="SRC_NCT_S_N04_1" pos="-1" length="200" freq="5" file="NUL"/>
+
+    <!-- ════════════ N05: Lê Đức Thọ-Nguyễn Hoàng / Hàm Nghi ════════════ -->
+    <!-- từ Bắc (SRC_LDT_N) — arterial -->
+    <laneAreaDetector id="e2_SRC_LDT_N_N05_0" lane="SRC_LDT_N_N05_0" pos="-1" length="200" freq="5" file="NUL"/>
+    <laneAreaDetector id="e2_SRC_LDT_N_N05_1" lane="SRC_LDT_N_N05_1" pos="-1" length="200" freq="5" file="NUL"/>
+    <laneAreaDetector id="e2_SRC_LDT_N_N05_2" lane="SRC_LDT_N_N05_2" pos="-1" length="200" freq="5" file="NUL"/>
+    <!-- từ Tây (SRC_HN) — secondary -->
+    <laneAreaDetector id="e2_SRC_HN_N05_0" lane="SRC_HN_N05_0" pos="-1" length="200" freq="5" file="NUL"/>
+    <laneAreaDetector id="e2_SRC_HN_N05_1" lane="SRC_HN_N05_1" pos="-1" length="200" freq="5" file="NUL"/>
+    <!-- từ Nam (SRC_LDT_S) — arterial -->
+    <laneAreaDetector id="e2_SRC_LDT_S_N05_0" lane="SRC_LDT_S_N05_0" pos="-1" length="200" freq="5" file="NUL"/>
+    <laneAreaDetector id="e2_SRC_LDT_S_N05_1" lane="SRC_LDT_S_N05_1" pos="-1" length="200" freq="5" file="NUL"/>
+    <laneAreaDetector id="e2_SRC_LDT_S_N05_2" lane="SRC_LDT_S_N05_2" pos="-1" length="200" freq="5" file="NUL"/>
+
+    <!-- ════════════ N06: Nguyễn Hoàng-Tôn Thất Thuyết / Phạm Hùng ════════════ -->
+    <!-- từ Bắc (SRC_PH) — arterial -->
+    <laneAreaDetector id="e2_SRC_PH_N06_0" lane="SRC_PH_N06_0" pos="-1" length="200" freq="5" file="NUL"/>
+    <laneAreaDetector id="e2_SRC_PH_N06_1" lane="SRC_PH_N06_1" pos="-1" length="200" freq="5" file="NUL"/>
+    <laneAreaDetector id="e2_SRC_PH_N06_2" lane="SRC_PH_N06_2" pos="-1" length="200" freq="5" file="NUL"/>
+    <!-- từ Đông (EXT_E) -->
+    <laneAreaDetector id="e2_EXT_E_N06_in_0" lane="EXT_E_N06_in_0" pos="-1" length="200" freq="5" file="NUL"/>
+    <laneAreaDetector id="e2_EXT_E_N06_in_1" lane="EXT_E_N06_in_1" pos="-1" length="200" freq="5" file="NUL"/>
+
+    <!-- ════════════ N07: Trần Hữu Dực / Nguyễn Cơ Thạch ════════════ -->
+    <!-- từ Tây (EXT_W) -->
+    <laneAreaDetector id="e2_EXT_W_N07_in_0" lane="EXT_W_N07_in_0" pos="-1" length="200" freq="5" file="NUL"/>
+    <laneAreaDetector id="e2_EXT_W_N07_in_1" lane="EXT_W_N07_in_1" pos="-1" length="200" freq="5" file="NUL"/>
+    <!-- từ Bắc (SRC_NCT_S) — secondary -->
+    <laneAreaDetector id="e2_SRC_NCT_S_N07_0" lane="SRC_NCT_S_N07_0" pos="-1" length="200" freq="5" file="NUL"/>
+    <laneAreaDetector id="e2_SRC_NCT_S_N07_1" lane="SRC_NCT_S_N07_1" pos="-1" length="200" freq="5" file="NUL"/>
+    <!-- từ Nam (EXT_S) -->
+    <laneAreaDetector id="e2_EXT_S_N07_in_0" lane="EXT_S_N07_in_0" pos="-1" length="200" freq="5" file="NUL"/>
+    <laneAreaDetector id="e2_EXT_S_N07_in_1" lane="EXT_S_N07_in_1" pos="-1" length="200" freq="5" file="NUL"/>
+    <!-- từ Đông (SRC_THD) — secondary -->
+    <laneAreaDetector id="e2_SRC_THD_N07_0" lane="SRC_THD_N07_0" pos="-1" length="200" freq="5" file="NUL"/>
+    <laneAreaDetector id="e2_SRC_THD_N07_1" lane="SRC_THD_N07_1" pos="-1" length="200" freq="5" file="NUL"/>
+
+    <!-- ════════════ N08: Trần Hữu Dực / Lê Đức Thọ-Lê Quang Đạo ════════════ -->
+    <!-- từ Bắc (SRC_LDT_S) — arterial -->
+    <laneAreaDetector id="e2_SRC_LDT_S_N08_0" lane="SRC_LDT_S_N08_0" pos="-1" length="200" freq="5" file="NUL"/>
+    <laneAreaDetector id="e2_SRC_LDT_S_N08_1" lane="SRC_LDT_S_N08_1" pos="-1" length="200" freq="5" file="NUL"/>
+    <laneAreaDetector id="e2_SRC_LDT_S_N08_2" lane="SRC_LDT_S_N08_2" pos="-1" length="200" freq="5" file="NUL"/>
+    <!-- từ Nam (EXT_S) -->
+    <laneAreaDetector id="e2_EXT_S_N08_in_0" lane="EXT_S_N08_in_0" pos="-1" length="200" freq="5" file="NUL"/>
+    <laneAreaDetector id="e2_EXT_S_N08_in_1" lane="EXT_S_N08_in_1" pos="-1" length="200" freq="5" file="NUL"/>
+    <!-- từ Tây (SRC_THD) — secondary -->
+    <laneAreaDetector id="e2_SRC_THD_N08_0" lane="SRC_THD_N08_0" pos="-1" length="200" freq="5" file="NUL"/>
+    <laneAreaDetector id="e2_SRC_THD_N08_1" lane="SRC_THD_N08_1" pos="-1" length="200" freq="5" file="NUL"/>
+
+</additional>

@@ -22,7 +22,7 @@ from pathlib import Path
 import numpy as np
 import traci
 
-from env.state_builder import (
+from environment.state_builder import (
     INTERSECTION_IDS,
     INCOMING_EDGES,
     OUTGOING_EDGES,
@@ -32,7 +32,7 @@ from env.state_builder import (
     get_incoming_queues,
     get_outgoing_queues,
 )
-from env.reward import compute_reward, compute_global_reward
+from environment.reward import compute_reward, compute_global_reward
 
 # ── Cấu hình ─────────────────────────────────────────────────────────────────
 

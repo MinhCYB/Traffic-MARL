@@ -15,31 +15,19 @@ Graph:
 
 import numpy as np
 
-# ── Cấu hình cứng cho topology 2x2 ──────────────────────────────────────────
-INTERSECTION_IDS = ["N01", "N02", "N03", "N04"]
+from environment.maps import (
+    INTERSECTION_IDS,
+    INCOMING_EDGES,
+    OUTGOING_EDGES,
+    ADJACENCY_MATRIX,
+    NUM_LANES,
+    get_edge_lanes,
+)
+
 INTERSECTION_INDEX = {nid: i for i, nid in enumerate(INTERSECTION_IDS)}
-
-# Các edge đi VÀO mỗi ngã tư (incoming edges có detector)
-INCOMING_EDGES: dict[str, list[str]] = {
-    "N01": ["NT_N_W_N01", "NT_W_N_N01", "SRC1_N01", "SRC3_N01"],
-    "N02": ["NT_N_E_N02", "NT_E_N_N02", "SRC1_N02", "SRC4_N02"],
-    "N03": ["NT_S_W_N03", "NT_W_S_N03", "SRC2_N03", "SRC3_N03"],
-    "N04": ["NT_S_E_N04", "NT_E_S_N04", "SRC2_N04", "SRC4_N04"],
-}
-
-# Các edge đi RA khỏi mỗi ngã tư (để tính pressure)
-OUTGOING_EDGES: dict[str, list[str]] = {
-    "N01": ["N01_NT_N_W", "N01_NT_W_N", "N01_SRC1", "N01_SRC3"],
-    "N02": ["N02_NT_N_E", "N02_NT_E_N", "N02_SRC1", "N02_SRC4"],
-    "N03": ["N03_NT_S_W", "N03_NT_W_S", "N03_SRC2", "N03_SRC3"],
-    "N04": ["N04_NT_S_E", "N04_NT_E_S", "N04_SRC2", "N04_SRC4"],
-}
 
 # Số phase của mỗi ngã tư (4 phase: NS_green, NS_yellow, EW_green, EW_yellow)
 NUM_PHASES = 4
-
-# Số lane mỗi edge
-NUM_LANES = 2
 
 # Max queue để normalize (xe)
 MAX_QUEUE = 20.0
@@ -47,20 +35,9 @@ MAX_QUEUE = 20.0
 # Max thời gian giữ phase để normalize (giây)
 MAX_TIME_SINCE_CHANGE = 120.0
 
-# Adjacency matrix 4x4 — N01↔N02, N01↔N03, N02↔N04, N03↔N04
-# (kết nối qua đường chính hoặc ngõ nhỏ)
-ADJACENCY_MATRIX = np.array([
-    # N01  N02  N03  N04
-    [  0,   1,   1,   0],  # N01
-    [  1,   0,   0,   1],  # N02
-    [  1,   0,   0,   1],  # N03
-    [  0,   1,   1,   0],  # N04
-], dtype=np.float32)
-
-# Edge index cho PyG (COO format)
-# shape: [2, num_edges] — tự động từ adjacency matrix
+# Edge index cho PyG (COO format) — tự động từ adjacency matrix
 _src, _dst = np.where(ADJACENCY_MATRIX == 1)
-EDGE_INDEX = np.stack([_src, _dst], axis=0).astype(np.int64)  # [2, 8]
+EDGE_INDEX = np.stack([_src, _dst], axis=0).astype(np.int64)
 
 
 # ── State builder ─────────────────────────────────────────────────────────────
@@ -87,16 +64,18 @@ def build_state(
     """
     incoming = INCOMING_EDGES[intersection_id]
 
-    # density 8 chiều (4 edge × 2 lane), normalize 0-1
+    # density (n_lanes per edge), normalize 0-1
     density_vec = []
     for edge in incoming:
-        lanes = density_per_lane.get(edge, [0.0, 0.0])
+        n = get_edge_lanes(edge)
+        lanes = density_per_lane.get(edge, [0.0] * n)
         density_vec.extend([min(v, 1.0) for v in lanes])
 
-    # queue 8 chiều, normalize bằng MAX_QUEUE
+    # queue (n_lanes per edge), normalize bằng MAX_QUEUE
     queue_vec = []
     for edge in incoming:
-        lanes = queue_per_lane.get(edge, [0.0, 0.0])
+        n = get_edge_lanes(edge)
+        lanes = queue_per_lane.get(edge, [0.0] * n)
         queue_vec.extend([min(v / MAX_QUEUE, 1.0) for v in lanes])
 
     # phase one-hot 4 chiều
@@ -165,7 +144,8 @@ def get_incoming_queues(
     """Lấy raw queue values của tất cả incoming lanes — dùng cho reward."""
     result = []
     for edge in INCOMING_EDGES[intersection_id]:
-        result.extend(queue_per_lane.get(edge, [0.0, 0.0]))
+        n = get_edge_lanes(edge)
+        result.extend(queue_per_lane.get(edge, [0.0] * n))
     return result
 
 
@@ -176,5 +156,6 @@ def get_outgoing_queues(
     """Lấy raw queue values của tất cả outgoing lanes — dùng cho reward."""
     result = []
     for edge in OUTGOING_EDGES[intersection_id]:
-        result.extend(queue_per_lane.get(edge, [0.0, 0.0]))
+        n = get_edge_lanes(edge)
+        result.extend(queue_per_lane.get(edge, [0.0] * n))
     return result

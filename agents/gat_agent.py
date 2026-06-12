@@ -15,7 +15,7 @@ import torch.optim as optim
 
 from agents.base_agent import BaseAgent
 from models.gat_marl import GATMARLNet
-from env.state_builder import INTERSECTION_IDS, EDGE_INDEX
+from environment.state_builder import INTERSECTION_IDS, EDGE_INDEX
 
 
 class GATAgent(BaseAgent):

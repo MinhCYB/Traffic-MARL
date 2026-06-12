@@ -27,8 +27,8 @@ from training.config import (
     TOPOLOGY, DELTA_TIME,
 )
 from training.replay_buffer import ReplayBuffer
-from env.traffic_env import TrafficEnv
-from env.state_builder import build_node_features
+from environment.traffic_env import TrafficEnv
+from environment.state_builder import build_node_features
 
 
 def build_agent(model_name: str, device: str = "auto"):

@@ -18,7 +18,7 @@ import torch.optim as optim
 
 from agents.base_agent import BaseAgent
 from models.idqn import IDQNNet
-from env.state_builder import INTERSECTION_IDS
+from environment.state_builder import INTERSECTION_IDS
 
 
 class IDQNAgent(BaseAgent):

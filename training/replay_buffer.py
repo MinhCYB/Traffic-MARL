@@ -12,7 +12,7 @@ import numpy as np
 from collections import deque
 import random
 
-from env.state_builder import INTERSECTION_IDS, EDGE_INDEX
+from environment.state_builder import INTERSECTION_IDS, EDGE_INDEX
 
 
 class ReplayBuffer:

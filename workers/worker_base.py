@@ -17,8 +17,8 @@ from abc import ABC, abstractmethod
 from training.config import (
     SERVER_HOST, SERVER_PORT, DELTA_TIME, SEED, TOPOLOGY,
 )
-from env.traffic_env import TrafficEnv
-from env.state_builder import INTERSECTION_IDS, EDGE_INDEX
+from environment.traffic_env import TrafficEnv
+from environment.state_builder import INTERSECTION_IDS, EDGE_INDEX
 
 
 class WorkerBase(ABC):

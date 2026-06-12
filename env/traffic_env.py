@@ -178,8 +178,8 @@ class TrafficEnv:
             self._apply_action(nid, actions.get(nid, 0))
 
         # Advance simulation delta_time steps
-        departed_count  = 0
-        arrived_count   = 0
+        departed_count = 0
+        arrived_count  = 0
         for _ in range(self.delta_time):
             traci.simulationStep()
             self._step += 1
@@ -199,15 +199,22 @@ class TrafficEnv:
         )
         node_features = build_node_features(states)
 
-        # Compute rewards
-        rewards = {}
+        # Flatten queue map: {edge_id: [lane0, lane1]} để dùng cho cả incoming lẫn outgoing
+        # _read_detectors() chỉ đọc incoming — outgoing của N01 = incoming của neighbor
+        # nên cần flat map toàn bộ để get_outgoing_queues tìm được đúng edge
+        flat_queue: dict[str, list[float]] = {
+            edge: lanes
+            for nid in INTERSECTION_IDS
+            for edge, lanes in queue_data[nid].items()
+        }
+
+        # Compute rewards — Max Pressure per agent
+        rewards   = {}
         pressures = {}
         for nid in INTERSECTION_IDS:
-            inc = get_incoming_queues(nid, {e: queue_data[nid].get(e, [0.0, 0.0])
-                                            for e in INCOMING_EDGES[nid]})
-            out = get_outgoing_queues(nid, {e: queue_data[nid].get(e, [0.0, 0.0])
-                                            for e in OUTGOING_EDGES[nid]})
-            rewards[nid] = compute_reward(inc, out)
+            inc = get_incoming_queues(nid, flat_queue)
+            out = get_outgoing_queues(nid, flat_queue)
+            rewards[nid]   = compute_reward(inc, out)
             pressures[nid] = -rewards[nid]
 
         done = self._step >= SIM_END

@@ -2,15 +2,13 @@
 state_builder.py — Xây dựng state vector và adjacency graph cho GAT
 
 State mỗi ngã tư:
-    [density_per_lane (x8), queue_per_lane (x8), phase_onehot (x4), time_since_change (x1)]
-    → tổng 21 chiều
+    [density_per_lane (x MAX_LANES_TOTAL), queue_per_lane (x MAX_LANES_TOTAL),
+     phase_onehot (x4), time_since_change (x1)]
+
+MAX_LANES_TOTAL = tổng số lane của ngã tư có nhiều lane nhất — tự tính theo map.
+Các ngã tư ít lane hơn sẽ được pad 0 về cùng dim.
 
 Không có agent_id — GAT tự differentiate qua graph topology.
-
-Graph:
-    Node = ngã tư (4 node)
-    Edge = đoạn đường nối trực tiếp (không qua SRC)
-    adjacency_matrix[i][j] = 1 nếu có đường nối, 0 nếu không
 """
 
 import numpy as np
@@ -39,9 +37,17 @@ MAX_TIME_SINCE_CHANGE = 120.0
 _src, _dst = np.where(ADJACENCY_MATRIX == 1)
 EDGE_INDEX = np.stack([_src, _dst], axis=0).astype(np.int64)
 
+# ── Tính STATE_DIM động theo map ──────────────────────────────────
+# MAX_LANES_TOTAL = tổng lanes của ngã tư có nhiều lanes nhất
+MAX_LANES_TOTAL = max(
+    sum(get_edge_lanes(e) for e in edges)
+    for edges in INCOMING_EDGES.values()
+)
+# STATE_DIM = density + queue + phase_onehot + time
+STATE_DIM = MAX_LANES_TOTAL * 2 + NUM_PHASES + 1
+
 
 # ── State builder ─────────────────────────────────────────────────────────────
-
 def build_state(
     intersection_id: str,
     queue_per_lane: dict[str, list[float]],
@@ -51,32 +57,27 @@ def build_state(
 ) -> np.ndarray:
     """
     Xây dựng state vector cho một ngã tư.
-
-    Args:
-        intersection_id    : "N01" | "N02" | "N03" | "N04"
-        queue_per_lane     : {edge_id: [lane0_queue, lane1_queue]} — raw từ TraCI
-        density_per_lane   : {edge_id: [lane0_density, lane1_density]} — raw từ TraCI
-        current_phase      : index phase hiện tại (0-3)
-        time_since_change  : giây từ lần đổi phase cuối
-
-    Returns:
-        state: np.ndarray shape (21,) — normalized 0-1
+    Output shape: (STATE_DIM,) — pad 0 nếu ngã tư có ít lane hơn MAX_LANES_TOTAL.
     """
     incoming = INCOMING_EDGES[intersection_id]
 
-    # density (n_lanes per edge), normalize 0-1
+    # density per lane, normalize 0-1
     density_vec = []
     for edge in incoming:
         n = get_edge_lanes(edge)
         lanes = density_per_lane.get(edge, [0.0] * n)
         density_vec.extend([min(v, 1.0) for v in lanes])
 
-    # queue (n_lanes per edge), normalize bằng MAX_QUEUE
+    # queue per lane, normalize bằng MAX_QUEUE
     queue_vec = []
     for edge in incoming:
         n = get_edge_lanes(edge)
         lanes = queue_per_lane.get(edge, [0.0] * n)
         queue_vec.extend([min(v / MAX_QUEUE, 1.0) for v in lanes])
+
+    # pad về MAX_LANES_TOTAL
+    density_vec = density_vec[:MAX_LANES_TOTAL] + [0.0] * max(0, MAX_LANES_TOTAL - len(density_vec))
+    queue_vec   = queue_vec[:MAX_LANES_TOTAL]   + [0.0] * max(0, MAX_LANES_TOTAL - len(queue_vec))
 
     # phase one-hot 4 chiều
     phase_vec = [0.0] * NUM_PHASES
@@ -89,7 +90,7 @@ def build_state(
     state = np.array(
         density_vec + queue_vec + phase_vec + time_vec,
         dtype=np.float32,
-    )  # shape (21,)
+    )  # shape (STATE_DIM,)
 
     return state
 

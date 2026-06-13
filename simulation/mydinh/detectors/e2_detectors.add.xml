@@ -80,6 +80,9 @@
     <!-- từ Tây (SRC_HN) — secondary -->
     <laneAreaDetector id="e2_SRC_HN_N05_0" lane="SRC_HN_N05_0" pos="-1" length="200" freq="5" file="NUL"/>
     <laneAreaDetector id="e2_SRC_HN_N05_1" lane="SRC_HN_N05_1" pos="-1" length="200" freq="5" file="NUL"/>
+    <!-- từ Đông (SRC_NH) — secondary -->
+    <laneAreaDetector id="e2_SRC_NH_N05_0" lane="SRC_NH_N05_0" pos="-1" length="200" freq="5" file="NUL"/>
+    <laneAreaDetector id="e2_SRC_NH_N05_1" lane="SRC_NH_N05_1" pos="-1" length="200" freq="5" file="NUL"/>
     <!-- từ Nam (SRC_LDT_S) — arterial -->
     <laneAreaDetector id="e2_SRC_LDT_S_N05_0" lane="SRC_LDT_S_N05_0" pos="-1" length="200" freq="5" file="NUL"/>
     <laneAreaDetector id="e2_SRC_LDT_S_N05_1" lane="SRC_LDT_S_N05_1" pos="-1" length="200" freq="5" file="NUL"/>
@@ -90,6 +93,9 @@
     <laneAreaDetector id="e2_SRC_PH_N06_0" lane="SRC_PH_N06_0" pos="-1" length="200" freq="5" file="NUL"/>
     <laneAreaDetector id="e2_SRC_PH_N06_1" lane="SRC_PH_N06_1" pos="-1" length="200" freq="5" file="NUL"/>
     <laneAreaDetector id="e2_SRC_PH_N06_2" lane="SRC_PH_N06_2" pos="-1" length="200" freq="5" file="NUL"/>
+    <!-- từ Tây (SRC_NH) — secondary -->
+    <laneAreaDetector id="e2_SRC_NH_N06_0" lane="SRC_NH_N06_0" pos="-1" length="200" freq="5" file="NUL"/>
+    <laneAreaDetector id="e2_SRC_NH_N06_1" lane="SRC_NH_N06_1" pos="-1" length="200" freq="5" file="NUL"/>
     <!-- từ Đông (EXT_E) -->
     <laneAreaDetector id="e2_EXT_E_N06_in_0" lane="EXT_E_N06_in_0" pos="-1" length="200" freq="5" file="NUL"/>
     <laneAreaDetector id="e2_EXT_E_N06_in_1" lane="EXT_E_N06_in_1" pos="-1" length="200" freq="5" file="NUL"/>

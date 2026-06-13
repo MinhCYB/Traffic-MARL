@@ -24,7 +24,7 @@ SIM_END             = 3600    # giây — 1 episode = 1 giờ
 SEED                = 42
 
 # ── Model ─────────────────────────────────────────────────────────────────────
-STATE_DIM           = 21
+from environment.state_builder import STATE_DIM  # tự tính theo map
 HIDDEN_DIM          = 64
 NUM_HEADS           = 4
 NUM_ACTIONS         = 2

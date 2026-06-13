@@ -47,8 +47,8 @@ INCOMING_EDGES = {
     "N02": ["EXT_N_N02_in", "SRC_HTM_W_N02", "SRC_HTM_E_N02", "SRC_LDT_N_N02"],
     "N03": ["EXT_N_N03_in", "EXT_E_N03_in",  "SRC_HTM_E_N03", "SRC_PH_N03"],
     "N04": ["EXT_W_N04_in", "SRC_NCT_N_N04", "SRC_HN_N04",    "SRC_NCT_S_N04"],
-    "N05": ["SRC_LDT_N_N05","SRC_HN_N05",    "SRC_LDT_S_N05"],
-    "N06": ["SRC_PH_N06",   "EXT_E_N06_in"],
+    "N05": ["SRC_LDT_N_N05", "SRC_HN_N05",    "SRC_NH_N05",   "SRC_LDT_S_N05"],
+    "N06": ["SRC_PH_N06",   "SRC_NH_N06",    "EXT_E_N06_in"],
     "N07": ["EXT_W_N07_in", "SRC_NCT_S_N07", "EXT_S_N07_in",  "SRC_THD_N07"],
     "N08": ["SRC_LDT_S_N08","EXT_S_N08_in",  "SRC_THD_N08"],
 }
@@ -58,8 +58,8 @@ OUTGOING_EDGES = {
     "N02": ["N02_EXT_N_N02", "N02_SRC_HTM_W", "N02_SRC_HTM_E", "N02_SRC_LDT_N"],
     "N03": ["N03_EXT_N_N03", "N03_EXT_E_N03", "N03_SRC_HTM_E", "N03_SRC_PH"],
     "N04": ["N04_EXT_W_N04", "N04_SRC_NCT_N", "N04_SRC_HN",    "N04_SRC_NCT_S"],
-    "N05": ["N05_SRC_LDT_N", "N05_SRC_HN",    "N05_SRC_LDT_S"],
-    "N06": ["N06_SRC_PH",    "N06_EXT_E_N06"],
+    "N05": ["N05_SRC_LDT_N", "N05_SRC_HN",    "N05_SRC_NH",   "N05_SRC_LDT_S"],
+    "N06": ["N06_SRC_PH",    "N06_SRC_NH",    "N06_EXT_E_N06"],
     "N07": ["N07_EXT_W_N07", "N07_SRC_NCT_S", "N07_EXT_S_N07", "N07_SRC_THD"],
     "N08": ["N08_SRC_LDT_S", "N08_EXT_S_N08", "N08_SRC_THD"],
 }
@@ -72,8 +72,8 @@ ADJACENCY_MATRIX = np.array([
     [1,  0,  1,  0,  1,  0,  0,  0],  # N02 ─ N01, N03, N05
     [0,  1,  0,  0,  0,  1,  0,  0],  # N03 ─ N02, N06
     [1,  0,  0,  0,  1,  0,  1,  0],  # N04 ─ N01, N05, N07
-    [0,  1,  0,  1,  0,  0,  0,  1],  # N05 ─ N02, N04, N08
-    [0,  0,  1,  0,  0,  0,  0,  0],  # N06 ─ N03
+    [0,  1,  0,  1,  0,  1,  0,  1],  # N05 ─ N02, N04, N06, N08
+    [0,  0,  1,  0,  1,  0,  0,  0],  # N06 ─ N03, N05
     [0,  0,  0,  1,  0,  0,  0,  1],  # N07 ─ N04, N08
     [0,  0,  0,  0,  1,  0,  1,  0],  # N08 ─ N05, N07
 ], dtype=np.float32)

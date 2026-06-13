@@ -84,6 +84,9 @@
     <!-- Hàm Nghi ngang -->
     <node id="SRC_HN"     x="-300" y="0"    type="priority"/>  <!-- giữa N04-N05 -->
 
+    <!-- Nguyễn Hoàng ngang -->
+    <node id="SRC_NH"     x="300"  y="0"    type="priority"/>  <!-- giữa N05-N06 -->
+
     <!-- Trần Hữu Dực ngang -->
     <node id="SRC_THD"    x="-300" y="-400" type="priority"/>  <!-- giữa N07-N08 -->
 

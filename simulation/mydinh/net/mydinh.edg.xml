@@ -63,6 +63,15 @@
     <edge id="SRC_HN_N04"    from="SRC_HN"        to="N04"       type="secondary"/>
 
     <!-- ══════════════════════════════════════════════════════
+         NGUYỄN HOÀNG — ngang, secondary
+         N05 ←→ SRC_NH ←→ N06
+    ══════════════════════════════════════════════════════ -->
+    <edge id="N05_SRC_NH"    from="N05"           to="SRC_NH"    type="secondary"/>
+    <edge id="SRC_NH_N06"    from="SRC_NH"         to="N06"       type="secondary"/>
+    <edge id="N06_SRC_NH"    from="N06"            to="SRC_NH"    type="secondary"/>
+    <edge id="SRC_NH_N05"    from="SRC_NH"         to="N05"       type="secondary"/>
+
+    <!-- ══════════════════════════════════════════════════════
          TRẦN HỮU ĐỨC — ngang, secondary
          N07 ←→ SRC_THD ←→ N08
     ══════════════════════════════════════════════════════ -->

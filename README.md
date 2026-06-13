@@ -2,8 +2,18 @@
 
 > **GAT-MARL Traffic Signal Control** — Hệ thống điều khiển đèn giao thông thông minh sử dụng Multi-Agent Reinforcement Learning kết hợp Graph Attention Network.
 
-Bài tập lớn môn Machine Learning — Mô phỏng mạng lưới giao thông đô thị thực tế, so sánh trực quan 3 phương pháp điều khiển: Fixed-time, IDQN, và GAT-MARL.
+> Bài tập lớn môn Machine Learning — Mô phỏng mạng lưới giao thông đô thị thực tế, so sánh trực quan 3 phương pháp điều khiển: Fixed-time, IDQN, và GAT-MARL.
 
+> **Môn học:** Machine Learning — HK2, 2025–2026 </br>
+> **Trường:** Đại học Công nghệ, ĐHQGHN  </br>
+> **Nhóm:** 13 
+
+
+| Tên | MSSV |
+|-----|------|
+| Đặng Quang Minh | 24022397 |
+| Ngô Trọng Hiệp | 24022325 |
+| Khổng Quang Huy | 24022355 |
 ---
 
 ## Tổng quan
@@ -34,7 +44,8 @@ obs_i (queue, density, phase, time_since_change)
 Q(s, keep) · Q(s, switch) → argmax → Action
 ```
 
-**Reward:** Max Pressure — `reward_i = -|Σqueue_incoming - Σqueue_outgoing|`
+**Reward:** Weighted Max Pressure — `reward_i = -|Σ(queue_in × w_e) - Σ(queue_out × w_e)| / N_lanes`
+(arterial edges weight 2.0, secondary 1.0)
 
 ---
 
@@ -51,9 +62,9 @@ Smart-Traffic-MARL/
 │       └── mydinh.sumocfg
 │
 ├── environment/                 # RL Environment layer
-│   ├── traffic_env.py           # SUMO wrapper qua TraCI
+│   ├── traffic_env.py           # SUMO wrapper qua TraCI (batch subscription)
 │   ├── state_builder.py         # Build state vector, STATE_DIM tự tính theo map
-│   ├── reward.py                # Max Pressure formula
+│   ├── reward.py                # Weighted Max Pressure formula
 │   └── maps/                   # Topology data từng map
 │       ├── __init__.py          # Auto-load theo config.TOPOLOGY
 │       ├── map_2x2.py
@@ -70,12 +81,14 @@ Smart-Traffic-MARL/
 │   └── fixed_agent.py
 │
 ├── training/                    # Training pipeline
-│   ├── train.py                 # Main training loop
-│   ├── replay_buffer.py
+│   ├── train.py                 # Single-process training (debug / fixed_time)
+│   ├── train_parallel.py        # Parallel rollout training — Ape-X style
+│   ├── replay_buffer.py         # Pre-allocated numpy circular buffer
 │   ├── scheduler.py
 │   └── config.py                # Tất cả hyperparams + TOPOLOGY
 │
 ├── workers/                     # 3 process song song cho demo
+│   ├── worker_base.py           # Base class với batch TraCI subscription
 │   ├── worker_gat.py
 │   ├── worker_idqn.py
 │   └── worker_fixed.py
@@ -93,6 +106,7 @@ Smart-Traffic-MARL/
 │
 ├── scripts/                     # Dev tools
 │   ├── build_map.py             # Build SUMO net + routes (cross-platform)
+│   ├── merge_logs.py            # Merge CSV logs → JSON cho dashboard
 │   ├── run_training.sh
 │   └── run_demo.sh
 │
@@ -174,28 +188,72 @@ Script tự chạy `netconvert` (gen `net.xml`) và `gen_routes.py` (gen `routes
 
 ## Training
 
-```bash
-# Train từng model (đứng ở root project)
-python -m training.train --model gat_marl
-python -m training.train --model idqn
-python -m training.train --model fixed_time
+Có 2 chế độ training tùy mục đích:
 
-# Chạy song song 2 terminal — mỗi model dùng port TraCI riêng
-# Terminal 1:
+### Single-process (`train.py`)
+
+Dùng khi debug config mới, thử nghiệm hyperparams, hoặc train `fixed_time`. Dễ đọc traceback, không có overhead multi-process.
+
+```bash
+# Train từng model
 python -m training.train --model gat_marl
-# Terminal 2:
 python -m training.train --model idqn
+python -m training.train --model fixed_time   # chỉ dùng single-process
 
 # Resume từ checkpoint
-python -m training.train --model gat_marl --resume
+python -m training.train --model gat_marl --resume checkpoints/final/gat_marl_mydinh_best.pt
+
+# Finetune sang map mới
+python -m training.train --model gat_marl --finetune checkpoints/final/gat_marl_mydinh_best.pt
 
 # Chỉ định device
-python -m training.train --model idqn --device cpu
+python -m training.train --model gat_marl --device cpu
+```
+
+### Parallel rollout (`train_parallel.py`) — recommended
+
+Chạy N SUMO workers song song, 1 learner dùng GPU liên tục. Phù hợp khi config đã ổn định và muốn train nhanh. Output CSV cùng format với `train.py` nên `merge_logs.py` dùng được bình thường.
+
+```bash
+# Recommended cho máy 8-core (để lại 1 core cho OS + learner)
+python -m training.train_parallel --model gat_marl --num-workers 3
+
+# Tăng workers nếu RAM còn nhiều (mỗi worker ~1-1.5GB RAM)
+python -m training.train_parallel --model gat_marl --num-workers 4
+
+# Resume / finetune
+python -m training.train_parallel --model gat_marl --num-workers 3 \
+    --resume checkpoints/final/gat_marl_mydinh_best.pt
+```
+
+**Workflow gợi ý:**
+
+```bash
+# 1. Debug / thử config mới — single process
+python -m training.train --model gat_marl --episodes 20
+
+# 2. Train thật khi config ổn — parallel
+python -m training.train_parallel --model gat_marl --num-workers 3
+
+# 3. Fixed-time baseline
+python -m training.train --model fixed_time
 ```
 
 **2 phase training** — đổi route file trong config rồi train lại:
 - `peak`: giờ cao điểm, 600–900 veh/h trên arterial
 - `night`: ban đêm, 70–120 veh/h
+
+---
+
+## Xem kết quả (dashboard Results tab)
+
+Sau khi train xong cả 3 models, chạy:
+
+```bash
+python scripts/merge_logs.py
+```
+
+Script đọc `logs/<topology>/gat_marl/training_log.csv`, `idqn/training_log.csv`, `fixed_time/training_log.csv` → tạo `logs/merged.json` cho dashboard hiển thị chart so sánh và bảng summary.
 
 ---
 
@@ -255,5 +313,6 @@ Thêm `environment/maps/map_<map_name>.py` với `INTERSECTION_IDS`, `INCOMING_E
 | [CoLight — Wei et al., CIKM 2019](https://arxiv.org/abs/1905.05717) | GAT cho traffic signal control |
 | [MPLight — Chen et al., AAAI 2020](https://ojs.aaai.org/index.php/AAAI/article/view/5744) | Parameter sharing |
 | [GAT — Veličković et al., ICLR 2018](https://arxiv.org/abs/1710.10903) | Graph Attention Networks |
+| [Ape-X — Horgan et al., ICLR 2018](https://arxiv.org/abs/1803.00933) | Distributed prioritized experience replay |
 
 **Tools:** [PyTorch Geometric](https://pytorch-geometric.readthedocs.io) · [SUMO](https://sumo.dlr.de/docs) · [TraCI](https://sumo.dlr.de/docs/TraCI.html)

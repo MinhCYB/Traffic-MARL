@@ -1,13 +1,15 @@
 """
-train.py — Main training loop
+train.py — Main training loop (optimized)
+
+Cải tiến so với v1:
+- UPDATES_PER_STEP: update nhiều lần/step để GPU không idle khi SUMO chạy
+- Prefetch buffer check tránh gọi is_ready() mỗi step
+- ReplayBuffer pre-allocated nhanh hơn
 
 Chạy:
-    python training/train.py --model gat_marl
-    python training/train.py --model idqn
-    python training/train.py --model fixed_time
-
-Log CSV mỗi episode → logs/<model>/episode_*.csv
-Checkpoint mỗi SAVE_FREQ episodes → checkpoints/<model>_ep<N>.pt
+    python -m training.train --model gat_marl
+    python -m training.train --model idqn
+    python -m training.train --model fixed_time
 """
 
 import argparse
@@ -28,7 +30,12 @@ from training.config import (
 )
 from training.replay_buffer import ReplayBuffer
 from environment.traffic_env import TrafficEnv
-from environment.state_builder import build_node_features
+from environment.state_builder import build_node_features, INTERSECTION_IDS
+
+# ── Tuning knobs ──────────────────────────────────────────────────────────────
+# Số lần update GPU mỗi simulation step.
+# GPU RTX 3050 Ti nhỏ → 4-6 là sweet-spot; tăng nếu GPU vẫn idle
+UPDATES_PER_STEP = 4
 
 
 def build_agent(model_name: str, device: str = "auto"):
@@ -69,17 +76,6 @@ def get_port(model_name: str) -> int:
     }[model_name]
 
 
-def setup_logger(model_name: str) -> tuple[Path, list[str]]:
-    log_dir = LOG_DIR / model_name
-    log_dir.mkdir(parents=True, exist_ok=True)
-    fieldnames = [
-        "episode", "total_steps", "global_reward",
-        "avg_speed", "avg_waiting_time", "throughput",
-        "loss", "epsilon", "duration_s",
-    ]
-    return log_dir, fieldnames
-
-
 def train(
     model_name: str,
     device: str = "auto",
@@ -88,6 +84,7 @@ def train(
     freeze_gat_epochs: int = 0,
     episodes: int | None = None,
     delta_time: int | None = None,
+    updates_per_step: int = UPDATES_PER_STEP,
 ):
 
     num_episodes = episodes or NUM_EPISODES
@@ -104,13 +101,14 @@ def train(
     print(f"  Device  : {actual_device.upper()} ({device_name})")
     print(f"  Episodes: {num_episodes}")
     print(f"  Delta T : {dt}s/step")
+    print(f"  Updates/step: {updates_per_step}")
     if finetune:
         print(f"  Finetune: {finetune}")
         print(f"  Freeze GAT: {freeze_gat_epochs} episodes")
     print(f"{'='*50}\n")
 
     agent  = build_agent(model_name, device)
-    buffer = ReplayBuffer(REPLAY_BUFFER_SIZE)
+    buffer = ReplayBuffer(REPLAY_BUFFER_SIZE, state_dim=STATE_DIM, n_agents=len(INTERSECTION_IDS))
     port   = get_port(model_name)
     env    = TrafficEnv(port=port, topology=TOPOLOGY, use_gui=False, seed=SEED, delta_time=dt)
 
@@ -131,10 +129,8 @@ def train(
     start_episode = 0
 
     if finetune:
-        # Load từ map khác — warm-start weights
         agent.load(finetune)
         print(f"  ✓ Loaded weights from: {finetune}")
-        # Freeze GAT layer nếu yêu cầu
         if freeze_gat_epochs > 0 and hasattr(agent, "freeze_gat"):
             agent.freeze_gat()
             print(f"  ✓ GAT frozen for first {freeze_gat_epochs} episodes")
@@ -153,6 +149,7 @@ def train(
 
         total_steps  = 0
         best_reward  = float("-inf")
+        ready        = False  # cache buffer readiness — tránh check mỗi step
 
         for episode in range(start_episode, num_episodes):
             t_start = time.time()
@@ -190,14 +187,18 @@ def train(
                         done=done,
                     )
 
-                if (
-                    model_name != "fixed_time"
-                    and buffer.is_ready(MIN_REPLAY_SIZE)
-                ):
-                    batch   = buffer.sample(BATCH_SIZE)
-                    metrics = agent.update(batch)
-                    episode_loss += metrics.get("loss", 0.0)
-                    loss_count   += 1
+                    # Cache readiness — chỉ flip 1 lần, không check mỗi step
+                    if not ready and buffer.is_ready(MIN_REPLAY_SIZE):
+                        ready = True
+
+                    if ready:
+                        # Multiple gradient updates per sim step
+                        # → GPU bận trong khi SUMO chạy step tiếp theo
+                        for _ in range(updates_per_step):
+                            batch   = buffer.sample(BATCH_SIZE)
+                            metrics = agent.update(batch)
+                            episode_loss += metrics.get("loss", 0.0)
+                            loss_count   += 1
 
                 episode_reward += info["global_reward"]
                 obs = next_obs
@@ -295,6 +296,10 @@ if __name__ == "__main__":
         "--delta-time", type=int, default=None,
         help="Override DELTA_TIME trong config",
     )
+    parser.add_argument(
+        "--updates-per-step", type=int, default=UPDATES_PER_STEP,
+        help=f"Số lần update GPU mỗi sim step (default: {UPDATES_PER_STEP})",
+    )
     args = parser.parse_args()
     train(
         args.model, args.device,
@@ -303,4 +308,5 @@ if __name__ == "__main__":
         freeze_gat_epochs=args.freeze_gat_epochs,
         episodes=args.episodes,
         delta_time=args.delta_time,
+        updates_per_step=args.updates_per_step,
     )

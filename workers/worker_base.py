@@ -40,6 +40,9 @@ class WorkerBase(ABC):
         self.base_url = f"http://{SERVER_HOST}:{SERVER_PORT}"
         self._running = False
         self._step    = 0
+        # Cache cho batch vehicle subscription (tối ưu TraCI round-trips)
+        self._subscribed_vehicles: set[str] = set()
+        self._lane_length_cache:   dict[str, float] = {}
 
     # ── Abstract ──────────────────────────────────────────────────────────────
 
@@ -67,6 +70,9 @@ class WorkerBase(ABC):
                 obs  = self.env.reset(route_type=route_type, volume_scale=volume)
                 done = False
                 self._step = 0
+                # Reset subscription caches mỗi episode (xe mới hoàn toàn)
+                self._subscribed_vehicles = set()
+                self._lane_length_cache   = {}
 
                 while not done:
                     actions = self.agent.select_actions(obs)
@@ -156,24 +162,63 @@ class WorkerBase(ABC):
         return payload
 
     def _read_vehicles(self) -> list[dict]:
-        """Đọc vị trí, tốc độ, loại xe từ TraCI để frontend vẽ trên map."""
+        """
+        Đọc vị trí, tốc độ, loại xe từ TraCI dùng batch context subscription.
+
+        Tối ưu so với v1: thay vì gọi N TraCI calls riêng lẻ mỗi xe,
+        dùng traci.vehicle.getAllContextSubscriptionResults() (1 round-trip).
+        Subscribe khi xe mới xuất hiện, unsubscribe khi xe rời mạng.
+        """
         try:
             import traci
-            vehicles = []
-            for vid in traci.vehicle.getIDList():
-                try:
-                    edge_id  = traci.vehicle.getRoadID(vid)
-                    lane_idx = traci.vehicle.getLaneIndex(vid)
-                    lane_pos = traci.vehicle.getLanePosition(vid)
-                    speed    = traci.vehicle.getSpeed(vid)
-                    vtype    = traci.vehicle.getTypeID(vid)
-                    angle    = traci.vehicle.getAngle(vid)
+            import traci.constants as tc
 
-                    try:
-                        lane_len = traci.lane.getLength(f"{edge_id}_{lane_idx}")
-                        pos_norm = round(lane_pos / lane_len, 3) if lane_len > 0 else 0.0
-                    except Exception:
-                        pos_norm = 0.0
+            # Subscribe xe mới — chỉ tốn kém lần đầu xe vào mạng
+            current_ids = set(traci.vehicle.getIDList())
+            new_ids     = current_ids - self._subscribed_vehicles
+            gone_ids    = self._subscribed_vehicles - current_ids
+
+            _VARS = (
+                tc.VAR_ROAD_ID,       # edge
+                tc.VAR_LANE_INDEX,    # lane index
+                tc.VAR_LANEPOSITION,  # position along lane
+                tc.VAR_SPEED,         # m/s
+                tc.VAR_TYPE,          # type id
+                tc.VAR_ANGLE,         # heading
+            )
+
+            for vid in new_ids:
+                traci.vehicle.subscribe(vid, _VARS)
+            for vid in gone_ids:
+                try:
+                    traci.vehicle.unsubscribe(vid)
+                except Exception:
+                    pass
+
+            self._subscribed_vehicles = current_ids
+
+            # Một lần lấy toàn bộ kết quả subscription
+            sub_results = traci.vehicle.getAllSubscriptionResults()
+
+            vehicles = []
+            for vid, vals in sub_results.items():
+                try:
+                    edge_id  = vals.get(tc.VAR_ROAD_ID, "")
+                    lane_idx = vals.get(tc.VAR_LANE_INDEX, 0)
+                    lane_pos = vals.get(tc.VAR_LANEPOSITION, 0.0)
+                    speed    = vals.get(tc.VAR_SPEED, 0.0)
+                    vtype    = vals.get(tc.VAR_TYPE, "")
+                    angle    = vals.get(tc.VAR_ANGLE, 0.0)
+
+                    # Lane length từ cache
+                    lane_key = f"{edge_id}_{lane_idx}"
+                    if lane_key not in self._lane_length_cache:
+                        try:
+                            self._lane_length_cache[lane_key] = traci.lane.getLength(lane_key)
+                        except Exception:
+                            self._lane_length_cache[lane_key] = 0.0
+                    lane_len = self._lane_length_cache[lane_key]
+                    pos_norm = round(lane_pos / lane_len, 3) if lane_len > 0 else 0.0
 
                     vehicles.append({
                         "id":    vid,

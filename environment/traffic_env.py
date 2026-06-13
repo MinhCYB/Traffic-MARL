@@ -156,6 +156,9 @@ class TrafficEnv:
         for nid in INTERSECTION_IDS:
             traci.trafficlight.setPhase(nid, 0)
 
+        # Subscribe detectors một lần — đọc batch mỗi step
+        self._init_detector_subscriptions()
+
         obs = self._get_obs()
         return obs
 
@@ -298,31 +301,64 @@ class TrafficEnv:
                 self._green_time[nid] += 1.0
                 self._time_since_change[nid] += 1.0
 
+    def _init_detector_subscriptions(self):
+        """
+        Subscribe tất cả E2 detectors một lần sau reset.
+        Sau đó getAllSubscriptionResults() là 1 round-trip thay vì N*M calls.
+        """
+        import traci.constants as tc
+        self._det_ids: list[str] = []
+        for nid in INTERSECTION_IDS:
+            for edge in INCOMING_EDGES[nid]:
+                for lane_idx in range(NUM_LANES):
+                    det_id = f"e2_{edge}_{lane_idx}"
+                    try:
+                        traci.lanearea.subscribe(det_id, [
+                            tc.LAST_STEP_VEHICLE_HALTING_NUMBER,  # queue
+                            tc.LAST_STEP_OCCUPANCY,               # density
+                        ])
+                        self._det_ids.append(det_id)
+                    except Exception:
+                        pass
+
     def _read_detectors(self) -> tuple[dict, dict]:
         """
         Đọc queue và density từ tất cả E2 detectors qua TraCI.
 
-        Returns:
-            queue_data  : {intersection_id: {edge_id: [lane0, lane1]}}
-            density_data: {intersection_id: {edge_id: [lane0, lane1]}}
+        v2: dùng getAllSubscriptionResults() — 1 round-trip thay vì N*M calls.
+        Fallback về per-call nếu subscription chưa init.
         """
-        queue_data: dict[str, dict[str, list[float]]] = {nid: {} for nid in INTERSECTION_IDS}
+        import traci.constants as tc
+
+        queue_data:   dict[str, dict[str, list[float]]] = {nid: {} for nid in INTERSECTION_IDS}
         density_data: dict[str, dict[str, list[float]]] = {nid: {} for nid in INTERSECTION_IDS}
+
+        # Lấy toàn bộ kết quả 1 lần
+        try:
+            sub_results = traci.lanearea.getAllSubscriptionResults()
+        except Exception:
+            sub_results = {}
 
         for nid in INTERSECTION_IDS:
             for edge in INCOMING_EDGES[nid]:
-                queues = []
+                queues    = []
                 densities = []
                 for lane_idx in range(NUM_LANES):
                     det_id = f"e2_{edge}_{lane_idx}"
-                    try:
-                        q = traci.lanearea.getLastStepHaltingNumber(det_id)
-                        d = traci.lanearea.getLastStepOccupancy(det_id) / 100.0
-                    except traci.exceptions.TraCIException:
-                        q, d = 0.0, 0.0
-                    queues.append(float(q))
-                    densities.append(float(d))
-                queue_data[nid][edge] = queues
+                    vals   = sub_results.get(det_id)
+                    if vals:
+                        q = float(vals.get(tc.LAST_STEP_VEHICLE_HALTING_NUMBER, 0))
+                        d = float(vals.get(tc.LAST_STEP_OCCUPANCY, 0)) / 100.0
+                    else:
+                        # Fallback per-call nếu subscription miss
+                        try:
+                            q = float(traci.lanearea.getLastStepHaltingNumber(det_id))
+                            d = float(traci.lanearea.getLastStepOccupancy(det_id)) / 100.0
+                        except Exception:
+                            q, d = 0.0, 0.0
+                    queues.append(q)
+                    densities.append(d)
+                queue_data[nid][edge]   = queues
                 density_data[nid][edge] = densities
 
         return queue_data, density_data

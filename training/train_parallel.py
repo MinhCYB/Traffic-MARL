@@ -11,14 +11,26 @@ Architecture:
 CSV output: logs/<topology>/<model>/training_log.csv
     Cùng format với train.py → merge_logs.py + dashboard dùng được bình thường.
 
+Thêm (finetune accident):
+- --accident-prob  : xác suất sinh tai nạn mỗi episode ở mỗi worker (default 0.0)
+- --accident-duration: thời gian kéo dài sự cố tính bằng giây (default 300)
+- Log ghi mode "a" (append) khi resume/finetune, "w" (overwrite) khi fresh train
+
 Chạy:
     python -m training.train_parallel --model gat_marl --num-workers 3
-    python -m training.train_parallel --model gat_marl --num-workers 3 --resume checkpoints/final/gat_marl_mydinh_best.pt
+    python -m training.train_parallel --model gat_marl --num-workers 3 \\
+        --resume checkpoints/final/gat_marl_mydinh_best.pt
+
+    # Finetune với tai nạn:
+    python -m training.train_parallel --model gat_marl --num-workers 3 \\
+        --finetune checkpoints/final/gat_marl_mydinh_best.pt \\
+        --accident-prob 0.3 --accident-duration 300
 """
 
 import argparse
 import csv
 import os
+import random
 import time
 from pathlib import Path
 
@@ -36,7 +48,7 @@ from training.config import (
     TOPOLOGY, DELTA_TIME,
 )
 from training.replay_buffer import ReplayBuffer
-from environment.state_builder import INTERSECTION_IDS
+from environment.state_builder import INTERSECTION_IDS, INCOMING_EDGES
 
 # ── Parallel-specific knobs ───────────────────────────────────────────────────
 BASE_PORT          = 8820   # worker i dùng port BASE_PORT + i
@@ -45,20 +57,61 @@ SYNC_EVERY         = 200    # RTX 3050 Ti: 50 quá thường → interrupt GPU l
 MAX_EXP_QUEUE      = 12000  # tăng buffer để worker ít drop hơn khi GPU bận
 WORKER_EPSILON_MIN = 0.10   # workers luôn explore tối thiểu 10%
 
+# ── Danh sách tất cả edge có thể xảy ra tai nạn ──────────────────────────────
+# Mỗi worker process có bản copy riêng sau fork/spawn nên thread-safe
+_ALL_ACCIDENT_EDGES: list[str] = list(
+    {edge for edges in INCOMING_EDGES.values() for edge in edges}
+)
+
+
+# ══════════════════════════════════════════════════════════════════════════════
+# Accident helper — dùng trong worker
+# ══════════════════════════════════════════════════════════════════════════════
+
+def _schedule_accident(
+    accident_prob: float,
+    accident_duration: int,
+    delta_time: int,
+) -> tuple[int | None, int | None, str | None]:
+    """
+    Quyết định có sinh tai nạn cho episode này không.
+
+    Returns:
+        (inject_step, clear_step, edge_id) nếu có tai nạn,
+        (None, None, None) nếu không có.
+
+    inject_step / clear_step tính theo đơn vị step (1 step = delta_time giây).
+    """
+    if not _ALL_ACCIDENT_EDGES or random.random() >= accident_prob:
+        return None, None, None
+
+    # Thời điểm bắt đầu: 60s → 600s kể từ đầu episode (tính ra step)
+    start_step_min = max(1, 60 // delta_time)
+    start_step_max = max(start_step_min + 1, 600 // delta_time)
+    inject_step = random.randint(start_step_min, start_step_max)
+
+    duration_steps = max(1, accident_duration // delta_time)
+    clear_step = inject_step + duration_steps
+
+    edge_id = random.choice(_ALL_ACCIDENT_EDGES)
+    return inject_step, clear_step, edge_id
+
 
 # ══════════════════════════════════════════════════════════════════════════════
 # Rollout Worker
 # ══════════════════════════════════════════════════════════════════════════════
 
 def rollout_worker(
-    worker_id:    int,
-    model_name:   str,
-    exp_queue:    mp.Queue,   # push raw transitions
-    stats_queue:  mp.Queue,   # push episode summary dict
-    weight_queue: mp.Queue,   # nhận state_dict từ learner
-    stop_event:   mp.Event,
-    episodes:     int,
-    delta_time:   int,
+    worker_id:        int,
+    model_name:       str,
+    exp_queue:        mp.Queue,   # push raw transitions
+    stats_queue:      mp.Queue,   # push episode summary dict
+    weight_queue:     mp.Queue,   # nhận state_dict từ learner
+    stop_event:       mp.Event,
+    episodes:         int,
+    delta_time:       int,
+    accident_prob:    float = 0.0,
+    accident_duration: int  = 300,
 ):
     """Chạy SUMO, collect experience, gửi episode stats về learner."""
     os.environ["CUDA_VISIBLE_DEVICES"] = ""   # worker chỉ dùng CPU
@@ -70,7 +123,7 @@ def rollout_worker(
     # Epsilon staggered: đa dạng exploration giữa các workers
     eps    = max(WORKER_EPSILON_MIN, EPSILON_START - worker_id * 0.15)
 
-    print(f"[Worker-{worker_id}] port={port} | ε_start={eps:.2f}")
+    print(f"[Worker-{worker_id}] port={port} | ε_start={eps:.2f} | accident_prob={accident_prob:.0%}")
 
     agent = _build_agent(model_name, device="cpu",
                          epsilon=eps,
@@ -90,10 +143,35 @@ def rollout_worker(
         ep_steps     = 0
         last_info    = {}
 
+        # ── Lập lịch tai nạn cho episode này ─────────────────────────────────
+        inject_step, clear_step, acc_edge = _schedule_accident(
+            accident_prob, accident_duration, delta_time
+        )
+        had_accident    = False
+        accident_active = False
+
+        if inject_step is not None:
+            print(
+                f"  [Worker-{worker_id} | Ep {global_episode}] "
+                f"Tai nạn → edge={acc_edge} "
+                f"@ step {inject_step} → clear @ step {clear_step}"
+            )
+
         # Sync weights mới nhất từ learner trước mỗi episode
         _pull_weights(agent, weight_queue)
 
         while not done and not stop_event.is_set():
+            # ── Inject tai nạn ────────────────────────────────────────────────
+            if inject_step is not None and ep_steps == inject_step and not accident_active:
+                env.inject_accident(acc_edge)
+                accident_active = True
+                had_accident    = True
+
+            # ── Clear tai nạn ─────────────────────────────────────────────────
+            if accident_active and ep_steps == clear_step:
+                env.clear_accident(acc_edge)
+                accident_active = False
+
             actions = agent.select_actions(obs)
             next_obs, rewards, done, info = env.step(actions)
 
@@ -114,6 +192,13 @@ def rollout_worker(
             last_info  = info
             obs        = next_obs
 
+        # ── Đảm bảo clear tai nạn nếu episode kết thúc sớm / bị ngắt ────────
+        if accident_active:
+            try:
+                env.clear_accident(acc_edge)
+            except Exception:
+                pass
+
         # ── Episode summary — cùng schema với train.py ────────────────────
         duration = time.time() - t0
         summary  = {
@@ -126,6 +211,8 @@ def rollout_worker(
             "throughput":       last_info.get("throughput", 0),
             "epsilon":          round(getattr(agent, "epsilon", 0.0), 4),
             "duration_s":       round(duration, 1),
+            "had_accident":     int(had_accident),
+            "accident_edge":    acc_edge or "",
         }
         try:
             stats_queue.put_nowait(summary)
@@ -173,6 +260,7 @@ def run_learner(
     resume:              str | None,
     finetune:            str | None,
     freeze_gat_episodes: int,
+    log_file_mode:       str = "w",
 ):
     device      = "cuda" if torch.cuda.is_available() else "cpu"
     device_name = torch.cuda.get_device_name(0) if device == "cuda" else "CPU"
@@ -201,6 +289,7 @@ def run_learner(
         "episode", "worker_id", "total_steps", "global_reward",
         "avg_speed", "avg_waiting_time", "throughput",
         "loss", "epsilon", "duration_s",
+        "had_accident", "accident_edge",          # ← cột mới để track sự cố
     ]
 
     total_updates  = 0
@@ -234,9 +323,12 @@ def run_learner(
     drain_thread = threading.Thread(target=_drain_loop, daemon=True, name="DrainThread")
     drain_thread.start()
 
-    with open(log_path, "w", newline="") as f:
+    with open(log_path, log_file_mode, newline="") as f:
         writer = csv.DictWriter(f, fieldnames=fieldnames)
-        writer.writeheader()
+
+        # Chỉ ghi header khi tạo file mới
+        if log_file_mode == "w":
+            writer.writeheader()
 
         while not stop_event.is_set():
             # ── 1. Check buffer ready ─────────────────────────────────────
@@ -293,6 +385,8 @@ def run_learner(
                     "loss":             round(current_loss, 6),
                     "epsilon":          summary["epsilon"],
                     "duration_s":       summary["duration_s"],
+                    "had_accident":     summary.get("had_accident", 0),
+                    "accident_edge":    summary.get("accident_edge", ""),
                 }
                 writer.writerow(row)
                 f.flush()
@@ -306,7 +400,9 @@ def run_learner(
                         if eta_s >= 3600
                         else f"{int(eta_s//60)}m {int(eta_s%60)}s"
                     )
-                    q_size = exp_queue.qsize()
+                    q_size   = exp_queue.qsize()
+                    acc_flag = f" | 🚨 ACC({summary.get('accident_edge', '')})" \
+                               if summary.get("had_accident") else ""
                     print(
                         f"Ep {logged_episodes:4d}/{total_episodes} "
                         f"[W{summary['worker_id']}] | "
@@ -318,6 +414,7 @@ def run_learner(
                         f"Queue: {q_size:4d} | "
                         f"{wall_s:.1f}s/ep (wall) | "
                         f"ETA: {eta_str}"
+                        f"{acc_flag}"
                     )
 
                 # Best checkpoint
@@ -387,12 +484,17 @@ def train_parallel(
     resume:              str | None = None,
     finetune:            str | None = None,
     freeze_gat_episodes: int   = 20,
+    accident_prob:       float = 0.0,
+    accident_duration:   int   = 300,
 ):
     mp.set_start_method("spawn", force=True)
 
     log_dir = LOG_DIR / model_name
     log_dir.mkdir(parents=True, exist_ok=True)
     log_path = log_dir / "training_log.csv"   # ← tên giống train.py → merge_logs hoạt động
+
+    # ── Chọn file mode: "a" khi resume/finetune để không mất data cũ ─────────
+    log_file_mode = "a" if (resume or finetune) else "w"
 
     mode = "FINETUNE" if finetune else "RESUME" if resume else "FRESH"
     total_eps = episodes * num_workers
@@ -406,7 +508,10 @@ def train_parallel(
     print(f"  Episodes/worker   : {episodes}  → tổng ~{episodes*num_workers}")
     print(f"  Delta T           : {delta_time}s/step")
     print(f"  GPU Learner       : {'CUDA' if torch.cuda.is_available() else 'CPU'}")
-    print(f"  Log               : {log_path}")
+    print(f"  Log               : {log_path}  [mode={log_file_mode!r}]")
+    if accident_prob > 0.0:
+        print(f"  Accident prob     : {accident_prob:.0%}")
+        print(f"  Accident duration : {accident_duration}s")
     print(f"{'='*55}\n")
 
     exp_queue     = mp.Queue(maxsize=MAX_EXP_QUEUE)
@@ -418,8 +523,11 @@ def train_parallel(
     for i in range(num_workers):
         p = mp.Process(
             target=rollout_worker,
-            args=(i, model_name, exp_queue, stats_queue,
-                  weight_queues[i], stop_event, episodes, delta_time),
+            args=(
+                i, model_name, exp_queue, stats_queue,
+                weight_queues[i], stop_event, episodes, delta_time,
+                accident_prob, accident_duration,          # ← truyền xuống worker
+            ),
             daemon=True,
             name=f"RolloutWorker-{i}",
         )
@@ -440,6 +548,7 @@ def train_parallel(
             resume              = resume,
             finetune            = finetune,
             freeze_gat_episodes = freeze_gat_episodes,
+            log_file_mode       = log_file_mode,
         )
     except KeyboardInterrupt:
         print("\n[Main] Interrupted — stopping...")
@@ -463,6 +572,18 @@ if __name__ == "__main__":
     parser.add_argument("--resume", type=str, default=None)
     parser.add_argument("--finetune", type=str, default=None)
     parser.add_argument("--freeze-gat-episodes", type=int, default=20)
+    # ── Accident args ─────────────────────────────────────────────────────────
+    parser.add_argument(
+        "--accident-prob", type=float, default=0.0,
+        help=(
+            "Xác suất xảy ra tai nạn trong 1 episode ở mỗi worker (0.0–1.0). "
+            "Mặc định 0.0 — không ảnh hưởng fresh train."
+        ),
+    )
+    parser.add_argument(
+        "--accident-duration", type=int, default=300,
+        help="Thời gian kéo dài sự cố tính bằng giây (default: 300s)",
+    )
     args = parser.parse_args()
 
     train_parallel(
@@ -473,4 +594,6 @@ if __name__ == "__main__":
         resume              = args.resume,
         finetune            = args.finetune,
         freeze_gat_episodes = args.freeze_gat_episodes,
+        accident_prob       = args.accident_prob,
+        accident_duration   = args.accident_duration,
     )

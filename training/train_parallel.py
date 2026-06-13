@@ -299,9 +299,10 @@ def run_learner(
 
                 # In progress mỗi 10 episodes
                 if logged_episodes % 10 == 0:
-                    pct = logged_episodes / total_episodes * 100
-                    avg_dur = summary["duration_s"]
-                    eta_s   = (total_episodes - logged_episodes) * avg_dur / num_workers
+                    # Wall-clock time mỗi episode = duration_s / num_workers
+                    # vì workers chạy song song — không chia sẽ in thời gian gấp đôi thực tế
+                    wall_s  = summary["duration_s"] / num_workers
+                    eta_s   = (total_episodes - logged_episodes) * wall_s
                     eta_str = (
                         f"{int(eta_s//3600)}h {int((eta_s%3600)//60)}m"
                         if eta_s >= 3600
@@ -317,7 +318,7 @@ def run_learner(
                         f"Loss: {current_loss:.5f} | "
                         f"ε: {summary['epsilon']:.3f} | "
                         f"Queue: {q_size:4d} | "
-                        f"{summary['duration_s']:.1f}s/ep | "
+                        f"{wall_s:.1f}s/ep (wall) | "
                         f"ETA: {eta_str}"
                     )
 

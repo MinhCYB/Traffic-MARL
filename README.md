@@ -6,14 +6,14 @@
 
 > **Môn học:** Machine Learning — HK2, 2025–2026 </br>
 > **Trường:** Đại học Công nghệ, ĐHQGHN  </br>
-> **Nhóm:** 13 
-
+> **Nhóm:** 13
 
 | Tên | MSSV |
 |-----|------|
 | Đặng Quang Minh | 24022397 |
 | Ngô Trọng Hiệp | 24022325 |
 | Khổng Quang Huy | 24022355 |
+
 ---
 
 ## Tổng quan
@@ -201,47 +201,128 @@ python -m training.train --model idqn
 python -m training.train --model fixed_time   # chỉ dùng single-process
 
 # Resume từ checkpoint
-python -m training.train --model gat_marl --resume checkpoints/final/gat_marl_mydinh_best.pt
+python -m training.train --model gat_marl \
+    --resume checkpoints/final/gat_marl_mydinh_best.pt
 
 # Finetune sang map mới
-python -m training.train --model gat_marl --finetune checkpoints/final/gat_marl_mydinh_best.pt
+python -m training.train --model gat_marl \
+    --finetune checkpoints/final/gat_marl_mydinh_best.pt
 
-# Chỉ định device
-python -m training.train --model gat_marl --device cpu
+# Override số episodes hoặc device
+python -m training.train --model gat_marl --episodes 100 --device cpu
 ```
 
 ### Parallel rollout (`train_parallel.py`) — recommended
 
-Chạy N SUMO workers song song, 1 learner dùng GPU liên tục. Phù hợp khi config đã ổn định và muốn train nhanh. Output CSV cùng format với `train.py` nên `merge_logs.py` dùng được bình thường.
+Chạy N SUMO workers song song, 1 Learner dùng GPU liên tục theo kiến trúc Ape-X. Phù hợp khi config đã ổn định và muốn train nhanh hơn. Output CSV cùng format với `train.py` nên `merge_logs.py` dùng được bình thường.
+
+**Lưu ý quan trọng về số episodes:** `--episodes` là số episodes *mỗi worker* chạy, không phải tổng. Để tương đương với `train.py --episodes 500`, chia đôi:
 
 ```bash
-# Recommended cho máy 8-core (để lại 1 core cho OS + learner)
-python -m training.train_parallel --model gat_marl --num-workers 3
+# Máy laptop 6-8 core (RTX 3050 Ti, v.v.) — 2 workers là sweet-spot
+python -m training.train_parallel --model gat_marl \
+    --num-workers 2 --episodes 250
+# → tổng 250 × 2 = 500 episodes
 
-# Tăng workers nếu RAM còn nhiều (mỗi worker ~1-1.5GB RAM)
-python -m training.train_parallel --model gat_marl --num-workers 4
-
-# Resume / finetune
-python -m training.train_parallel --model gat_marl --num-workers 3 \
-    --resume checkpoints/final/gat_marl_mydinh_best.pt
+# Máy desktop nhiều core hơn có thể thử 3 workers
+python -m training.train_parallel --model gat_marl \
+    --num-workers 3 --episodes 167
+# → tổng ~500 episodes
 ```
 
 **Workflow gợi ý:**
 
 ```bash
-# 1. Debug / thử config mới — single process
+# 1. Debug / thử config mới — single process, ít episodes
 python -m training.train --model gat_marl --episodes 20
 
 # 2. Train thật khi config ổn — parallel
-python -m training.train_parallel --model gat_marl --num-workers 3
+python -m training.train_parallel --model gat_marl \
+    --num-workers 2 --episodes 250
 
-# 3. Fixed-time baseline
+# 3. Fixed-time baseline (chỉ single-process)
 python -m training.train --model fixed_time
 ```
 
-**2 phase training** — đổi route file trong config rồi train lại:
-- `peak`: giờ cao điểm, 600–900 veh/h trên arterial
-- `night`: ban đêm, 70–120 veh/h
+---
+
+## Finetune sang map mới
+
+Finetune cho phép tận dụng model đã train trên một map (ví dụ `2x2`) làm điểm khởi đầu khi chuyển sang map mới (ví dụ `mydinh`), thay vì train từ đầu. Thời gian hội tụ giảm đáng kể vì Local Encoder và Q-head đã học được kiến thức chung về traffic, chỉ cần GAT layer thích nghi với topology mới.
+
+### Cơ chế hoạt động
+
+Khi finetune, agent thực hiện **2-phase training**:
+
+**Phase 1 — Freeze GAT, chỉ train Q-head** (mặc định 20 episodes đầu):
+
+GAT layer giữ nguyên trọng số từ checkpoint cũ. Chỉ Local Encoder và Q-head được update. Mục đích là để Q-head nhanh chóng học lại value function phù hợp với reward scale và state distribution của map mới, tránh gradient lớn từ Q-head phá vỡ GAT weights ngay từ đầu.
+
+**Phase 2 — Unfreeze toàn bộ, train end-to-end** (sau episode thứ 20):
+
+Toàn bộ network được update. GAT layer lúc này có thể điều chỉnh attention pattern theo topology mới trong khi Q-head đã ổn định.
+
+Ngoài ra, khi load checkpoint để finetune, optimizer state và epsilon **không được load lại** — epsilon reset về `EPSILON_START` để agent explore đủ trên map mới, optimizer bắt đầu fresh để tránh momentum cũ từ map khác ảnh hưởng.
+
+### Dùng `train.py` (single-process)
+
+```bash
+# Finetune với cài đặt mặc định (freeze 20 episodes đầu)
+python -m training.train --model gat_marl \
+    --finetune checkpoints/final/gat_marl_2x2_best.pt
+
+# Tăng freeze nếu map mới rất khác (nhiều ngã tư hơn, topology phức tạp hơn)
+python -m training.train --model gat_marl \
+    --finetune checkpoints/final/gat_marl_2x2_best.pt \
+    --freeze-gat-epochs 50
+
+# Giảm freeze về 0 nếu map mới gần giống map cũ (chỉ thêm vài ngã tư)
+python -m training.train --model gat_marl \
+    --finetune checkpoints/final/gat_marl_2x2_best.pt \
+    --freeze-gat-epochs 0
+```
+
+### Dùng `train_parallel.py` (recommended)
+
+Parallel finetune nhanh hơn đáng kể vì nhiều workers cùng explore map mới song song — đặc biệt có lợi ở Phase 1 khi cần collect nhiều experience để Q-head hội tụ nhanh.
+
+```bash
+# Finetune parallel — freeze 20 episodes đầu (tính theo logged episodes, không phải per-worker)
+python -m training.train_parallel --model gat_marl \
+    --num-workers 2 --episodes 150 \
+    --finetune checkpoints/final/gat_marl_2x2_best.pt
+
+# Tăng freeze-gat-episodes nếu map mới phức tạp hơn nhiều
+python -m training.train_parallel --model gat_marl \
+    --num-workers 2 --episodes 150 \
+    --finetune checkpoints/final/gat_marl_2x2_best.pt \
+    --freeze-gat-episodes 50
+```
+
+**Lưu ý về `--freeze-gat-episodes` trong parallel mode:**
+
+`freeze_gat_episodes` đếm theo **logged episodes** phía Learner (tổng episodes từ tất cả workers), không phải episodes của từng worker riêng lẻ. Ví dụ với 2 workers và `--freeze-gat-episodes 20`, GAT sẽ được unfreeze sau khi Learner nhận đủ 20 episode summaries — tương đương ~10 episodes/worker.
+
+### Khi nào nên finetune thay vì train fresh
+
+| Tình huống | Nên làm |
+|-----------|---------|
+| Chuyển từ `2x2` sang `mydinh` (cùng loại bài toán, khác scale) | Finetune từ `2x2_best.pt` |
+| Thêm ngã tư mới vào map hiện tại | Finetune với `--freeze-gat-epochs 0` |
+| Thay đổi reward function hoặc state representation | Train fresh — weight cũ không còn nghĩa |
+| Map mới có số phase khác (NUM_ACTIONS thay đổi) | Train fresh — output layer không tương thích |
+
+### Theo dõi quá trình finetune
+
+Log CSV ghi nhận `epsilon` theo từng episode. Một finetune diễn ra đúng sẽ có dạng:
+
+```
+Episode 1–20  : epsilon cao (1.0 → ~0.82), loss dao động lớn  ← Phase 1, Q-head adapt
+Episode 20+   : loss bắt đầu ổn định, reward dần cải thiện    ← Phase 2, end-to-end
+Episode 50–80 : reward vượt qua mức train-from-scratch tương đương
+```
+
+Nếu reward không cải thiện sau 100 episodes, thử tăng `--freeze-gat-epochs` lên 50–100 hoặc giảm learning rate trong `config.py`.
 
 ---
 

@@ -40,8 +40,9 @@ from environment.state_builder import INTERSECTION_IDS
 
 # ── Parallel-specific knobs ───────────────────────────────────────────────────
 BASE_PORT          = 8820   # worker i dùng port BASE_PORT + i
-SYNC_EVERY         = 50     # sync weights mỗi N learner updates
-MAX_EXP_QUEUE      = 8000   # tăng cap để workers không drop khi GPU bận
+SYNC_EVERY         = 200    # RTX 3050 Ti: 50 quá thường → interrupt GPU liên tục
+                            # 200 = sync ~3 lần/episode, đủ fresh mà không overhead
+MAX_EXP_QUEUE      = 12000  # tăng buffer để worker ít drop hơn khi GPU bận
 WORKER_EPSILON_MIN = 0.10   # workers luôn explore tối thiểu 10%
 
 
@@ -381,7 +382,7 @@ def _build_agent(model_name, device, epsilon, epsilon_min, epsilon_decay):
 
 def train_parallel(
     model_name:          str,
-    num_workers:         int   = 3,
+    num_workers:         int   = 2,   # RTX 3050 Ti Laptop: 2 là sweet-spot
     episodes:            int   = NUM_EPISODES,
     delta_time:          int   = DELTA_TIME,
     resume:              str | None = None,
@@ -395,6 +396,10 @@ def train_parallel(
     log_path = log_dir / "training_log.csv"   # ← tên giống train.py → merge_logs hoạt động
 
     mode = "FINETUNE" if finetune else "RESUME" if resume else "FRESH"
+    total_eps = episodes * num_workers
+    if total_eps > NUM_EPISODES * 1.5:
+        print(f"     WARNING: tổng episodes = {total_eps} (= {episodes} × {num_workers} workers)")
+        print(f"     Nếu muốn tương đương train.py ({NUM_EPISODES} ep), dùng --episodes {NUM_EPISODES // num_workers}")
     print(f"\n{'='*55}")
     print(f"  Parallel Training : {model_name.upper()}  [{mode}]")
     print(f"  Topology          : {TOPOLOGY}")
@@ -451,8 +456,8 @@ def train_parallel(
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
     parser.add_argument("--model", required=True, choices=["gat_marl", "idqn"])
-    parser.add_argument("--num-workers", type=int, default=3,
-                        help="Số SUMO processes song song (recommend: 3 cho 8-core)")
+    parser.add_argument("--num-workers", type=int, default=2,
+                        help="Số SUMO processes song song (recommend: 2 cho RTX 3050 Ti Laptop)")
     parser.add_argument("--episodes", type=int, default=NUM_EPISODES,
                         help="Số episodes mỗi worker chạy")
     parser.add_argument("--delta-time", type=int, default=DELTA_TIME)

@@ -299,9 +299,7 @@ def run_learner(
 
                 # In progress mỗi 10 episodes
                 if logged_episodes % 10 == 0:
-                    # Wall-clock time mỗi episode = duration_s / num_workers
-                    # vì workers chạy song song — không chia sẽ in thời gian gấp đôi thực tế
-                    wall_s  = summary["duration_s"] / num_workers
+                    wall_s  = summary["duration_s"]
                     eta_s   = (total_episodes - logged_episodes) * wall_s
                     eta_str = (
                         f"{int(eta_s//3600)}h {int((eta_s%3600)//60)}m"

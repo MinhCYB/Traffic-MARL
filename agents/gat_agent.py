@@ -191,13 +191,31 @@ class GATAgent(BaseAgent):
             "update_count": self._update_count,
         }, path)
 
-    def load(self, path: str):
+    def load(self, path: str, finetune: bool = False):
+        """
+        Load checkpoint.
+        finetune=True: chỉ load weights (warm-start), reset optimizer + epsilon.
+        finetune=False: load toàn bộ state (resume).
+        """
         ckpt = torch.load(path, map_location=self.device)
         self.online_net.load_state_dict(ckpt["online_net"])
         self.target_net.load_state_dict(ckpt["target_net"])
-        self.optimizer.load_state_dict(ckpt["optimizer"])
-        self.epsilon      = ckpt.get("epsilon", self.epsilon_min)
-        self._update_count = ckpt.get("update_count", 0)
+        if not finetune:
+            self.optimizer.load_state_dict(ckpt["optimizer"])
+            self.epsilon       = ckpt.get("epsilon", self.epsilon_min)
+            self._update_count = ckpt.get("update_count", 0)
+        # finetune: giữ epsilon_start để explore map mới
+
+    def freeze_gat(self):
+        """Freeze GAT layer — chỉ train Q-head khi finetune giai đoạn đầu."""
+        for name, param in self.online_net.named_parameters():
+            if "gat" in name.lower():
+                param.requires_grad = False
+
+    def unfreeze_gat(self):
+        """Unfreeze GAT layer sau freeze_gat_epochs."""
+        for param in self.online_net.parameters():
+            param.requires_grad = True
 
     def set_eval(self):
         self.online_net.eval()

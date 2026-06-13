@@ -90,21 +90,15 @@ function Roads({ EDGES, NODE, SRC, edgeSpeeds, accidentEdges }) {
   );
 }
 
-// ── CountdownPill — tách riêng để tick không re-render cả Intersections ────
+// ── CountdownPill — hiển thị tsc trực tiếp từ server, không dùng client tick
 function CountdownPill({ tsc, dt, px, py }) {
   const SZ     = 9;
   const CD_OFF = SZ + 10;
 
-  const [tick, setTick] = useState(0);
-  useEffect(() => { setTick(0); }, [tsc]); // reset mỗi khi server gửi step mới
-  useEffect(() => {
-    const id = setInterval(() => setTick(t => t + 1), 1000); // cập nhật mỗi 1s, không nhấp nháy
-    return () => clearInterval(id);
-  }, []);
-
-  const countdown = Math.max(0, Math.round(dt - tsc - tick));
-  const cdColor   = countdown <= 4 ? "#888780" : "#534ab7";  // tím = sắp đổi, xám = bình thường
-  const PW = 20; const PH = 12; // pill width/height
+  // Còn lại = dt - tsc, lấy thẳng từ server — không fake bằng client tick
+  const remaining = Math.max(0, Math.round(dt - tsc));
+  const cdColor   = remaining <= 4 ? "#534ab7" : "#888780";
+  const PW = 22; const PH = 11;
 
   return (
     <g>
@@ -113,8 +107,8 @@ function CountdownPill({ tsc, dt, px, py }) {
         fill={cdColor} opacity={0.85}/>
       <text x={px+CD_OFF} y={py+CD_OFF+0.5}
         textAnchor="middle" dominantBaseline="central"
-        fontSize={7} fontWeight="800" fill="white" letterSpacing={-0.3}>
-        {countdown}s
+        fontSize={7} fontWeight="800" fill="white">
+        {remaining}s
       </text>
     </g>
   );

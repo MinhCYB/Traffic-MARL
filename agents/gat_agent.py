@@ -85,7 +85,7 @@ class GATAgent(BaseAgent):
 
         self.online_net.eval()
         with torch.no_grad():
-            q_values = self.online_net(x, self.edge_index)  # (4, 2)
+            q_values = self.online_net(x, self.edge_index)  # (N, num_actions)
 
         actions = q_values.argmax(dim=-1).cpu().numpy()  # (4,)
         return {nid: int(actions[i]) for i, nid in enumerate(INTERSECTION_IDS)}
@@ -98,7 +98,7 @@ class GATAgent(BaseAgent):
         Returns:
             attn_matrix: (4, 4) numpy array hoặc None
         """
-        matrix = self.online_net.get_attention_matrix(self.edge_index, n_nodes=4)
+        matrix = self.online_net.get_attention_matrix(self.edge_index, n_nodes=len(INTERSECTION_IDS))
         return matrix.cpu().numpy() if matrix is not None else None
 
     # ── Learning ──────────────────────────────────────────────────────────────
@@ -198,6 +198,24 @@ class GATAgent(BaseAgent):
         finetune=False: load toàn bộ state (resume).
         """
         ckpt = torch.load(path, map_location=self.device)
+
+        # ── Validate checkpoint vs topology hiện tại ──────────────────────────
+        # Chỉ check STATE_DIM (input dim của encoder) — att_src shape là [1, num_heads, dim]
+        # KHÔNG phải [n_nodes, ...], không dùng để check số nodes
+        ckpt_input_dim = ckpt["online_net"]["encoder.net.0.weight"].shape[1]
+        cur_input_dim  = self.online_net.encoder.net[0].weight.shape[1]
+
+        if ckpt_input_dim != cur_input_dim:
+            raise ValueError(
+                f"\n{'='*55}\n"
+                f"  ✗ Checkpoint không tương thích với topology hiện tại!\n"
+                f"  File: {path}\n"
+                f"  STATE_DIM: checkpoint={ckpt_input_dim}, current topology={cur_input_dim}\n"
+                f"  → Dùng --finetune thay vì --resume nếu muốn transfer,\n"
+                f"    hoặc train lại checkpoint đúng topology.\n"
+                f"{'='*55}"
+            )
+
         self.online_net.load_state_dict(ckpt["online_net"])
         self.target_net.load_state_dict(ckpt["target_net"])
         if not finetune:

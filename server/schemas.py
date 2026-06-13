@@ -40,6 +40,7 @@ class WorkerPayload(BaseModel):
     mode:               str
     step:               int
     timestamp:          float
+    topology:           str = "2x2"          # NEW — map hiện tại đang chạy
     intersections:      list[IntersectionData]
     metrics:            MetricsData
     vehicles:           Optional[list[VehicleData]]    = None

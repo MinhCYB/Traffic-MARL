@@ -140,6 +140,7 @@ class WorkerBase(ABC):
             "mode":           self.model_name,
             "step":           self._step,
             "timestamp":      time.time(),
+            "topology":       TOPOLOGY,
             "intersections":  intersections,
             "vehicles":       self._read_vehicles(),
             "edge_speeds":    info.get("edge_speeds", {}),

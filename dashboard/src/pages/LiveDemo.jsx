@@ -3,6 +3,7 @@ import { useState, useRef, useEffect } from "react";
 import { useWebSocket } from "../hooks/useWebSocket";
 import { MetricsPanel } from "../components/MetricsPanel";
 import { TrafficMap }   from "../components/TrafficMap";
+import { getLayout }    from "../mapLayouts/index.js";
 import {
   LineChart, Line, BarChart, Bar, XAxis, YAxis, CartesianGrid,
   Tooltip, ResponsiveContainer, Legend, Cell,
@@ -15,9 +16,8 @@ const PANELS = [
 ];
 
 const ROUTE_OPTIONS = [
-  { value: "peak",    label: "🏙️ Giờ cao điểm" },
-  { value: "weekend", label: "🛍️ Cuối tuần"    },
-  { value: "night",   label: "🌙 Ban đêm"       },
+  { value: "peak",  label: "🏙️ Giờ cao điểm" },
+  { value: "night", label: "🌙 Ban đêm"       },
 ];
 
 const VOLUME_OPTIONS = [
@@ -26,7 +26,6 @@ const VOLUME_OPTIONS = [
   { value: 1.8,  label: "🚗🚗🚗 Đông"      },
 ];
 
-const ACCIDENT_EDGE    = "SRC1_N02";
 const MAX_CHART_POINTS = 60;
 const ZERO_TOTALS      = () => ({ fixed_time: 0, idqn: 0, gat_marl: 0 });
 
@@ -98,7 +97,7 @@ function StartDropdown({ onStart }) {
 }
 
 // ── Accident Dropdown ─────────────────────────────────────────────────────────
-function AccidentDropdown({ onInject }) {
+function AccidentDropdown({ onInject, topology }) {
   const [open, setOpen] = useState(false);
   const ref = useRef(null);
   useEffect(() => {
@@ -106,6 +105,10 @@ function AccidentDropdown({ onInject }) {
     document.addEventListener("mousedown", h);
     return () => document.removeEventListener("mousedown", h);
   }, []);
+
+  const layout       = getLayout(topology || "2x2");
+  const accidentEdges = layout.DEMO_ACCIDENT_EDGES || [];
+
   return (
     <div className="accident-dropdown" ref={ref}>
       <button className="ctrl-btn ctrl-btn--accident" onClick={() => setOpen(o => !o)}>
@@ -113,8 +116,12 @@ function AccidentDropdown({ onInject }) {
       </button>
       {open && (
         <div className="accident-menu">
-          <button className="accident-option" onClick={() => { onInject("1");   setOpen(false); }}>⚠️ Block 1 lane</button>
-          <button className="accident-option" onClick={() => { onInject("all"); setOpen(false); }}>🚨 Block tất cả lanes</button>
+          {accidentEdges.map(({ label, value }) => (
+            <div key={value} style={{ borderBottom: "1px solid rgba(0,0,0,0.06)", paddingBottom: 2 }}>
+              <button className="accident-option" onClick={() => { onInject(value, "1");   setOpen(false); }}>⚠️ {label} — 1 lane</button>
+              <button className="accident-option" onClick={() => { onInject(value, "all"); setOpen(false); }}>🚨 {label} — chặn hết</button>
+            </div>
+          ))}
         </div>
       )}
     </div>
@@ -295,12 +302,16 @@ export default function LiveDemo() {
   const [history,   setHistory]   = useState([]);
   const [totalWait, setTotalWait] = useState(ZERO_TOTALS());
 
-  // Refs để track state synchronously — tránh stale closure trong setState
   const lastStepRef    = useRef(0);
-  const cumulativeRef  = useRef(ZERO_TOTALS()); // xe hoàn thành cộng dồn
-  const totalWaitRef   = useRef(ZERO_TOTALS()); // tổng chờ cộng dồn
+  const cumulativeRef  = useRef(ZERO_TOTALS());
+  const totalWaitRef   = useRef(ZERO_TOTALS());
 
-  const [speedHistory, setSpeedHistory] = useState([]); // tốc độ TB realtime
+  const [speedHistory, setSpeedHistory] = useState([]);
+
+  // Detect topology từ data của bất kỳ worker nào
+  // Default về TOPOLOGY từ import config — tránh dropdown accident show sai map trước khi worker connect
+  const topology = PANELS.reduce((t, p) => data?.[p.key]?.topology || t, null)
+                ?? (import.meta.env.VITE_TOPOLOGY || "2x2");
 
   useEffect(() => {
     if (!data) return;
@@ -345,7 +356,7 @@ export default function LiveDemo() {
   };
 
   const handleStart  = (route, volume) => { doReset(); sendCommand(`start:${route}:${volume}`); };
-  const handleInject = (mode)           => sendCommand(`inject_accident:${ACCIDENT_EDGE}:${mode}`);
+  const handleInject = (edgeId, mode)  => sendCommand(`inject_accident:${edgeId}:${mode}`);
   const handleReset  = ()               => { doReset(); sendCommand("reset"); };
   const togglePanel  = (key)            => setVisible(v => ({ ...v, [key]: !v[key] }));
 
@@ -373,7 +384,7 @@ export default function LiveDemo() {
         </div>
         <div className="demo-controls">
           <StartDropdown onStart={handleStart}/>
-          <AccidentDropdown onInject={handleInject}/>
+          <AccidentDropdown onInject={handleInject} topology={topology}/>
           <button className="ctrl-btn ctrl-btn--reset" onClick={handleReset}>↺ Reset</button>
         </div>
       </div>

@@ -44,12 +44,11 @@ def _get_sumo_cfg(topology: str) -> Path:
 def _get_route_files(topology: str) -> dict[str, Path]:
     base = SIM_ROOT / topology / "routes"
     return {
-        "peak":    base / "routes_peak.rou.xml",
-        "weekend": base / "routes_weekend.rou.xml",
-        "night":   base / "routes_night.rou.xml",
+        "peak":  base / "routes_peak.rou.xml",
+        "night": base / "routes_night.rou.xml",
     }
 
-ROUTE_WEIGHTS = {"peak": 0.6, "weekend": 0.3, "night": 0.1}
+ROUTE_WEIGHTS = {"peak": 0.9, "night": 0.1}
 
 # Phase definitions cho mỗi ngã tư
 # 0: NS_green, 1: NS_yellow, 2: EW_green, 3: EW_yellow
@@ -214,7 +213,7 @@ class TrafficEnv:
         for nid in INTERSECTION_IDS:
             inc = get_incoming_queues(nid, flat_queue)
             out = get_outgoing_queues(nid, flat_queue)
-            rewards[nid]   = compute_reward(inc, out)
+            rewards[nid]   = compute_reward(nid, inc, out)
             pressures[nid] = -rewards[nid]
 
         done = self._step >= SIM_END
@@ -374,12 +373,20 @@ class TrafficEnv:
             pass
         return edge_speeds
 
-    @staticmethod
-    def _sample_route() -> str:
-        r = random.random()
-        if r < 0.6:   return "peak"
-        elif r < 0.9: return "weekend"
-        return "night"
+    def _sample_route(self) -> str:
+        """Sample route type — chỉ chọn file đang tồn tại."""
+        route_files = _get_route_files(self.topology)
+        available = [k for k, v in route_files.items() if v.exists()]
+        if not available:
+            raise FileNotFoundError(
+                f"Không tìm thấy route file nào trong simulation/{self.topology}/routes/. "
+                f"Chạy: python scripts/build_map.py {self.topology}"
+            )
+        weights_map = {"peak": 0.9, "night": 0.1}
+        weights = [weights_map.get(k, 0.1) for k in available]
+        total = sum(weights)
+        weights = [w / total for w in weights]
+        return random.choices(available, weights=weights, k=1)[0]
 
     @staticmethod
     def _scale_route_file(base_path: str, scale: float) -> str:

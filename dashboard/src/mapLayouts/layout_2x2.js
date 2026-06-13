@@ -70,8 +70,15 @@ export const NODE_LABELS = {
   N04: "Vui Chơi\n+ DC",
 };
 
-// Accident edges mẫu để demo (dùng trong UI dropdown)
-export const DEMO_ACCIDENT_EDGES = [
-  { label: "SRC1 → N02 (đường chính)", value: "SRC1_N02" },
-  { label: "SRC2 → N04 (đường chính)", value: "SRC2_N04" },
-];
+// Accident edges — tự động gen từ EDGES, chỉ lấy internal edges
+const NODE_IDS_2X2 = Object.keys(NODE);
+export const DEMO_ACCIDENT_EDGES = Object.entries(EDGES)
+  .filter(([, e]) => {
+    const fromIsNode = typeof e.from === "string" && NODE_IDS_2X2.includes(e.from);
+    const toIsNode   = typeof e.to   === "string" && NODE_IDS_2X2.includes(e.to);
+    return fromIsNode && toIsNode;
+  })
+  .map(([id, e]) => ({
+    label: `${e.from} → ${e.to}`,
+    value: id,
+  }));

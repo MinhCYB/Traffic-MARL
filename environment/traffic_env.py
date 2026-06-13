@@ -248,7 +248,7 @@ class TrafficEnv:
                 pass
         self._accident_edges[edge_id] = block_mode
 
-    def clear_accident(self, edge_id: str):
+    def clear_accident(self, edge_id: str = None):
         """Restore lane sau tai nạn."""
         for lane_idx in range(NUM_LANES):
             lane_id = f"{edge_id}_{lane_idx}"
@@ -256,7 +256,10 @@ class TrafficEnv:
                 traci.lane.setMaxSpeed(lane_id, 13.89)
             except Exception:
                 pass
-        self._accident_edges.pop(edge_id, None)
+        if edge_id is None:
+            self._accident_edges.clear()   # xóa toàn bộ
+        else:
+            self._accident_edges.pop(edge_id, None)
 
     # ── Internal ──────────────────────────────────────────────────────────────
 

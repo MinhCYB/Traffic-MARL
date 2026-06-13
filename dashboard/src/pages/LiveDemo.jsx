@@ -21,9 +21,9 @@ const ROUTE_OPTIONS = [
 ];
 
 const VOLUME_OPTIONS = [
-  { value: 0.5,  label: "🚗 Thưa"         },
-  { value: 1.0,  label: "🚗🚗 Bình thường" },
-  { value: 1.8,  label: "🚗🚗🚗 Đông"      },
+  { value: 0.5, label: "🚗 Thưa"          },
+  { value: 1.0, label: "🚗🚗 Bình thường"  },
+  { value: 1.8, label: "🚗🚗🚗 Đông"       },
 ];
 
 const MAX_CHART_POINTS = 60;
@@ -97,7 +97,7 @@ function StartDropdown({ onStart }) {
 }
 
 // ── Accident Dropdown ─────────────────────────────────────────────────────────
-function AccidentDropdown({ onInject, topology }) {
+function AccidentDropdown({ onInject, onClear, topology }) {
   const [open, setOpen] = useState(false);
   const ref = useRef(null);
   useEffect(() => {
@@ -106,25 +106,84 @@ function AccidentDropdown({ onInject, topology }) {
     return () => document.removeEventListener("mousedown", h);
   }, []);
 
-  const layout       = getLayout(topology || "2x2");
+  const layout        = getLayout(topology || "2x2");
   const accidentEdges = layout.DEMO_ACCIDENT_EDGES || [];
 
   return (
     <div className="accident-dropdown" ref={ref}>
-      <button className="ctrl-btn ctrl-btn--accident" onClick={() => setOpen(o => !o)}>
-        🚨 Tai nạn ▾
-      </button>
+      <div style={{ display:"flex", gap:0 }}>
+        <button className="ctrl-btn ctrl-btn--accident" onClick={() => setOpen(o => !o)}>
+          🚨 Tai nạn ▾
+        </button>
+        <button
+          className="ctrl-btn ctrl-btn--clear"
+          style={{ borderRadius:"0 7px 7px 0", padding:"6px 10px", marginLeft:1 }}
+          title="Xóa tất cả chặn"
+          onClick={() => { onClear(); setOpen(false); }}>
+          ✕
+        </button>
+      </div>
       {open && (
         <div className="accident-menu">
+          <div className="accident-menu-header">Chọn đoạn đường & loại chặn</div>
           {accidentEdges.map(({ label, value }) => (
-            <div key={value} style={{ borderBottom: "1px solid rgba(0,0,0,0.06)", paddingBottom: 2 }}>
-              <button className="accident-option" onClick={() => { onInject(value, "1");   setOpen(false); }}>⚠️ {label} — 1 lane</button>
-              <button className="accident-option" onClick={() => { onInject(value, "all"); setOpen(false); }}>🚨 {label} — chặn hết</button>
+            <div key={value} className="accident-edge-row">
+              <span className="accident-edge-label">{label}</span>
+              <div className="accident-edge-btns">
+                <button className="accident-option accident-option--left"
+                  title="Chặn lane trái"
+                  onClick={() => { onInject(value, "left");  setOpen(false); }}>
+                  ◀ Trái
+                </button>
+                <button className="accident-option accident-option--right"
+                  title="Chặn lane phải"
+                  onClick={() => { onInject(value, "right"); setOpen(false); }}>
+                  Phải ▶
+                </button>
+                <button className="accident-option accident-option--all"
+                  title="Chặn toàn bộ"
+                  onClick={() => { onInject(value, "all");   setOpen(false); }}>
+                  🚨 Hết
+                </button>
+              </div>
             </div>
           ))}
         </div>
       )}
     </div>
+  );
+}
+
+// ── Score Tooltip ─────────────────────────────────────────────────────────────
+function ScoreTooltip() {
+  const [show, setShow] = useState(false);
+  return (
+    <span style={{ position:"relative", display:"inline-block", marginLeft:6 }}>
+      <span
+        style={{ cursor:"pointer", fontSize:12, color:"#888780", userSelect:"none" }}
+        onMouseEnter={() => setShow(true)}
+        onMouseLeave={() => setShow(false)}>
+        ❓
+      </span>
+      {show && (
+        <div style={{
+          position:"absolute", bottom:"calc(100% + 6px)", left:"50%",
+          transform:"translateX(-50%)", background:"white",
+          border:"1px solid #e2e0d8", borderRadius:8, padding:"10px 14px",
+          width:240, zIndex:999, fontSize:11, color:"#444",
+          boxShadow:"0 4px 16px rgba(0,0,0,0.10)", lineHeight:1.6,
+        }}>
+          <div style={{ fontWeight:600, marginBottom:6 }}>Cách tính điểm</div>
+          <div>⚡ Tốc độ TB: <b>40%</b></div>
+          <div>🚗 Xe hoàn thành: <b>40%</b></div>
+          <div>⏱ Ít chờ: <b>20%</b></div>
+          <div style={{ marginTop:6, color:"#888780" }}>
+            Tốc độ = avg toàn bộ session.<br/>
+            Mỗi tiêu chí normalize 0–100 so với model tốt nhất.
+          </div>
+        </div>
+      )}
+    </span>
   );
 }
 
@@ -134,24 +193,39 @@ function RankTable({ history, totalWait, speedHistory }) {
 
   const last = history[history.length - 1];
 
-  // Score: normalize mỗi metric rồi tổng hợp (higher = better)
+  // Speed = avg toàn bộ session (không phải snapshot cuối)
+  const avgSpeed = (key) => {
+    const pts = speedHistory.map(p => p[`${key}_speed`]).filter(v => v != null && v > 0);
+    return pts.length ? Math.round(pts.reduce((a, b) => a + b, 0) / pts.length * 10) / 10 : 0;
+  };
+  const minSpeed = (key) => {
+    const pts = speedHistory.map(p => p[`${key}_speed`]).filter(v => v != null && v > 0);
+    return pts.length ? Math.round(Math.min(...pts) * 10) / 10 : 0;
+  };
+  const maxSpeed = (key) => {
+    const pts = speedHistory.map(p => p[`${key}_speed`]).filter(v => v != null && v > 0);
+    return pts.length ? Math.round(Math.max(...pts) * 10) / 10 : 0;
+  };
+
   const raw = PANELS.map(p => ({
     ...p,
-    completed: last?.[`${p.key}_cum`]          ?? 0,
-    wait:      totalWait[p.key]                 ?? 0,  // lower better
-    speed:     speedHistory[speedHistory.length - 1]?.[`${p.key}_speed`] ?? 0,
+    completed: last?.[`${p.key}_cum`] ?? 0,
+    wait:      totalWait[p.key]        ?? 0,
+    speed:     avgSpeed(p.key),
+    minSpd:    minSpeed(p.key),
+    maxSpd:    maxSpeed(p.key),
   }));
 
   const maxCompleted = Math.max(...raw.map(r => r.completed)) || 1;
   const maxWait      = Math.max(...raw.map(r => r.wait))      || 1;
-  const maxSpeed     = Math.max(...raw.map(r => r.speed))     || 1;
+  const maxSpd       = Math.max(...raw.map(r => r.speed))     || 1;
 
   const ranked = raw.map(r => ({
     ...r,
     score: Math.round(
-      (r.completed / maxCompleted) * 40 +       // throughput 40%
-      (1 - r.wait / maxWait)       * 40 +       // ít chờ 40%
-      (r.speed / maxSpeed)         * 20          // tốc độ 20%
+      (r.speed     / maxSpd)       * 40 +   // tốc độ 40%
+      (r.completed / maxCompleted) * 40 +   // throughput 40%
+      (1 - r.wait  / maxWait)      * 20     // ít chờ 20%
     ),
   })).sort((a, b) => b.score - a.score);
 
@@ -159,7 +233,10 @@ function RankTable({ history, totalWait, speedHistory }) {
 
   return (
     <div className="chart-card rank-table-card">
-      <div className="chart-card-title">Bảng xếp hạng</div>
+      <div className="chart-card-title">
+        Bảng xếp hạng
+        <ScoreTooltip/>
+      </div>
       <table className="rank-table">
         <thead>
           <tr>
@@ -167,7 +244,7 @@ function RankTable({ history, totalWait, speedHistory }) {
             <th>Model</th>
             <th title="Xe đã qua mạng">🚗 Xe HT</th>
             <th title="Tổng thời gian chờ tích lũy">⏱ Chờ (k s)</th>
-            <th title="Tốc độ trung bình hiện tại">⚡ Tốc độ</th>
+            <th title="Tốc độ trung bình toàn session (min – max)">⚡ Tốc độ</th>
             <th>Score</th>
           </tr>
         </thead>
@@ -181,7 +258,16 @@ function RankTable({ history, totalWait, speedHistory }) {
               </td>
               <td>{r.completed}</td>
               <td>{(r.wait / 1000).toFixed(1)}</td>
-              <td>{r.speed > 0 ? `${r.speed} km/h` : "—"}</td>
+              <td>
+                {r.speed > 0
+                  ? <span>
+                      <b>{r.speed}</b>
+                      <span style={{ fontSize:10, color:"#888780", marginLeft:4 }}>
+                        ({r.minSpd}–{r.maxSpd}) km/h
+                      </span>
+                    </span>
+                  : "—"}
+              </td>
               <td className="rank-score" style={{ color: r.color }}>{r.score}</td>
             </tr>
           ))}
@@ -195,21 +281,17 @@ function RankTable({ history, totalWait, speedHistory }) {
 function RealtimeCharts({ history, totalWait, speedHistory }) {
   if (!history.length) return null;
 
-  // Bar chart gộp: xe hoàn thành + tổng chờ cạnh nhau theo model
   const summaryData = PANELS.map(p => ({
     name:      p.label,
     completed: history[history.length - 1]?.[`${p.key}_cum`] ?? 0,
-    wait:      Math.round((totalWait[p.key] ?? 0) / 1000 * 10) / 10, // đổi sang nghìn giây
+    wait:      Math.round((totalWait[p.key] ?? 0) / 1000 * 10) / 10,
     color:     p.color,
   }));
 
   return (
     <div className="realtime-charts">
-
-      {/* Bảng xếp hạng */}
       <RankTable history={history} totalWait={totalWait} speedHistory={speedHistory}/>
 
-      {/* Bar chart gộp — xe hoàn thành + tổng chờ */}
       <div className="chart-card">
         <div className="chart-card-title">
           So sánh tổng kết
@@ -240,7 +322,6 @@ function RealtimeCharts({ history, totalWait, speedHistory }) {
         </ResponsiveContainer>
       </div>
 
-      {/* Line chart — tốc độ TB realtime, thể hiện recovery sau tai nạn */}
       <div className="chart-card">
         <div className="chart-card-title">
           Tốc độ trung bình (km/h) theo thời gian
@@ -260,13 +341,11 @@ function RealtimeCharts({ history, totalWait, speedHistory }) {
               <Line key={p.key} type="monotone"
                 dataKey={`${p.key}_speed`} name={p.label}
                 stroke={p.color} dot={false} strokeWidth={2}
-                connectNulls={false}
-                isAnimationActive={false}/>
+                connectNulls={false} isAnimationActive={false}/>
             ))}
           </LineChart>
         </ResponsiveContainer>
       </div>
-
     </div>
   );
 }
@@ -302,54 +381,44 @@ export default function LiveDemo() {
   const [history,   setHistory]   = useState([]);
   const [totalWait, setTotalWait] = useState(ZERO_TOTALS());
 
-  const lastStepRef    = useRef(0);
-  const cumulativeRef  = useRef(ZERO_TOTALS());
-  const totalWaitRef   = useRef(ZERO_TOTALS());
+  const lastStepRef   = useRef(0);
+  const cumulativeRef = useRef(ZERO_TOTALS());
+  const totalWaitRef  = useRef(ZERO_TOTALS());
 
   const [speedHistory, setSpeedHistory] = useState([]);
 
-  // Detect topology từ data của bất kỳ worker nào
-  // Default về TOPOLOGY từ import config — tránh dropdown accident show sai map trước khi worker connect
   const topology = PANELS.reduce((t, p) => data?.[p.key]?.topology || t, null)
                 ?? (import.meta.env.VITE_TOPOLOGY || "2x2");
 
   useEffect(() => {
     if (!data) return;
-
-    // Lấy step từ bất kỳ worker nào đang connected
     const anyStep = PANELS.reduce((s, p) => data?.[p.key]?.step ?? s, 0);
     if (!anyStep || anyStep <= lastStepRef.current) return;
     lastStepRef.current = anyStep;
 
     const point = { step: anyStep };
-
-    // Cập nhật cumulative bằng ref — synchronous, không phụ thuộc setState callback
     PANELS.forEach(p => {
       const completed = data?.[p.key]?.metrics?.vehicles_completed ?? 0;
       cumulativeRef.current[p.key] = (cumulativeRef.current[p.key] ?? 0) + completed;
       point[`${p.key}_cum`] = cumulativeRef.current[p.key];
-
       const tw = data?.[p.key]?.metrics?.total_waiting_time ?? 0;
       totalWaitRef.current[p.key] = (totalWaitRef.current[p.key] ?? 0) + tw;
     });
 
-    // Tốc độ TB snapshot — không cộng dồn, lấy giá trị tức thời
     const speedPoint = { step: anyStep };
     PANELS.forEach(p => {
       speedPoint[`${p.key}_speed`] = data?.[p.key]?.metrics?.avg_speed ?? null;
     });
 
-    // setState chỉ để trigger re-render UI — giá trị đã tính xong ở trên
     setTotalWait({ ...totalWaitRef.current });
     setHistory(prev => [...prev, point].slice(-MAX_CHART_POINTS));
     setSpeedHistory(prev => [...prev, speedPoint].slice(-MAX_CHART_POINTS));
-
   }, [data]);
 
   const doReset = () => {
-    lastStepRef.current       = 0;
-    cumulativeRef.current     = ZERO_TOTALS();
-    totalWaitRef.current      = ZERO_TOTALS();
+    lastStepRef.current   = 0;
+    cumulativeRef.current = ZERO_TOTALS();
+    totalWaitRef.current  = ZERO_TOTALS();
     setHistory([]);
     setTotalWait(ZERO_TOTALS());
     setSpeedHistory([]);
@@ -357,8 +426,9 @@ export default function LiveDemo() {
 
   const handleStart  = (route, volume) => { doReset(); sendCommand(`start:${route}:${volume}`); };
   const handleInject = (edgeId, mode)  => sendCommand(`inject_accident:${edgeId}:${mode}`);
-  const handleReset  = ()               => { doReset(); sendCommand("reset"); };
-  const togglePanel  = (key)            => setVisible(v => ({ ...v, [key]: !v[key] }));
+  const handleClear  = ()              => sendCommand("clear_accident");
+  const handleReset  = ()              => { doReset(); sendCommand("reset"); };
+  const togglePanel  = (key)           => setVisible(v => ({ ...v, [key]: !v[key] }));
 
   const visiblePanels = PANELS.filter(p => visible[p.key]);
   const cols = visiblePanels.length;
@@ -384,7 +454,7 @@ export default function LiveDemo() {
         </div>
         <div className="demo-controls">
           <StartDropdown onStart={handleStart}/>
-          <AccidentDropdown onInject={handleInject} topology={topology}/>
+          <AccidentDropdown onInject={handleInject} onClear={handleClear} topology={topology}/>
           <button className="ctrl-btn ctrl-btn--reset" onClick={handleReset}>↺ Reset</button>
         </div>
       </div>
@@ -399,11 +469,7 @@ export default function LiveDemo() {
         </div>
       )}
 
-      <RealtimeCharts
-        history={history}
-        totalWait={totalWait}
-        speedHistory={speedHistory}
-      />
+      <RealtimeCharts history={history} totalWait={totalWait} speedHistory={speedHistory}/>
     </div>
   );
 }

@@ -1,5 +1,5 @@
 // dashboard/src/components/TrafficMap.jsx
-import { useMemo, useRef } from "react";
+import { useMemo, useRef, useEffect, useState } from "react";
 import { getLayout } from "../mapLayouts/index.js";
 
 // Phase → đèn 4 hướng
@@ -83,11 +83,22 @@ function Roads({ EDGES, NODE, SRC, edgeSpeeds, accidentEdges }) {
   );
 }
 
-// ── Intersections ─────────────────────────────────────────────────────────────
-function Intersections({ NODE, intersections }) {
+// ── Intersections: bo tròn + stop line đổi màu + countdown ──────────────────
+function Intersections({ NODE, intersections, deltaTime }) {
   const lookup = {};
   (intersections||[]).forEach(i => { lookup[i.id] = i; });
-  const LIGHT_OFF = 14;
+
+  // Client-side countdown: đếm ngược từ deltaTime đến 0 giữa các step
+  const [tick, setTick] = useState(0);
+  useEffect(() => {
+    const id = setInterval(() => setTick(t => t + 0.1), 100);
+    return () => clearInterval(id);
+  }, []);
+
+  const SZ       = 12;   // half-size ngã tư
+  const STOP_OFF = SZ;   // khoảng cách stop line từ tâm ngã tư
+  const STOP_LEN = SZ;   // độ dài stop line
+  const R        = 4;    // border-radius bo tròn góc
 
   return (
     <g>
@@ -95,28 +106,47 @@ function Intersections({ NODE, intersections }) {
         const data   = lookup[nid];
         const phase  = data?.phase ?? 0;
         const lights = PHASE_LIGHTS[phase] || PHASE_LIGHTS[0];
-        const sz     = 12;
+        const tsc    = data?.time_since_change ?? 0;
+        const dt     = deltaTime ?? 5;
+        // Countdown: thời gian còn lại trong pha hiện tại (đếm lên từ tsc)
+        const elapsed  = tsc + (tick % dt);
+        const countdown = Math.max(0, Math.round(dt - (elapsed % dt)));
+
         return (
           <g key={nid}>
-            <rect x={pos.x-sz} y={pos.y-sz} width={sz*2} height={sz*2}
+            {/* Ngã tư bo tròn */}
+            <rect x={pos.x-SZ} y={pos.y-SZ} width={SZ*2} height={SZ*2}
+              rx={R} ry={R}
               fill="#e8e6df" stroke="#c8c6be" strokeWidth={0.5}/>
-            <line x1={pos.x-sz} y1={pos.y-sz+3} x2={pos.x-sz+3} y2={pos.y-sz+3} stroke="white" strokeWidth={1.5}/>
-            <line x1={pos.x+sz-3} y1={pos.y-sz+3} x2={pos.x+sz} y2={pos.y-sz+3} stroke="white" strokeWidth={1.5}/>
-            <line x1={pos.x-sz} y1={pos.y+sz-3} x2={pos.x-sz+3} y2={pos.y+sz-3} stroke="white" strokeWidth={1.5}/>
-            <line x1={pos.x+sz-3} y1={pos.y+sz-3} x2={pos.x+sz} y2={pos.y+sz-3} stroke="white" strokeWidth={1.5}/>
+
+            {/* Stop lines — 4 hướng, màu theo pha đèn */}
+            {[
+              { dir:"N", x1:pos.x-STOP_LEN, y1:pos.y-STOP_OFF, x2:pos.x+STOP_LEN, y2:pos.y-STOP_OFF },
+              { dir:"S", x1:pos.x-STOP_LEN, y1:pos.y+STOP_OFF, x2:pos.x+STOP_LEN, y2:pos.y+STOP_OFF },
+              { dir:"W", x1:pos.x-STOP_OFF, y1:pos.y-STOP_LEN, x2:pos.x-STOP_OFF, y2:pos.y+STOP_LEN },
+              { dir:"E", x1:pos.x+STOP_OFF, y1:pos.y-STOP_LEN, x2:pos.x+STOP_OFF, y2:pos.y+STOP_LEN },
+            ].map(({ dir, x1, y1, x2, y2 }) => (
+              <line key={dir} x1={x1} y1={y1} x2={x2} y2={y2}
+                stroke={LIGHT_C[lights[dir]]}
+                strokeWidth={lights[dir] === "green" ? 2.5 : 2}
+                strokeLinecap="round"
+                opacity={lights[dir] === "yellow" ? 0.8 : 1}/>
+            ))}
+
+            {/* Label ngã tư */}
             <text x={pos.x} y={pos.y+1} textAnchor="middle" dominantBaseline="central"
               fontSize={7} fontWeight="700" fill="#5f5e5a">{nid}</text>
-            {[
-              { dir:"N", x: pos.x,         y: pos.y-LIGHT_OFF },
-              { dir:"S", x: pos.x,         y: pos.y+LIGHT_OFF },
-              { dir:"W", x: pos.x-LIGHT_OFF, y: pos.y },
-              { dir:"E", x: pos.x+LIGHT_OFF, y: pos.y },
-            ].map(({dir, x, y}) => (
-              <g key={dir}>
-                <circle cx={x} cy={y} r={4} fill="#2c2c2a" opacity={0.7}/>
-                <circle cx={x} cy={y} r={2.5} fill={LIGHT_C[lights[dir]]}/>
-              </g>
-            ))}
+
+            {/* Countdown timer — góc dưới phải ngã tư */}
+            {countdown >= 0 && (
+              <text x={pos.x+SZ-1} y={pos.y+SZ-1}
+                textAnchor="end" dominantBaseline="auto"
+                fontSize={6} fontWeight="800"
+                fill={countdown <= 2 ? "#e24b4a" : countdown <= 5 ? "#ef9f27" : "#1d9e75"}
+                opacity={0.9}>
+                {countdown}
+              </text>
+            )}
           </g>
         );
       })}
@@ -128,7 +158,7 @@ function Intersections({ NODE, intersections }) {
 function Vehicles({ vehicles, color, NODE, SRC, EDGES }) {
   return (
     <g>
-      {(vehicles||[]).slice(0,100).map(v => {
+      {(vehicles||[]).slice(0,300).map(v => {
         const xy = getVehicleXY(v, NODE, SRC, EDGES);
         if (!xy) return null;
         const isBus  = v.type?.includes("bus");
@@ -163,13 +193,45 @@ function AccidentMarkers({ accidentEdges, EDGES, NODE, SRC }) {
         const from = getPos(e.from, NODE, SRC);
         const to   = getPos(e.to,   NODE, SRC);
         if (!from || !to) return null;
+
+        const dx  = to.x - from.x, dy = to.y - from.y;
+        const len = Math.sqrt(dx*dx + dy*dy) || 1;
+        const nx  = -dy/len, ny = dx/len;  // normal vector
+
+        // Thanh chắn ngang đường, đặt ở giữa edge
         const mid = interp(from, to, 0.5);
+        const BAR_W = 16;  // độ dài thanh chắn
+        const BAR_H = 4;   // độ dày
+
+        // all=đỏ, left/right=vàng lệch sang 1 bên
+        const isAll   = mode === "all";
+        const barColor = isAll ? "#e24b4a" : "#ef9f27";
+        const offset  = isAll ? 0 : (mode === "left" ? -5 : 5);
+
+        const bx = mid.x + nx * offset;
+        const by = mid.y + ny * offset;
+        const angle = Math.atan2(dy, dx) * 180 / Math.PI;
+
         return (
           <g key={edgeId}>
-            <circle cx={mid.x} cy={mid.y} r={12} fill="#e24b4a" opacity={0.15}/>
-            <circle cx={mid.x} cy={mid.y} r={6}  fill="#e24b4a" opacity={0.6}/>
-            <text x={mid.x} y={mid.y-14} textAnchor="middle" fontSize={9} fill="#e24b4a" fontWeight="600">
-              {mode === "all" ? "🚨 CHẶN" : "⚠️ TAI NẠN"}
+            {/* Vùng đỏ/vàng nhạt nền */}
+            <line x1={from.x} y1={from.y} x2={to.x} y2={to.y}
+              stroke={barColor} strokeWidth={isAll ? 10 : 6} opacity={0.15}/>
+            {/* Thanh chắn */}
+            <g transform={`translate(${bx},${by}) rotate(${angle + 90})`}>
+              <rect x={-BAR_W/2} y={-BAR_H/2} width={BAR_W} height={BAR_H}
+                rx={2} fill={barColor} opacity={0.9}/>
+              {/* Sọc cảnh báo */}
+              {[0.25, 0.5, 0.75].map(t => (
+                <line key={t}
+                  x1={-BAR_W/2 + t*BAR_W} y1={-BAR_H/2}
+                  x2={-BAR_W/2 + t*BAR_W} y2={BAR_H/2}
+                  stroke="white" strokeWidth={1} opacity={0.6}/>
+              ))}
+            </g>
+            <text x={mid.x} y={mid.y - 14} textAnchor="middle"
+              fontSize={8} fill={barColor} fontWeight="700">
+              {isAll ? "🚨 CHẶN" : mode === "left" ? "⚠️ LANE TRÁI" : "⚠️ LANE PHẢI"}
             </text>
           </g>
         );
@@ -262,7 +324,7 @@ export function TrafficMap({ data, modelName }) {
         <AttentionArrows attn={modelName==="gat_marl" ? data?.attention_weights : null} NODE={NODE}/>
         <AccidentMarkers accidentEdges={accidentEdges} EDGES={EDGES} NODE={NODE} SRC={SRC}/>
         <Vehicles vehicles={data?.vehicles} color={color} NODE={NODE} SRC={SRC} EDGES={EDGES}/>
-        <Intersections NODE={NODE} intersections={data?.intersections}/>
+        <Intersections NODE={NODE} intersections={data?.intersections} deltaTime={data?.delta_time ?? 5}/>
         <TopologyBadge topology={topology}/>
         <SpeedLegend H={H}/>
       </svg>

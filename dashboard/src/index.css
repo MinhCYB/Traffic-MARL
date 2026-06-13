@@ -92,22 +92,105 @@ body {
 .start-option:hover        { background: var(--bg); }
 .start-option--active      { background: color-mix(in srgb, var(--accent) 10%, transparent); color: var(--accent); font-weight: 700; }
 
-/* ── Accident dropdown ── */
+/* ── Accident dropdown v2 ── */
 .accident-dropdown { position: relative; }
-.accident-menu {
+
+.accident-menu-v2 {
   position: absolute; top: calc(100% + 4px); right: 0;
   background: white; border: 1px solid var(--border2);
-  border-radius: 8px; padding: 4px;
-  box-shadow: 0 4px 12px rgba(0,0,0,0.1);
-  z-index: 50; min-width: 160px;
+  border-radius: 10px; padding: 8px;
+  box-shadow: 0 6px 20px rgba(0,0,0,0.12);
+  z-index: 50; width: 280px;
+  max-height: calc(100vh - 80px);
+  display: flex; flex-direction: column;
 }
-.accident-option {
+
+/* Search */
+.acc-search-wrap {
+  display: flex; align-items: center; gap: 6px;
+  background: var(--bg); border: 1px solid var(--border2);
+  border-radius: 7px; padding: 5px 8px; margin-bottom: 6px;
+}
+.acc-search-icon { font-size: 12px; flex-shrink: 0; }
+.acc-search-input {
+  flex: 1; border: none; background: none; outline: none;
+  font-family: var(--font-ui); font-size: 12px; color: var(--text);
+}
+.acc-search-input::placeholder { color: var(--muted); }
+.acc-search-clear {
+  border: none; background: none; cursor: pointer; padding: 0 2px;
+  font-size: 11px; color: var(--muted); line-height: 1;
+}
+.acc-search-clear:hover { color: var(--text); }
+
+/* Clear all */
+.acc-clear-all {
   display: block; width: 100%; text-align: left;
-  padding: 7px 12px; border: none; background: none;
-  font-family: var(--font-ui); font-size: 12px; font-weight: 600;
-  color: var(--text); cursor: pointer; border-radius: 5px;
+  padding: 6px 8px; border: none; border-radius: 6px;
+  background: none; cursor: pointer;
+  font-family: var(--font-ui); font-size: 11px; font-weight: 600;
+  color: var(--red); transition: background 0.1s;
 }
-.accident-option:hover { background: var(--bg); }
+.acc-clear-all:hover { background: color-mix(in srgb, var(--red) 8%, transparent); }
+
+.acc-divider { height: 1px; background: var(--border); margin: 6px 0; }
+
+/* Groups scroll area */
+.acc-groups { flex: 1; min-height: 0; overflow-y: auto; display: flex; flex-direction: column; gap: 2px; }
+.acc-groups::-webkit-scrollbar { width: 4px; }
+.acc-groups::-webkit-scrollbar-thumb { background: var(--border2); border-radius: 2px; }
+
+.acc-empty { font-size: 12px; color: var(--muted); text-align: center; padding: 16px 0; }
+
+/* Group header */
+.acc-group { border-radius: 7px; overflow: hidden; }
+.acc-group-header {
+  display: flex; align-items: center; gap: 6px; width: 100%;
+  padding: 6px 8px; border: none; border-radius: 7px;
+  background: none; cursor: pointer; text-align: left;
+  transition: background 0.1s;
+}
+.acc-group-header:hover { background: var(--bg); }
+.acc-group-chevron { font-size: 10px; color: var(--muted); width: 10px; flex-shrink: 0; }
+.acc-group-name {
+  flex: 1; font-family: var(--font-ui); font-size: 12px;
+  font-weight: 700; color: var(--text);
+}
+.acc-group-count {
+  font-size: 10px; color: var(--muted); font-weight: 500;
+  background: var(--bg); border: 1px solid var(--border);
+  border-radius: 10px; padding: 1px 6px;
+}
+
+/* Edges trong group */
+.acc-group-body { display: flex; flex-direction: column; gap: 1px; padding: 2px 0 4px 16px; }
+
+.acc-edge-row {
+  display: flex; align-items: center; gap: 6px;
+  padding: 4px 6px; border-radius: 6px;
+  transition: background 0.1s;
+}
+.acc-edge-row:hover { background: var(--bg); }
+
+.acc-edge-label {
+  flex: 1; font-family: var(--font-mono); font-size: 10px;
+  color: var(--text); white-space: nowrap; overflow: hidden;
+  text-overflow: ellipsis; min-width: 0;
+}
+
+.acc-edge-actions { display: flex; gap: 2px; flex-shrink: 0; }
+
+.acc-btn {
+  padding: 3px 7px; border: 1px solid var(--border2);
+  border-radius: 5px; cursor: pointer; font-size: 10px;
+  font-family: var(--font-ui); font-weight: 600;
+  background: white; color: var(--text);
+  transition: all 0.1s; white-space: nowrap;
+}
+.acc-btn:hover { border-color: var(--border2); }
+.acc-btn--left:hover  { background: color-mix(in srgb, var(--yellow) 12%, white); border-color: var(--yellow); color: var(--yellow); }
+.acc-btn--right:hover { background: color-mix(in srgb, var(--yellow) 12%, white); border-color: var(--yellow); color: var(--yellow); }
+.acc-btn--all:hover   { background: color-mix(in srgb, var(--red) 10%, white);    border-color: var(--red);    }
 
 /* ── Realtime charts ── */
 .realtime-charts {

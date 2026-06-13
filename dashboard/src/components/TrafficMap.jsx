@@ -90,6 +90,36 @@ function Roads({ EDGES, NODE, SRC, edgeSpeeds, accidentEdges }) {
   );
 }
 
+// ── CountdownPill — tách riêng để tick không re-render cả Intersections ────
+function CountdownPill({ tsc, dt, px, py }) {
+  const SZ     = 9;
+  const CD_OFF = SZ + 10;
+
+  const [tick, setTick] = useState(0);
+  useEffect(() => { setTick(0); }, [tsc]); // reset mỗi khi server gửi step mới
+  useEffect(() => {
+    const id = setInterval(() => setTick(t => t + 1), 1000); // cập nhật mỗi 1s, không nhấp nháy
+    return () => clearInterval(id);
+  }, []);
+
+  const countdown = Math.max(0, Math.round(dt - tsc - tick));
+  const cdColor   = countdown <= 4 ? "#888780" : "#534ab7";  // tím = sắp đổi, xám = bình thường
+  const PW = 20; const PH = 12; // pill width/height
+
+  return (
+    <g>
+      <rect x={px+CD_OFF-PW/2} y={py+CD_OFF-PH/2}
+        width={PW} height={PH} rx={PH/2}
+        fill={cdColor} opacity={0.85}/>
+      <text x={px+CD_OFF} y={py+CD_OFF+0.5}
+        textAnchor="middle" dominantBaseline="central"
+        fontSize={7} fontWeight="800" fill="white" letterSpacing={-0.3}>
+        {countdown}s
+      </text>
+    </g>
+  );
+}
+
 // ── Intersections: bo tròn + stop line đổi màu + countdown ──────────────────
 function Intersections({ NODE, intersections, deltaTime, modelColor }) {
   const lookup = {};
@@ -111,7 +141,6 @@ function Intersections({ NODE, intersections, deltaTime, modelColor }) {
     });
     if (Object.keys(switched).length > 0) {
       setPulseNodes(p => ({ ...p, ...switched }));
-      // Clear pulse sau 1.5s
       setTimeout(() => {
         setPulseNodes(p => {
           const next = { ...p };
@@ -122,17 +151,10 @@ function Intersections({ NODE, intersections, deltaTime, modelColor }) {
     }
   }, [intersections]);
 
-  // Client-side countdown: đếm ngược từ deltaTime đến 0 giữa các step
-  const [tick, setTick] = useState(0);
-  useEffect(() => {
-    const id = setInterval(() => setTick(t => t + 0.1), 100);
-    return () => clearInterval(id);
-  }, []);
-
-  const SZ       = 12;   // half-size ngã tư
-  const STOP_OFF = SZ;   // khoảng cách stop line từ tâm ngã tư
-  const STOP_LEN = SZ;   // độ dài stop line
-  const R        = 4;    // border-radius bo tròn góc
+  const SZ       = 9;
+  const STOP_OFF = SZ;
+  const STOP_LEN = SZ;
+  const R        = 3;
 
   return (
     <g>
@@ -141,10 +163,7 @@ function Intersections({ NODE, intersections, deltaTime, modelColor }) {
         const phase  = data?.phase ?? 0;
         const lights = PHASE_LIGHTS[phase] || PHASE_LIGHTS[0];
         const tsc    = data?.time_since_change ?? 0;
-        const dt     = deltaTime ?? 5;
-        // Countdown: thời gian còn lại trong pha hiện tại (đếm lên từ tsc)
-        const elapsed  = tsc + (tick % dt);
-        const countdown = Math.max(0, Math.round(dt - (elapsed % dt)));
+        const dt     = deltaTime ?? 13;
 
         return (
           <g key={nid}>
@@ -169,18 +188,10 @@ function Intersections({ NODE, intersections, deltaTime, modelColor }) {
 
             {/* Label ngã tư */}
             <text x={pos.x} y={pos.y+1} textAnchor="middle" dominantBaseline="central"
-              fontSize={7} fontWeight="700" fill="#5f5e5a">{nid}</text>
+              fontSize={6} fontWeight="700" fill="#5f5e5a">{nid}</text>
 
-            {/* Countdown timer — góc dưới phải ngã tư */}
-            {countdown >= 0 && (
-              <text x={pos.x+SZ-1} y={pos.y+SZ-1}
-                textAnchor="end" dominantBaseline="auto"
-                fontSize={6} fontWeight="800"
-                fill={countdown <= 2 ? "#e24b4a" : countdown <= 5 ? "#ef9f27" : "#1d9e75"}
-                opacity={0.9}>
-                {countdown}
-              </text>
-            )}
+            {/* Countdown pill — component riêng, tick của riêng nó */}
+            <CountdownPill tsc={tsc} dt={dt} px={pos.x} py={pos.y}/>
 
             {/* Pulse ring khi SWITCH */}
             {pulseNodes[nid] && (
@@ -397,7 +408,7 @@ export function TrafficMap({ data, modelName }) {
         <AttentionArrows attn={modelName==="gat_marl" ? data?.attention_weights : null} NODE={NODE}/>
         <AccidentMarkers accidentEdges={accidentEdges} EDGES={EDGES} NODE={NODE} SRC={SRC}/>
         <Vehicles vehicles={data?.vehicles} color={color} NODE={NODE} SRC={SRC} EDGES={EDGES}/>
-        <Intersections NODE={NODE} intersections={data?.intersections} deltaTime={data?.delta_time ?? 5} modelColor={color}/>
+        <Intersections NODE={NODE} intersections={data?.intersections} deltaTime={data?.phase_duration ?? 13} modelColor={color}/>
         <TopologyBadge topology={topology}/>
         <SpeedLegend H={H}/>
       </svg>

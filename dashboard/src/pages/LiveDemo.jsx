@@ -97,17 +97,79 @@ function StartDropdown({ onStart }) {
 }
 
 // ── Accident Dropdown ─────────────────────────────────────────────────────────
+// Build map: "SRC_HTM_W" → ["N01","N02"] từ EDGES layout
+function buildSrcNodeMap(edges) {
+  const srcMap = {};
+  Object.values(edges || {}).forEach(e => {
+    if (typeof e.from === "object" || typeof e.to === "object") return;
+    const srcSide  = [e.from, e.to].find(s => s.startsWith("SRC_"));
+    const nodeSide = [e.from, e.to].find(s => /^N\d+$/.test(s));
+    if (!srcSide || !nodeSide) return;
+    if (!srcMap[srcSide]) srcMap[srcSide] = new Set();
+    srcMap[srcSide].add(nodeSide);
+  });
+  return Object.fromEntries(
+    Object.entries(srcMap).map(([k, v]) => [k, [...v].sort()])
+  );
+}
+
+// Group edges theo SRC, label đổi thành "N01 → N02"
+function groupEdgesByJunction(accidentEdges, srcNodeMap) {
+  const groups = {};
+  accidentEdges.forEach(({ label, value }) => {
+    const parts   = label.split(" → ");
+    const srcPart = parts.find(p => p.startsWith("SRC_"));
+    if (!srcPart) return;
+    const groupKey = srcPart.replace(/^SRC_/, "");
+
+    // Lấy node đầu và cuối từ label: "SRC_X → Nxx" hoặc "Nxx → SRC_X"
+    const fromNode = /^N\d+$/.test(parts[0]) ? parts[0] : null;
+    const toNode   = /^N\d+$/.test(parts[1]) ? parts[1] : null;
+    const nodes    = srcNodeMap[srcPart] || [];
+    const nodeA    = fromNode || nodes[0] || "?";
+    const nodeB    = toNode   || nodes[1] || "?";
+
+    if (!groups[groupKey]) groups[groupKey] = [];
+    groups[groupKey].push({ label: `${nodeA} → ${nodeB}`, fullLabel: label, value });
+  });
+  return groups;
+}
+
 function AccidentDropdown({ onInject, onClear, topology }) {
-  const [open, setOpen] = useState(false);
+  const [open,     setOpen]     = useState(false);
+  const [search,   setSearch]   = useState("");
+  const [expanded, setExpanded] = useState({});
   const ref = useRef(null);
+
   useEffect(() => {
     const h = (e) => { if (ref.current && !ref.current.contains(e.target)) setOpen(false); };
     document.addEventListener("mousedown", h);
     return () => document.removeEventListener("mousedown", h);
   }, []);
 
+  // Reset khi đóng — KHÔNG auto-expand
+  useEffect(() => {
+    if (!open) { setSearch(""); setExpanded({}); }
+  }, [open]);
+
   const layout        = getLayout(topology || "2x2");
   const accidentEdges = layout.DEMO_ACCIDENT_EDGES || [];
+  const srcNodeMap    = buildSrcNodeMap(layout.EDGES || {});
+  const groups        = groupEdgesByJunction(accidentEdges, srcNodeMap);
+
+  // Filter theo search
+  const filteredGroups = Object.entries(groups).reduce((acc, [gk, edges]) => {
+    const q = search.toLowerCase();
+    const matched = edges.filter(e =>
+      !q || e.label.toLowerCase().includes(q) || gk.toLowerCase().includes(q)
+    );
+    if (matched.length) acc[gk] = matched;
+    return acc;
+  }, {});
+
+  // Chỉ expand khi search hoặc user click
+  const isExpanded  = (gk) => search ? true : !!expanded[gk];
+  const toggleGroup = (gk) => setExpanded(e => ({ ...e, [gk]: !e[gk] }));
 
   return (
     <div className="accident-dropdown" ref={ref}>
@@ -123,31 +185,78 @@ function AccidentDropdown({ onInject, onClear, topology }) {
           ✕
         </button>
       </div>
+
       {open && (
-        <div className="accident-menu">
-          <div className="accident-menu-header">Chọn đoạn đường & loại chặn</div>
-          {accidentEdges.map(({ label, value }) => (
-            <div key={value} className="accident-edge-row">
-              <span className="accident-edge-label">{label}</span>
-              <div className="accident-edge-btns">
-                <button className="accident-option accident-option--left"
-                  title="Chặn lane trái"
-                  onClick={() => { onInject(value, "left");  setOpen(false); }}>
-                  ◀ Trái
-                </button>
-                <button className="accident-option accident-option--right"
-                  title="Chặn lane phải"
-                  onClick={() => { onInject(value, "right"); setOpen(false); }}>
-                  Phải ▶
-                </button>
-                <button className="accident-option accident-option--all"
-                  title="Chặn toàn bộ"
-                  onClick={() => { onInject(value, "all");   setOpen(false); }}>
-                  🚨 Hết
-                </button>
-              </div>
-            </div>
-          ))}
+        <div className="accident-menu-v2">
+          {/* Search bar */}
+          <div className="acc-search-wrap">
+            <span className="acc-search-icon">🔍</span>
+            <input
+              className="acc-search-input"
+              placeholder="Tìm đoạn đường..."
+              value={search}
+              onChange={e => setSearch(e.target.value)}
+              autoFocus
+            />
+            {search && (
+              <button className="acc-search-clear" onClick={() => setSearch("")}>✕</button>
+            )}
+          </div>
+
+          {/* Clear all */}
+          <button className="acc-clear-all" onClick={() => { onClear(); setOpen(false); }}>
+            ✕ Xóa tất cả vật cản
+          </button>
+
+          <div className="acc-divider"/>
+
+          {/* Groups */}
+          <div className="acc-groups">
+            {Object.keys(filteredGroups).length === 0 ? (
+              <div className="acc-empty">Không tìm thấy đoạn đường</div>
+            ) : (
+              Object.entries(filteredGroups).map(([gk, edges]) => (
+                <div key={gk} className="acc-group">
+                  {/* Group header */}
+                  <button className="acc-group-header" onClick={() => toggleGroup(gk)}>
+                    <span className="acc-group-chevron">{isExpanded(gk) ? "▾" : "▸"}</span>
+                    <span className="acc-group-name">{gk}</span>
+                    <span className="acc-group-count">{edges.length} đoạn</span>
+                  </button>
+
+                  {/* Edges */}
+                  {isExpanded(gk) && (
+                    <div className="acc-group-body">
+                      {edges.map(({ label, fullLabel, value }) => (
+                        <div key={value} className="acc-edge-row">
+                          <span className="acc-edge-label" title={fullLabel}>
+                            {label}
+                          </span>
+                          <div className="acc-edge-actions">
+                            <button className="acc-btn acc-btn--left"
+                              title="Chặn lane trái"
+                              onClick={() => { onInject(value, "left"); setOpen(false); }}>
+                              ◀ Trái
+                            </button>
+                            <button className="acc-btn acc-btn--right"
+                              title="Chặn lane phải"
+                              onClick={() => { onInject(value, "right"); setOpen(false); }}>
+                              Phải ▶
+                            </button>
+                            <button className="acc-btn acc-btn--all"
+                              title="Chặn toàn bộ"
+                              onClick={() => { onInject(value, "all"); setOpen(false); }}>
+                              🚨
+                            </button>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              ))
+            )}
+          </div>
         </div>
       )}
     </div>

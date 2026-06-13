@@ -16,6 +16,7 @@ from abc import ABC, abstractmethod
 
 from training.config import (
     SERVER_HOST, SERVER_PORT, DELTA_TIME, SEED, TOPOLOGY,
+    MIN_GREEN_TIME, YELLOW_TIME,
 )
 from environment.traffic_env import TrafficEnv
 from environment.state_builder import INTERSECTION_IDS, EDGE_INDEX
@@ -138,8 +139,10 @@ class WorkerBase(ABC):
             # State layout: density(8) + queue(8) + phase(4) + time(1)
             queue_per_lane   = s[8:16].tolist()
             density_per_lane = s[0:8].tolist()
-            phase_onehot     = s[16:20].tolist()
-            current_phase    = int(np.argmax(phase_onehot))
+
+            # Lấy phase thực tế từ env (bao gồm cả yellow=1,3) thay vì argmax state vector
+            current_phases = info.get("current_phases", {})
+            current_phase  = int(current_phases.get(nid, 0))
 
             tsc = info.get("time_since_change", {})
             intersections.append({
@@ -172,6 +175,7 @@ class WorkerBase(ABC):
                 "global_reward":      round(info.get("global_reward", 0), 4),
             },
             "global_reward":    round(info.get("global_reward", 0), 4),
+            "phase_duration":   MIN_GREEN_TIME + YELLOW_TIME,
         }
 
         # Merge extra data từ subclass (vd: attention weights)

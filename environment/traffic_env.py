@@ -415,8 +415,10 @@ class TrafficEnv:
             "vehicles_spawned":   departed,
             "vehicles_completed": arrived,
             "n_vehicles": len(vehicles),
-            "edge_speeds": self._read_edge_speeds(),
-            "accident_edges": dict(self._accident_edges),
+            "edge_speeds":     self._read_edge_speeds(),
+            "accident_edges":  dict(self._accident_edges),
+            "current_phases":  dict(self._phase),
+            "time_since_change": dict(self._time_since_change),
         }
 
     def _read_edge_speeds(self) -> dict[str, float]:

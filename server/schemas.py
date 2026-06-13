@@ -49,6 +49,7 @@ class WorkerPayload(BaseModel):
     accident_edges:     Optional[dict[str, str]]       = None
     attention_weights:  Optional[list[list[float]]]    = None
     event:              Optional[str]                  = None
+    phase_duration:     Optional[int]                  = None   # MIN_GREEN + YELLOW_TIME
 
 
 class CommandPayload(BaseModel):

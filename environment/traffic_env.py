@@ -231,16 +231,31 @@ class TrafficEnv:
             traci.close()
             self._connected = False
 
-    def inject_accident(self, edge_id: str, block_mode: str = "1"):
+    def inject_accident(self, edge_id: str, block_mode: str = "all"):
         """
         Giả lập tai nạn bằng cách giảm maxSpeed lane xuống gần 0.
 
         Args:
-            edge_id   : edge bị tai nạn (vd: "SRC1_N02")
-            block_mode: "1" = block 1 lane, "all" = block tất cả lanes
+            edge_id   : edge bị tai nạn (vd: "SRC_HTM_W_N01")
+            block_mode: "all"   = block tất cả lanes
+                        "left"  = block lane trái (index 0)
+                        "right" = block lane phải (index cuối)
         """
-        lanes = [0] if block_mode == "1" else list(range(NUM_LANES))
-        for lane_idx in lanes:
+        try:
+            n_lanes = traci.edge.getLaneNumber(edge_id)
+        except Exception:
+            n_lanes = NUM_LANES
+
+        if block_mode == "all":
+            lane_indices = list(range(n_lanes))
+        elif block_mode == "left":
+            lane_indices = [0]
+        elif block_mode == "right":
+            lane_indices = [n_lanes - 1]
+        else:
+            lane_indices = list(range(n_lanes))  # fallback = all
+
+        for lane_idx in lane_indices:
             lane_id = f"{edge_id}_{lane_idx}"
             try:
                 traci.lane.setMaxSpeed(lane_id, 0.3)  # 0.3 m/s ~ dừng hẳn
@@ -249,15 +264,20 @@ class TrafficEnv:
         self._accident_edges[edge_id] = block_mode
 
     def clear_accident(self, edge_id: str = None):
-        """Restore lane sau tai nạn."""
-        for lane_idx in range(NUM_LANES):
-            lane_id = f"{edge_id}_{lane_idx}"
+        """Restore tất cả lanes về tốc độ bình thường."""
+        edges_to_clear = list(self._accident_edges.keys()) if edge_id is None else [edge_id]
+        for eid in edges_to_clear:
             try:
-                traci.lane.setMaxSpeed(lane_id, 13.89)
+                n_lanes = traci.edge.getLaneNumber(eid)
             except Exception:
-                pass
+                n_lanes = NUM_LANES
+            for lane_idx in range(n_lanes):
+                try:
+                    traci.lane.setMaxSpeed(f"{eid}_{lane_idx}", 13.89)
+                except Exception:
+                    pass
         if edge_id is None:
-            self._accident_edges.clear()   # xóa toàn bộ
+            self._accident_edges.clear()
         else:
             self._accident_edges.pop(edge_id, None)
 

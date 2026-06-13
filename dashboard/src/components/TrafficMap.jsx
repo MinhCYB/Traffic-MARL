@@ -1,5 +1,12 @@
 // dashboard/src/components/TrafficMap.jsx
 import { useMemo, useRef, useEffect, useState } from "react";
+
+// Hook lưu giá trị step trước để detect phase change
+function usePrevious(value) {
+  const ref = useRef(null);
+  useEffect(() => { ref.current = value; });
+  return ref.current;
+}
 import { getLayout } from "../mapLayouts/index.js";
 
 // Phase → đèn 4 hướng
@@ -84,9 +91,36 @@ function Roads({ EDGES, NODE, SRC, edgeSpeeds, accidentEdges }) {
 }
 
 // ── Intersections: bo tròn + stop line đổi màu + countdown ──────────────────
-function Intersections({ NODE, intersections, deltaTime }) {
+function Intersections({ NODE, intersections, deltaTime, modelColor }) {
   const lookup = {};
   (intersections||[]).forEach(i => { lookup[i.id] = i; });
+
+  // Track phase changes để hiển thị SWITCH/HOLD badge
+  const prevLookup = usePrevious(lookup);
+  const [pulseNodes, setPulseNodes] = useState({});
+
+  useEffect(() => {
+    if (!prevLookup) return;
+    const switched = {};
+    Object.keys(lookup).forEach(nid => {
+      const cur  = lookup[nid]?.phase;
+      const prev = prevLookup[nid]?.phase;
+      if (cur !== undefined && prev !== undefined && cur !== prev) {
+        switched[nid] = Date.now();
+      }
+    });
+    if (Object.keys(switched).length > 0) {
+      setPulseNodes(p => ({ ...p, ...switched }));
+      // Clear pulse sau 1.5s
+      setTimeout(() => {
+        setPulseNodes(p => {
+          const next = { ...p };
+          Object.keys(switched).forEach(k => delete next[k]);
+          return next;
+        });
+      }, 1500);
+    }
+  }, [intersections]);
 
   // Client-side countdown: đếm ngược từ deltaTime đến 0 giữa các step
   const [tick, setTick] = useState(0);
@@ -147,6 +181,45 @@ function Intersections({ NODE, intersections, deltaTime }) {
                 {countdown}
               </text>
             )}
+
+            {/* Pulse ring khi SWITCH */}
+            {pulseNodes[nid] && (
+              <rect
+                x={pos.x-SZ-4} y={pos.y-SZ-4}
+                width={(SZ+4)*2} height={(SZ+4)*2}
+                rx={R+3} ry={R+3}
+                fill="none"
+                stroke={modelColor || "#534ab7"}
+                strokeWidth={2}
+                opacity={0.7}
+                style={{
+                  animation: "pulse-ring 1.5s ease-out forwards",
+                }}
+              />
+            )}
+
+            {/* SWITCH / HOLD badge — góc trên trái */}
+            {data && (() => {
+              const switched = pulseNodes[nid];
+              return (
+                <g>
+                  <rect
+                    x={pos.x - SZ} y={pos.y - SZ - 11}
+                    width={switched ? 36 : 28} height={10}
+                    rx={3}
+                    fill={switched ? (modelColor || "#534ab7") : "#94a3b8"}
+                    opacity={switched ? 0.92 : 0.55}
+                  />
+                  <text
+                    x={pos.x - SZ + (switched ? 18 : 14)}
+                    y={pos.y - SZ - 5}
+                    textAnchor="middle" dominantBaseline="central"
+                    fontSize={6} fontWeight="700" fill="white">
+                    {switched ? "↺ SWITCH" : "⏸ HOLD"}
+                  </text>
+                </g>
+              );
+            })()}
           </g>
         );
       })}
@@ -324,7 +397,7 @@ export function TrafficMap({ data, modelName }) {
         <AttentionArrows attn={modelName==="gat_marl" ? data?.attention_weights : null} NODE={NODE}/>
         <AccidentMarkers accidentEdges={accidentEdges} EDGES={EDGES} NODE={NODE} SRC={SRC}/>
         <Vehicles vehicles={data?.vehicles} color={color} NODE={NODE} SRC={SRC} EDGES={EDGES}/>
-        <Intersections NODE={NODE} intersections={data?.intersections} deltaTime={data?.delta_time ?? 5}/>
+        <Intersections NODE={NODE} intersections={data?.intersections} deltaTime={data?.delta_time ?? 5} modelColor={color}/>
         <TopologyBadge topology={topology}/>
         <SpeedLegend H={H}/>
       </svg>

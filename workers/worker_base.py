@@ -20,6 +20,18 @@ from training.config import (
 from environment.traffic_env import TrafficEnv
 from environment.state_builder import INTERSECTION_IDS, EDGE_INDEX
 
+import os, sys
+
+class _SuppressTraCIWarnings:
+    """Filter '0xd4' unsubscribe warnings khỏi stderr."""
+    def __init__(self, stream): self._stream = stream
+    def write(self, msg):
+        if "0xd4" not in msg and "subscription to remove" not in msg:
+            self._stream.write(msg)
+    def flush(self): self._stream.flush()
+
+sys.stderr = _SuppressTraCIWarnings(sys.stderr)
+
 
 class WorkerBase(ABC):
     """

@@ -7,12 +7,13 @@ from typing import Optional
 
 
 class IntersectionData(BaseModel):
-    id:               str
-    phase:            int
-    queue_per_lane:   list[float]
-    density_per_lane: list[float]
-    waiting_time:     float
-    reward:           float
+    id:                 str
+    phase:              int
+    queue_per_lane:     list[float]
+    density_per_lane:   list[float]
+    waiting_time:       float
+    reward:             float
+    time_since_change:  float = 0.0   # giây kể từ lần đổi pha cuối — dùng cho countdown
 
 
 class MetricsData(BaseModel):
@@ -40,6 +41,7 @@ class WorkerPayload(BaseModel):
     mode:               str
     step:               int
     timestamp:          float
+    topology:           str = "2x2"          # NEW — map hiện tại đang chạy
     intersections:      list[IntersectionData]
     metrics:            MetricsData
     vehicles:           Optional[list[VehicleData]]    = None

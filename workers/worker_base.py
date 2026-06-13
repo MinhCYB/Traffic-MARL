@@ -20,6 +20,18 @@ from training.config import (
 from environment.traffic_env import TrafficEnv
 from environment.state_builder import INTERSECTION_IDS, EDGE_INDEX
 
+import os, sys
+
+class _SuppressTraCIWarnings:
+    """Filter '0xd4' unsubscribe warnings khỏi stderr."""
+    def __init__(self, stream): self._stream = stream
+    def write(self, msg):
+        if "0xd4" not in msg and "subscription to remove" not in msg:
+            self._stream.write(msg)
+    def flush(self): self._stream.flush()
+
+sys.stderr = _SuppressTraCIWarnings(sys.stderr)
+
 
 class WorkerBase(ABC):
     """
@@ -94,8 +106,10 @@ class WorkerBase(ABC):
                     elif cmd and cmd.startswith("inject_accident"):
                         parts      = cmd.split(":")
                         edge_id    = parts[1] if len(parts) > 1 else "SRC1_N02"
-                        block_mode = parts[2] if len(parts) > 2 else "1"
+                        block_mode = parts[2] if len(parts) > 2 else "all"
                         self.env.inject_accident(edge_id, block_mode)
+                    elif cmd and cmd == "clear_accident":
+                        self.env.clear_accident()
 
                     obs = next_obs
 
@@ -127,19 +141,22 @@ class WorkerBase(ABC):
             phase_onehot     = s[16:20].tolist()
             current_phase    = int(np.argmax(phase_onehot))
 
+            tsc = info.get("time_since_change", {})
             intersections.append({
-                "id":              nid,
-                "phase":           current_phase,
-                "queue_per_lane":  queue_per_lane,
-                "density_per_lane": density_per_lane,
-                "waiting_time":    round(float(info.get("avg_waiting_time", 0)), 2),
-                "reward":          round(float(rewards.get(nid, 0)), 4),
+                "id":                nid,
+                "phase":             current_phase,
+                "queue_per_lane":    queue_per_lane,
+                "density_per_lane":  density_per_lane,
+                "waiting_time":      round(float(info.get("avg_waiting_time", 0)), 2),
+                "reward":            round(float(rewards.get(nid, 0)), 4),
+                "time_since_change": round(float(tsc.get(nid, 0)), 1),
             })
 
         payload = {
             "mode":           self.model_name,
             "step":           self._step,
             "timestamp":      time.time(),
+            "topology":       TOPOLOGY,
             "intersections":  intersections,
             "vehicles":       self._read_vehicles(),
             "edge_speeds":    info.get("edge_speeds", {}),

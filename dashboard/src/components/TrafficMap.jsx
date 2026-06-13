@@ -1,56 +1,13 @@
 // dashboard/src/components/TrafficMap.jsx
+import { useMemo, useRef, useEffect, useState } from "react";
 
-const W = 360;
-const H = 320;
-
-const NODE = {
-  N01: { x: 110, y: 100 },
-  N02: { x: 250, y: 100 },
-  N03: { x: 110, y: 220 },
-  N04: { x: 250, y: 220 },
-};
-
-const SRC = {
-  SRC1: { x: 180, y: 100 },
-  SRC2: { x: 180, y: 220 },
-  SRC3: { x: 110, y: 160 },
-  SRC4: { x: 250, y: 160 },
-};
-
-const EDGES = {
-  "N01_SRC1": { from: "N01", to: "SRC1", type: "main" },
-  "SRC1_N02": { from: "SRC1", to: "N02", type: "main" },
-  "N02_SRC1": { from: "N02", to: "SRC1", type: "main" },
-  "SRC1_N01": { from: "SRC1", to: "N01", type: "main" },
-  "N03_SRC2": { from: "N03", to: "SRC2", type: "main" },
-  "SRC2_N04": { from: "SRC2", to: "N04", type: "main" },
-  "N04_SRC2": { from: "N04", to: "SRC2", type: "main" },
-  "SRC2_N03": { from: "SRC2", to: "N03", type: "main" },
-  "N01_SRC3": { from: "N01", to: "SRC3", type: "alley" },
-  "SRC3_N03": { from: "SRC3", to: "N03", type: "alley" },
-  "N03_SRC3": { from: "N03", to: "SRC3", type: "alley" },
-  "SRC3_N01": { from: "SRC3", to: "N01", type: "alley" },
-  "N02_SRC4": { from: "N02", to: "SRC4", type: "alley" },
-  "SRC4_N04": { from: "SRC4", to: "N04", type: "alley" },
-  "N04_SRC4": { from: "N04", to: "SRC4", type: "alley" },
-  "SRC4_N02": { from: "SRC4", to: "N02", type: "alley" },
-  "NT_N_W_N01": { from: { x: 110, y: 20  }, to: "N01", type: "outskirts" },
-  "N01_NT_N_W": { from: "N01", to: { x: 110, y: 20  }, type: "outskirts" },
-  "NT_N_E_N02": { from: { x: 250, y: 20  }, to: "N02", type: "outskirts" },
-  "N02_NT_N_E": { from: "N02", to: { x: 250, y: 20  }, type: "outskirts" },
-  "NT_S_W_N03": { from: { x: 110, y: 300 }, to: "N03", type: "outskirts" },
-  "N03_NT_S_W": { from: "N03", to: { x: 110, y: 300 }, type: "outskirts" },
-  "NT_S_E_N04": { from: { x: 250, y: 300 }, to: "N04", type: "outskirts" },
-  "N04_NT_S_E": { from: "N04", to: { x: 250, y: 300 }, type: "outskirts" },
-  "NT_W_N_N01": { from: { x: 20,  y: 100 }, to: "N01", type: "outskirts" },
-  "N01_NT_W_N": { from: "N01", to: { x: 20,  y: 100 }, type: "outskirts" },
-  "NT_W_S_N03": { from: { x: 20,  y: 220 }, to: "N03", type: "outskirts" },
-  "N03_NT_W_S": { from: "N03", to: { x: 20,  y: 220 }, type: "outskirts" },
-  "NT_E_N_N02": { from: { x: 340, y: 100 }, to: "N02", type: "outskirts" },
-  "N02_NT_E_N": { from: "N02", to: { x: 340, y: 100 }, type: "outskirts" },
-  "NT_E_S_N04": { from: { x: 340, y: 220 }, to: "N04", type: "outskirts" },
-  "N04_NT_E_S": { from: "N04", to: { x: 340, y: 220 }, type: "outskirts" },
-};
+// Hook lưu giá trị step trước để detect phase change
+function usePrevious(value) {
+  const ref = useRef(null);
+  useEffect(() => { ref.current = value; });
+  return ref.current;
+}
+import { getLayout } from "../mapLayouts/index.js";
 
 // Phase → đèn 4 hướng
 const PHASE_LIGHTS = {
@@ -60,10 +17,9 @@ const PHASE_LIGHTS = {
   3: { N: "red",    S: "red",    E: "yellow", W: "yellow" },
 };
 const LIGHT_C = { green: "#1d9e75", yellow: "#ef9f27", red: "#e24b4a" };
-const ROAD_W  = { main: 10, alley: 6, outskirts: 8 };
+const ROAD_W  = { arterial: 12, main: 10, secondary: 7, alley: 6, outskirts: 8 };
 const MODEL_C = { fixed_time: "#e24b4a", idqn: "#ba7517", gat_marl: "#534ab7" };
 
-// Heatmap: speed km/h → màu
 function speedColor(kmh) {
   if (kmh == null || kmh < 0) return "#d3d1c7";
   if (kmh >= 25) return "#1d9e75";
@@ -71,7 +27,7 @@ function speedColor(kmh) {
   return "#e24b4a";
 }
 
-function getPos(key) {
+function getPos(key, NODE, SRC) {
   if (!key) return null;
   if (typeof key === "object") return key;
   return NODE[key] || SRC[key] || null;
@@ -81,11 +37,11 @@ function interp(a, b, t) {
   return { x: a.x + (b.x - a.x) * t, y: a.y + (b.y - a.y) * t };
 }
 
-function getVehicleXY(v) {
+function getVehicleXY(v, NODE, SRC, EDGES) {
   const e = EDGES[v.edge];
   if (!e) return null;
-  const from = getPos(e.from);
-  const to   = getPos(e.to);
+  const from = getPos(e.from, NODE, SRC);
+  const to   = getPos(e.to,   NODE, SRC);
   if (!from || !to) return null;
   const p   = interp(from, to, Math.max(0, Math.min(1, v.pos)));
   const dx  = to.x - from.x, dy = to.y - from.y;
@@ -96,29 +52,35 @@ function getVehicleXY(v) {
 }
 
 // ── Roads with heatmap ────────────────────────────────────────────────────────
-function Roads({ edgeSpeeds, accidentEdges }) {
-  const drawn = new Set();
+function Roads({ EDGES, NODE, SRC, edgeSpeeds, accidentEdges }) {
+  // useMemo để drawn Set không bị reset khi React re-render (Strict Mode double-render)
+  const segments = useMemo(() => {
+    const drawn = new Set();
+    return Object.entries(EDGES).filter(([, e]) => {
+      const key = [JSON.stringify(e.from), JSON.stringify(e.to)].sort().join("|");
+      if (drawn.has(key)) return false;
+      drawn.add(key);
+      return true;
+    });
+  }, [EDGES]);
+
   return (
     <g>
-      {Object.entries(EDGES).map(([id, e]) => {
-        const key = [JSON.stringify(e.from), JSON.stringify(e.to)].sort().join("|");
-        if (drawn.has(key)) return null;
-        drawn.add(key);
-        const from = getPos(e.from), to = getPos(e.to);
+      {segments.map(([id, e]) => {
+        const key  = [JSON.stringify(e.from), JSON.stringify(e.to)].sort().join("|");
+        const from = getPos(e.from, NODE, SRC);
+        const to   = getPos(e.to,   NODE, SRC);
         if (!from || !to) return null;
-        const w     = ROAD_W[e.type];
+        const w     = ROAD_W[e.type] ?? 8;
         const speed = edgeSpeeds?.[id] ?? edgeSpeeds?.[id.split("_").reverse().join("_")];
         const isAcc = accidentEdges?.[id] != null;
         const color = isAcc ? "#e24b4a" : speedColor(speed);
         return (
           <g key={key}>
-            {/* Shadow */}
             <line x1={from.x} y1={from.y} x2={to.x} y2={to.y}
               stroke="#c8c6be" strokeWidth={w+2} strokeLinecap="round"/>
-            {/* Road surface */}
             <line x1={from.x} y1={from.y} x2={to.x} y2={to.y}
               stroke={color} strokeWidth={w} strokeLinecap="round" opacity={isAcc ? 1 : 0.75}/>
-            {/* Lane divider */}
             <line x1={from.x} y1={from.y} x2={to.x} y2={to.y}
               stroke="white" strokeWidth={0.5} strokeDasharray="6 4" opacity={0.5}/>
           </g>
@@ -128,11 +90,49 @@ function Roads({ edgeSpeeds, accidentEdges }) {
   );
 }
 
-// ── Intersections ─────────────────────────────────────────────────────────────
-function Intersections({ intersections }) {
+// ── Intersections: bo tròn + stop line đổi màu + countdown ──────────────────
+function Intersections({ NODE, intersections, deltaTime, modelColor }) {
   const lookup = {};
   (intersections||[]).forEach(i => { lookup[i.id] = i; });
-  const LIGHT_OFF = 14; // offset đèn từ tâm ngã tư
+
+  // Track phase changes để hiển thị SWITCH/HOLD badge
+  const prevLookup = usePrevious(lookup);
+  const [pulseNodes, setPulseNodes] = useState({});
+
+  useEffect(() => {
+    if (!prevLookup) return;
+    const switched = {};
+    Object.keys(lookup).forEach(nid => {
+      const cur  = lookup[nid]?.phase;
+      const prev = prevLookup[nid]?.phase;
+      if (cur !== undefined && prev !== undefined && cur !== prev) {
+        switched[nid] = Date.now();
+      }
+    });
+    if (Object.keys(switched).length > 0) {
+      setPulseNodes(p => ({ ...p, ...switched }));
+      // Clear pulse sau 1.5s
+      setTimeout(() => {
+        setPulseNodes(p => {
+          const next = { ...p };
+          Object.keys(switched).forEach(k => delete next[k]);
+          return next;
+        });
+      }, 1500);
+    }
+  }, [intersections]);
+
+  // Client-side countdown: đếm ngược từ deltaTime đến 0 giữa các step
+  const [tick, setTick] = useState(0);
+  useEffect(() => {
+    const id = setInterval(() => setTick(t => t + 0.1), 100);
+    return () => clearInterval(id);
+  }, []);
+
+  const SZ       = 12;   // half-size ngã tư
+  const STOP_OFF = SZ;   // khoảng cách stop line từ tâm ngã tư
+  const STOP_LEN = SZ;   // độ dài stop line
+  const R        = 4;    // border-radius bo tròn góc
 
   return (
     <g>
@@ -140,40 +140,86 @@ function Intersections({ intersections }) {
         const data   = lookup[nid];
         const phase  = data?.phase ?? 0;
         const lights = PHASE_LIGHTS[phase] || PHASE_LIGHTS[0];
-        const sz     = 12; // half-size của ngã tư
+        const tsc    = data?.time_since_change ?? 0;
+        const dt     = deltaTime ?? 5;
+        // Countdown: thời gian còn lại trong pha hiện tại (đếm lên từ tsc)
+        const elapsed  = tsc + (tick % dt);
+        const countdown = Math.max(0, Math.round(dt - (elapsed % dt)));
 
         return (
           <g key={nid}>
-            {/* Nền ngã tư */}
-            <rect x={pos.x-sz} y={pos.y-sz} width={sz*2} height={sz*2}
+            {/* Ngã tư bo tròn */}
+            <rect x={pos.x-SZ} y={pos.y-SZ} width={SZ*2} height={SZ*2}
+              rx={R} ry={R}
               fill="#e8e6df" stroke="#c8c6be" strokeWidth={0.5}/>
 
-            {/* Vạch dừng 4 hướng */}
-            <line x1={pos.x-sz} y1={pos.y-sz+3} x2={pos.x-sz+3} y2={pos.y-sz+3}
-              stroke="white" strokeWidth={1.5}/>
-            <line x1={pos.x+sz-3} y1={pos.y-sz+3} x2={pos.x+sz} y2={pos.y-sz+3}
-              stroke="white" strokeWidth={1.5}/>
-            <line x1={pos.x-sz} y1={pos.y+sz-3} x2={pos.x-sz+3} y2={pos.y+sz-3}
-              stroke="white" strokeWidth={1.5}/>
-            <line x1={pos.x+sz-3} y1={pos.y+sz-3} x2={pos.x+sz} y2={pos.y+sz-3}
-              stroke="white" strokeWidth={1.5}/>
+            {/* Stop lines — 4 hướng, màu theo pha đèn */}
+            {[
+              { dir:"N", x1:pos.x-STOP_LEN, y1:pos.y-STOP_OFF, x2:pos.x+STOP_LEN, y2:pos.y-STOP_OFF },
+              { dir:"S", x1:pos.x-STOP_LEN, y1:pos.y+STOP_OFF, x2:pos.x+STOP_LEN, y2:pos.y+STOP_OFF },
+              { dir:"W", x1:pos.x-STOP_OFF, y1:pos.y-STOP_LEN, x2:pos.x-STOP_OFF, y2:pos.y+STOP_LEN },
+              { dir:"E", x1:pos.x+STOP_OFF, y1:pos.y-STOP_LEN, x2:pos.x+STOP_OFF, y2:pos.y+STOP_LEN },
+            ].map(({ dir, x1, y1, x2, y2 }) => (
+              <line key={dir} x1={x1} y1={y1} x2={x2} y2={y2}
+                stroke={LIGHT_C[lights[dir]]}
+                strokeWidth={lights[dir] === "green" ? 2.5 : 2}
+                strokeLinecap="round"
+                opacity={lights[dir] === "yellow" ? 0.8 : 1}/>
+            ))}
 
-            {/* Label nhỏ */}
+            {/* Label ngã tư */}
             <text x={pos.x} y={pos.y+1} textAnchor="middle" dominantBaseline="central"
               fontSize={7} fontWeight="700" fill="#5f5e5a">{nid}</text>
 
-            {/* Đèn 4 hướng */}
-            {[
-              { dir:"N", x: pos.x,         y: pos.y-LIGHT_OFF },
-              { dir:"S", x: pos.x,         y: pos.y+LIGHT_OFF },
-              { dir:"W", x: pos.x-LIGHT_OFF, y: pos.y },
-              { dir:"E", x: pos.x+LIGHT_OFF, y: pos.y },
-            ].map(({dir, x, y}) => (
-              <g key={dir}>
-                <circle cx={x} cy={y} r={4} fill="#2c2c2a" opacity={0.7}/>
-                <circle cx={x} cy={y} r={2.5} fill={LIGHT_C[lights[dir]]}/>
-              </g>
-            ))}
+            {/* Countdown timer — góc dưới phải ngã tư */}
+            {countdown >= 0 && (
+              <text x={pos.x+SZ-1} y={pos.y+SZ-1}
+                textAnchor="end" dominantBaseline="auto"
+                fontSize={6} fontWeight="800"
+                fill={countdown <= 2 ? "#e24b4a" : countdown <= 5 ? "#ef9f27" : "#1d9e75"}
+                opacity={0.9}>
+                {countdown}
+              </text>
+            )}
+
+            {/* Pulse ring khi SWITCH */}
+            {pulseNodes[nid] && (
+              <rect
+                x={pos.x-SZ-4} y={pos.y-SZ-4}
+                width={(SZ+4)*2} height={(SZ+4)*2}
+                rx={R+3} ry={R+3}
+                fill="none"
+                stroke={modelColor || "#534ab7"}
+                strokeWidth={2}
+                opacity={0.7}
+                style={{
+                  animation: "pulse-ring 1.5s ease-out forwards",
+                }}
+              />
+            )}
+
+            {/* SWITCH / HOLD badge — góc trên trái */}
+            {data && (() => {
+              const switched = pulseNodes[nid];
+              return (
+                <g>
+                  <rect
+                    x={pos.x - SZ} y={pos.y - SZ - 11}
+                    width={switched ? 36 : 28} height={10}
+                    rx={3}
+                    fill={switched ? (modelColor || "#534ab7") : "#94a3b8"}
+                    opacity={switched ? 0.92 : 0.55}
+                  />
+                  <text
+                    x={pos.x - SZ + (switched ? 18 : 14)}
+                    y={pos.y - SZ - 5}
+                    textAnchor="middle" dominantBaseline="central"
+                    fontSize={6} fontWeight="700" fill="white">
+                    {switched ? "↺ SWITCH" : "⏸ HOLD"}
+                  </text>
+                </g>
+              );
+            })()}
           </g>
         );
       })}
@@ -181,28 +227,24 @@ function Intersections({ intersections }) {
   );
 }
 
-// ── Vehicles with arrow ───────────────────────────────────────────────────────
-function Vehicles({ vehicles, color }) {
+// ── Vehicles ──────────────────────────────────────────────────────────────────
+function Vehicles({ vehicles, color, NODE, SRC, EDGES }) {
   return (
     <g>
-      {(vehicles||[]).slice(0,100).map(v => {
-        const xy = getVehicleXY(v);
+      {(vehicles||[]).slice(0,300).map(v => {
+        const xy = getVehicleXY(v, NODE, SRC, EDGES);
         if (!xy) return null;
         const isBus  = v.type?.includes("bus");
         const isMoto = v.type?.includes("moto");
         const w = isBus ? 13 : isMoto ? 7 : 9;
         const h = isBus ? 6  : isMoto ? 3 : 5;
         const rx = isBus ? 1 : 1.5;
-        // Mũi tên nhỏ ở đầu xe
         const arrowSize = isMoto ? 2.5 : 3;
-
         return (
           <g key={v.id}
             transform={`translate(${xy.x.toFixed(1)},${xy.y.toFixed(1)}) rotate(${xy.angle.toFixed(1)})`}>
-            {/* Thân xe */}
             <rect x={-w/2} y={-h/2} width={w} height={h} rx={rx}
               fill={color} opacity={0.9} stroke="white" strokeWidth={0.3}/>
-            {/* Mũi tên đầu xe */}
             <polygon
               points={`${w/2},0 ${w/2-arrowSize},${-arrowSize*0.7} ${w/2-arrowSize},${arrowSize*0.7}`}
               fill="white" opacity={0.7}/>
@@ -213,23 +255,56 @@ function Vehicles({ vehicles, color }) {
   );
 }
 
-// ── Accident marker ───────────────────────────────────────────────────────────
-function AccidentMarkers({ accidentEdges }) {
+// ── Accident markers ──────────────────────────────────────────────────────────
+function AccidentMarkers({ accidentEdges, EDGES, NODE, SRC }) {
   if (!accidentEdges || Object.keys(accidentEdges).length === 0) return null;
   return (
     <g>
       {Object.entries(accidentEdges).map(([edgeId, mode]) => {
         const e = EDGES[edgeId];
         if (!e) return null;
-        const from = getPos(e.from), to = getPos(e.to);
+        const from = getPos(e.from, NODE, SRC);
+        const to   = getPos(e.to,   NODE, SRC);
         if (!from || !to) return null;
+
+        const dx  = to.x - from.x, dy = to.y - from.y;
+        const len = Math.sqrt(dx*dx + dy*dy) || 1;
+        const nx  = -dy/len, ny = dx/len;  // normal vector
+
+        // Thanh chắn ngang đường, đặt ở giữa edge
         const mid = interp(from, to, 0.5);
+        const BAR_W = 16;  // độ dài thanh chắn
+        const BAR_H = 4;   // độ dày
+
+        // all=đỏ, left/right=vàng lệch sang 1 bên
+        const isAll   = mode === "all";
+        const barColor = isAll ? "#e24b4a" : "#ef9f27";
+        const offset  = isAll ? 0 : (mode === "left" ? -5 : 5);
+
+        const bx = mid.x + nx * offset;
+        const by = mid.y + ny * offset;
+        const angle = Math.atan2(dy, dx) * 180 / Math.PI;
+
         return (
           <g key={edgeId}>
-            <circle cx={mid.x} cy={mid.y} r={12} fill="#e24b4a" opacity={0.15}/>
-            <circle cx={mid.x} cy={mid.y} r={6}  fill="#e24b4a" opacity={0.6}/>
-            <text x={mid.x} y={mid.y-14} textAnchor="middle" fontSize={9} fill="#e24b4a" fontWeight="600">
-              {mode === "all" ? "🚨 CHẶN" : "⚠️ TAI NẠN"}
+            {/* Vùng đỏ/vàng nhạt nền */}
+            <line x1={from.x} y1={from.y} x2={to.x} y2={to.y}
+              stroke={barColor} strokeWidth={isAll ? 10 : 6} opacity={0.15}/>
+            {/* Thanh chắn */}
+            <g transform={`translate(${bx},${by}) rotate(${angle + 90})`}>
+              <rect x={-BAR_W/2} y={-BAR_H/2} width={BAR_W} height={BAR_H}
+                rx={2} fill={barColor} opacity={0.9}/>
+              {/* Sọc cảnh báo */}
+              {[0.25, 0.5, 0.75].map(t => (
+                <line key={t}
+                  x1={-BAR_W/2 + t*BAR_W} y1={-BAR_H/2}
+                  x2={-BAR_W/2 + t*BAR_W} y2={BAR_H/2}
+                  stroke="white" strokeWidth={1} opacity={0.6}/>
+              ))}
+            </g>
+            <text x={mid.x} y={mid.y - 14} textAnchor="middle"
+              fontSize={8} fill={barColor} fontWeight="700">
+              {isAll ? "🚨 CHẶN" : mode === "left" ? "⚠️ LANE TRÁI" : "⚠️ LANE PHẢI"}
             </text>
           </g>
         );
@@ -238,16 +313,17 @@ function AccidentMarkers({ accidentEdges }) {
   );
 }
 
-// ── Attention arrows ──────────────────────────────────────────────────────────
-function AttentionArrows({ attn }) {
-  if (!attn) return null;
-  const IDS = ["N01","N02","N03","N04"];
+// ── Attention arrows (GAT-MARL only) ─────────────────────────────────────────
+function AttentionArrows({ attn, NODE }) {
+  if (!attn || !NODE) return null;
+  const IDS = Object.keys(NODE);
   const arrows = [];
-  IDS.forEach((dst,di) => IDS.forEach((src,si) => {
-    if (src===dst) return;
-    const w = attn[di]?.[si]??0;
+  IDS.forEach((dst, di) => IDS.forEach((src, si) => {
+    if (src === dst) return;
+    const w = attn[di]?.[si] ?? 0;
     if (w < 0.4) return;
-    const f=NODE[src], t=NODE[dst];
+    const f = NODE[src], t = NODE[dst];
+    if (!f || !t) return;
     arrows.push(
       <line key={`${src}-${dst}`}
         x1={f.x} y1={f.y} x2={t.x} y2={t.y}
@@ -270,7 +346,7 @@ function AttentionArrows({ attn }) {
 }
 
 // ── Speed legend ──────────────────────────────────────────────────────────────
-function SpeedLegend() {
+function SpeedLegend({ H }) {
   return (
     <g>
       <rect x={8} y={H-22} width={110} height={14} rx={3}
@@ -289,22 +365,41 @@ function SpeedLegend() {
   );
 }
 
+// ── Topology badge ────────────────────────────────────────────────────────────
+function TopologyBadge({ topology }) {
+  if (!topology) return null;
+  return (
+    <g>
+      <rect x={8} y={8} width={topology.length * 6.5 + 12} height={14} rx={3}
+        fill="#534ab7" opacity={0.85}/>
+      <text x={14} y={18} fontSize={8} fill="white" fontWeight="600">
+        {topology}
+      </text>
+    </g>
+  );
+}
+
 // ── Main ──────────────────────────────────────────────────────────────────────
 export function TrafficMap({ data, modelName }) {
-  const color        = MODEL_C[modelName] || "#534ab7";
-  const edgeSpeeds   = data?.edge_speeds   || {};
+  const topology = data?.topology || "2x2";
+  const layout   = useMemo(() => getLayout(topology), [topology]);
+  const { W, H, NODE, SRC, EDGES } = layout;
+
+  const color         = MODEL_C[modelName] || "#534ab7";
+  const edgeSpeeds    = data?.edge_speeds    || {};
   const accidentEdges = data?.accident_edges || {};
 
   return (
     <div className="traffic-map-wrap">
       <svg viewBox={`0 0 ${W} ${H}`} className="traffic-map-svg">
         <rect width={W} height={H} fill="#f5f4f1" rx="8"/>
-        <Roads edgeSpeeds={edgeSpeeds} accidentEdges={accidentEdges}/>
-        <AttentionArrows attn={modelName==="gat_marl" ? data?.attention_weights : null}/>
-        <AccidentMarkers accidentEdges={accidentEdges}/>
-        <Vehicles vehicles={data?.vehicles} color={color}/>
-        <Intersections intersections={data?.intersections}/>
-        <SpeedLegend/>
+        <Roads EDGES={EDGES} NODE={NODE} SRC={SRC} edgeSpeeds={edgeSpeeds} accidentEdges={accidentEdges}/>
+        <AttentionArrows attn={modelName==="gat_marl" ? data?.attention_weights : null} NODE={NODE}/>
+        <AccidentMarkers accidentEdges={accidentEdges} EDGES={EDGES} NODE={NODE} SRC={SRC}/>
+        <Vehicles vehicles={data?.vehicles} color={color} NODE={NODE} SRC={SRC} EDGES={EDGES}/>
+        <Intersections NODE={NODE} intersections={data?.intersections} deltaTime={data?.delta_time ?? 5} modelColor={color}/>
+        <TopologyBadge topology={topology}/>
+        <SpeedLegend H={H}/>
       </svg>
     </div>
   );

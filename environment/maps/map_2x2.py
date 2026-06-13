@@ -27,6 +27,9 @@ OUTGOING_EDGES = {
 
 NUM_LANES = 2
 
+# 2x2 synthetic — tất cả đường như nhau, không có arterial
+EDGE_WEIGHTS = {}
+
 #         N01  N02  N03  N04
 ADJACENCY_MATRIX = np.array([
     [0,   1,   1,   0],  # N01

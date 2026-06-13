@@ -66,6 +66,24 @@ OUTGOING_EDGES = {
 
 NUM_LANES = 2  # default, dùng get_edge_lanes() cho chính xác
 
+# Weight theo tầm quan trọng thực tế của đường
+# Mặc định = 1.0, chỉ khai báo các edge có weight khác
+EDGE_WEIGHTS = {
+    # Hồ Tùng Mậu — đường trục ngang, 3 lane, 900 veh/h peak
+    "SRC_HTM_W_N01": 2.0,
+    "SRC_HTM_W_N02": 2.0,
+    "SRC_HTM_E_N02": 2.0,
+    "SRC_HTM_E_N03": 2.0,
+    # Lê Đức Thọ — đường trục dọc, 2 lane/chiều nhưng rất bận
+    "SRC_LDT_N_N02": 2.0,
+    "SRC_LDT_N_N05": 2.0,
+    "SRC_LDT_S_N05": 2.0,
+    "SRC_LDT_S_N08": 2.0,
+    # Phạm Hùng — đường trục dọc, 3 lane, 600 veh/h peak
+    "SRC_PH_N03":    2.0,
+    "SRC_PH_N06":    2.0,
+}
+
 #         N01 N02 N03 N04 N05 N06 N07 N08
 ADJACENCY_MATRIX = np.array([
     [0,  1,  0,  1,  0,  0,  0,  0],  # N01 ─ N02, N04

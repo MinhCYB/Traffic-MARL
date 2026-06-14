@@ -159,11 +159,7 @@
     <edge id="N15_SRC_V5S"     from="N15"        to="SRC_V5S"    type="secondary"/>
     <edge id="SRC_V5S_N09"     from="SRC_V5S"    to="N09"        type="secondary"/>
 
-    <!-- N10 ↔ N15 (đường cong góc Đông-Nam) -->
-    <edge id="N10_SRC_V10"     from="N10"        to="SRC_V10"    type="secondary"/>
-    <edge id="SRC_V10_N15"     from="SRC_V10"    to="N15"        type="secondary"/>
-    <edge id="N15_SRC_V10"     from="N15"        to="SRC_V10"    type="secondary"/>
-    <edge id="SRC_V10_N10"     from="SRC_V10"    to="N10"        type="secondary"/>
+
 
     <!-- ══════════════════════════════════════════════════════
          BOUNDARY EDGES — external source/sink
@@ -202,5 +198,7 @@
     <edge id="N14_EXT_S_N14"   from="N14"         to="EXT_S_N14"  type="outskirts"/>
     <edge id="EXT_S_N15_in"    from="EXT_S_N15"  to="N15"        type="outskirts"/>
     <edge id="N15_EXT_S_N15"   from="N15"         to="EXT_S_N15"  type="outskirts"/>
+    <edge id="EXT_S_N10_in"    from="EXT_S_N10"  to="N10"        type="outskirts"/>
+    <edge id="N10_EXT_S_N10"   from="N10"         to="EXT_S_N10"  type="outskirts"/>
 
 </edges>

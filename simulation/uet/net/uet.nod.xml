@@ -65,6 +65,7 @@
     <node id="EXT_S_N13" x="0"     y="-700" type="priority"/>
     <node id="EXT_S_N14" x="600"   y="-700" type="priority"/>
     <node id="EXT_S_N15" x="1200"  y="-700" type="priority"/>
+    <node id="EXT_S_N10" x="1800"  y="-700" type="priority"/>
 
     <!-- ══════════════════════════════════════════════════════
          INTERNAL SOURCE NODES — xe spawn giữa đường
@@ -110,7 +111,5 @@
     <node id="SRC_V5N"   x="1200"  y="200"  type="priority"/>  <!-- giữa N05-N09 -->
     <node id="SRC_V5S"   x="1200"  y="-200" type="priority"/>  <!-- giữa N09-N15 -->
 
-    <!-- Dọc secondary: N10-N15 ngang (N10 nối sang N15 theo đường cong) -->
-    <node id="SRC_V10"   x="1500"  y="-200" type="priority"/>  <!-- giữa N10-N15 -->
 
 </nodes>

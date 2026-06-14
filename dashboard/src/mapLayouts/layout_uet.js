@@ -68,8 +68,7 @@ export const SRC = {
   SRC_V5N:   { x: 520, y: 140 },  // N05 ↔ N09
   SRC_V5S:   { x: 520, y: 260 },  // N09 ↔ N15
 
-  // Đường chéo N10 ↔ N15
-  SRC_V10:   { x: 565, y: 260 },  // N10 ↔ N15 (chéo)
+
 };
 
 // ── Edges ─────────────────────────────────────────────────────────────────────
@@ -184,11 +183,7 @@ export const EDGES = {
   "SRC_V5S_N15":    { from: "SRC_V5S",   to: "N15",        type: "secondary" },
   "N15_SRC_V5S":    { from: "N15",       to: "SRC_V5S",    type: "secondary" },
 
-  // ── Đường chéo N10 ↔ N15 ───────────────────────────────────────────────────
-  "SRC_V10_N10":    { from: "SRC_V10",   to: "N10",        type: "secondary" },
-  "N10_SRC_V10":    { from: "N10",       to: "SRC_V10",    type: "secondary" },
-  "SRC_V10_N15":    { from: "SRC_V10",   to: "N15",        type: "secondary" },
-  "N15_SRC_V10":    { from: "N15",       to: "SRC_V10",    type: "secondary" },
+
 
   // ── External boundary ────────────────────────────────────────────────────────
   // Tây
@@ -224,6 +219,8 @@ export const EDGES = {
   "N14_EXT_S_N14":  { from: "N14", to: { x: 410, y: 400 }, type: "outskirts" },
   "EXT_S_N15_in":   { from: { x: 520, y: 400 }, to: "N15", type: "outskirts" },
   "N15_EXT_S_N15":  { from: "N15", to: { x: 520, y: 400 }, type: "outskirts" },
+  "EXT_S_N10_in":   { from: { x: 610, y: 400 }, to: "N10", type: "outskirts" },
+  "N10_EXT_S_N10":  { from: "N10", to: { x: 610, y: 400 }, type: "outskirts" },
 };
 
 // GRID — dùng để render IntersectionGrid (row × col, null = ô trống)

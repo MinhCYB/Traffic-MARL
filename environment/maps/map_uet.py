@@ -13,7 +13,7 @@ Chi tiết kết nối:
     Ngang arterial Row 2:  N11─N12─N13─N14─N15
     Ngang secondary Row M: N07─N08─N09─N10
     Dọc arterial:          N01─N11, N02─N12, N06─N10
-    Dọc secondary:         N03─N07─N13, N04─N08─N14, N05─N09─N15, N10─N15
+    Dọc secondary:         N03─N07─N13, N04─N08─N14, N05─N09─N15
 
 Ngã 3 (xanh): N01, N02, N07, N12
 Ngã 4 (đỏ):   N03, N04, N05, N06, N08, N09, N10, N11, N13, N14, N15
@@ -129,7 +129,7 @@ INCOMING_EDGES = {
         "SRC_RM_CD_N10",   # từ Tây (N09)
         "EXT_E_N10_in",    # từ Đông (boundary)
         "SRC_V6_N10",      # từ Bắc (N06)
-        "SRC_V10_N10",     # từ Nam-Tây (N15, đường cong)
+        "EXT_S_N10_in",    # từ Nam (boundary)
     ],
     # Ngã 4: N11
     "N11": [
@@ -163,7 +163,6 @@ INCOMING_EDGES = {
         "SRC_V5S_N15",     # từ Bắc (N09)
         "SRC_R2_DE_N15",   # từ Tây (N14)
         "EXT_E_N15_in",
-        "SRC_V10_N15",     # từ Bắc-Đông (N10, đường cong)
         "EXT_S_N15_in",
     ],
 }
@@ -224,7 +223,7 @@ OUTGOING_EDGES = {
         "N10_SRC_RM_CD",   # sang N09
         "N10_EXT_E_N10",
         "N10_SRC_V6",      # lên N06
-        "N10_SRC_V10",     # đường cong sang N15
+        "N10_EXT_S_N10",   # xuống boundary Nam
     ],
     "N11": [
         "N11_EXT_W_N11",
@@ -253,7 +252,6 @@ OUTGOING_EDGES = {
         "N15_SRC_V5S",     # lên N09
         "N15_SRC_R2_DE",   # sang N14
         "N15_EXT_E_N15",
-        "N15_SRC_V10",     # đường cong sang N10
         "N15_EXT_S_N15",
     ],
 }
@@ -310,10 +308,10 @@ ADJACENCY_MATRIX = np.array([
     [0,  0,  1,  0,  0,  0,  0,  1,  0,  0,  0,  0,  1,  0,  0],  # N07
     [0,  0,  0,  1,  0,  0,  1,  0,  1,  0,  0,  0,  0,  1,  0],  # N08
     [0,  0,  0,  0,  1,  0,  0,  1,  0,  1,  0,  0,  0,  0,  1],  # N09
-    [0,  0,  0,  0,  0,  1,  0,  0,  1,  0,  0,  0,  0,  0,  1],  # N10
+    [0,  0,  0,  0,  0,  1,  0,  0,  1,  0,  0,  0,  0,  0,  0],  # N10
     [1,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  1,  0,  0,  0],  # N11
     [0,  1,  0,  0,  0,  0,  0,  0,  0,  0,  1,  0,  1,  0,  0],  # N12
     [0,  0,  0,  0,  0,  0,  1,  0,  0,  0,  0,  1,  0,  1,  0],  # N13
     [0,  0,  0,  0,  0,  0,  0,  1,  0,  0,  0,  0,  1,  0,  1],  # N14
-    [0,  0,  0,  0,  0,  0,  0,  0,  1,  1,  0,  0,  0,  1,  0],  # N15
+    [0,  0,  0,  0,  0,  0,  0,  0,  1,  0,  0,  0,  0,  1,  0],  # N15
 ], dtype=np.float32)

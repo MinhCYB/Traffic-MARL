@@ -156,8 +156,8 @@
     <laneAreaDetector id="e2_SRC_V6_N10_1"    lane="SRC_V6_N10_1"    pos="-1" length="200" freq="5" file="NUL"/>
     <laneAreaDetector id="e2_SRC_V6_N10_2"    lane="SRC_V6_N10_2"    pos="-1" length="200" freq="5" file="NUL"/>
 
-    <laneAreaDetector id="e2_SRC_V10_N10_0"   lane="SRC_V10_N10_0"   pos="-1" length="200" freq="5" file="NUL"/>
-    <laneAreaDetector id="e2_SRC_V10_N10_1"   lane="SRC_V10_N10_1"   pos="-1" length="200" freq="5" file="NUL"/>
+    <laneAreaDetector id="e2_EXT_S_N10_in_0"  lane="EXT_S_N10_in_0"  pos="-1" length="200" freq="5" file="NUL"/>
+    <laneAreaDetector id="e2_EXT_S_N10_in_1"  lane="EXT_S_N10_in_1"  pos="-1" length="200" freq="5" file="NUL"/>
 
     <!-- ══════════════════════════ N11 (ngã 4) ══════════════════════════ -->
     <!-- incoming: EXT_W_N11_in (2L), EXT_S_N11_in (2L), SRC_R2_AB_N11 (3L), SRC_V1_N11 (3L) -->
@@ -234,8 +234,7 @@
     <laneAreaDetector id="e2_EXT_E_N15_in_0"  lane="EXT_E_N15_in_0"  pos="-1" length="200" freq="5" file="NUL"/>
     <laneAreaDetector id="e2_EXT_E_N15_in_1"  lane="EXT_E_N15_in_1"  pos="-1" length="200" freq="5" file="NUL"/>
 
-    <laneAreaDetector id="e2_SRC_V10_N15_0"   lane="SRC_V10_N15_0"   pos="-1" length="200" freq="5" file="NUL"/>
-    <laneAreaDetector id="e2_SRC_V10_N15_1"   lane="SRC_V10_N15_1"   pos="-1" length="200" freq="5" file="NUL"/>
+
 
     <laneAreaDetector id="e2_EXT_S_N15_in_0"  lane="EXT_S_N15_in_0"  pos="-1" length="200" freq="5" file="NUL"/>
     <laneAreaDetector id="e2_EXT_S_N15_in_1"  lane="EXT_S_N15_in_1"  pos="-1" length="200" freq="5" file="NUL"/>

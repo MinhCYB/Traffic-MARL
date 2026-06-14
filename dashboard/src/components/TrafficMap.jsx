@@ -37,16 +37,43 @@ function interp(a, b, t) {
   return { x: a.x + (b.x - a.x) * t, y: a.y + (b.y - a.y) * t };
 }
 
-function getVehicleXY(v, NODE, SRC, EDGES) {
+// Tính hướng xe đến ngã tư (N/S/E/W) dựa vào vector from→to
+function approachDir(from, to) {
+  const dx = to.x - from.x, dy = to.y - from.y;
+  if (Math.abs(dx) >= Math.abs(dy)) return dx > 0 ? "E" : "W";
+  return dy > 0 ? "S" : "N";
+}
+
+function getVehicleXY(v, NODE, SRC, EDGES, phaseLookup) {
   const e = EDGES[v.edge];
   if (!e) return null;
   const from = getPos(e.from, NODE, SRC);
   const to   = getPos(e.to,   NODE, SRC);
   if (!from || !to) return null;
-  const p   = interp(from, to, Math.max(0, Math.min(1, v.pos)));
+
   const dx  = to.x - from.x, dy = to.y - from.y;
   const len = Math.sqrt(dx*dx + dy*dy) || 1;
-  const nx  = -dy/len, ny = dx/len;
+
+  // Clamp xe trước stop line nếu đèn đỏ/vàng
+  // Stop line nằm cách tâm ngã tư SZ=9 px → tính thành tỉ lệ pos
+  const SZ         = 9;
+  const STOP_RATIO = Math.min(0.97, Math.max(0, (len - SZ) / len));
+  let pos = Math.max(0, Math.min(1, v.pos));
+
+  const toNodeId = typeof e.to === "string" ? e.to : null;
+  if (toNodeId && NODE[toNodeId] && phaseLookup) {
+    const nodeData = phaseLookup[toNodeId];
+    if (nodeData) {
+      const lights = PHASE_LIGHTS[nodeData.phase] || PHASE_LIGHTS[0];
+      const dir    = approachDir(from, to);
+      if (lights[dir] === "red" || lights[dir] === "yellow") {
+        pos = Math.min(pos, STOP_RATIO);
+      }
+    }
+  }
+
+  const p  = interp(from, to, pos);
+  const nx = -dy/len, ny = dx/len;
   const off = v.lane === 0 ? 2.5 : -2.5;
   return { x: p.x + nx*off, y: p.y + ny*off, angle: Math.atan2(dy,dx)*180/Math.PI };
 }
@@ -233,11 +260,11 @@ function Intersections({ NODE, intersections, deltaTime, modelColor }) {
 }
 
 // ── Vehicles ──────────────────────────────────────────────────────────────────
-function Vehicles({ vehicles, color, NODE, SRC, EDGES }) {
+function Vehicles({ vehicles, color, NODE, SRC, EDGES, phaseLookup }) {
   return (
     <g>
       {(vehicles||[]).slice(0,300).map(v => {
-        const xy = getVehicleXY(v, NODE, SRC, EDGES);
+        const xy = getVehicleXY(v, NODE, SRC, EDGES, phaseLookup);
         if (!xy) return null;
         const isBus  = v.type?.includes("bus");
         const isMoto = v.type?.includes("moto");
@@ -401,7 +428,8 @@ export function TrafficMap({ data, modelName }) {
         <Roads EDGES={EDGES} NODE={NODE} SRC={SRC} edgeSpeeds={edgeSpeeds} accidentEdges={accidentEdges}/>
         <AttentionArrows attn={modelName==="gat_marl" ? data?.attention_weights : null} NODE={NODE}/>
         <AccidentMarkers accidentEdges={accidentEdges} EDGES={EDGES} NODE={NODE} SRC={SRC}/>
-        <Vehicles vehicles={data?.vehicles} color={color} NODE={NODE} SRC={SRC} EDGES={EDGES}/>
+        <Vehicles vehicles={data?.vehicles} color={color} NODE={NODE} SRC={SRC} EDGES={EDGES}
+          phaseLookup={Object.fromEntries((data?.intersections||[]).map(i => [i.id, i]))}/>
         <Intersections NODE={NODE} intersections={data?.intersections} deltaTime={data?.phase_duration ?? 13} modelColor={color}/>
         <TopologyBadge topology={topology}/>
         <SpeedLegend H={H}/>

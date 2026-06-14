@@ -210,13 +210,35 @@ class TrafficEnv:
             for edge, lanes in queue_data[nid].items()
         }
 
-        # Compute rewards — Max Pressure per agent
+        # Tính waiting time trung bình per intersection — dùng cho reward
+        # Lấy tất cả xe, sau đó map theo edge → intersection
+        wait_per_intersection: dict[str, float] = {nid: 0.0 for nid in INTERSECTION_IDS}
+        try:
+            all_vehicles = traci.vehicle.getIDList()
+            if all_vehicles:
+                # Gom waiting time của xe trên incoming edges của từng ngã tư
+                inc_wait: dict[str, list[float]] = {nid: [] for nid in INTERSECTION_IDS}
+                for vid in all_vehicles:
+                    edge_id = traci.vehicle.getRoadID(vid)
+                    wait    = traci.vehicle.getWaitingTime(vid)
+                    for nid in INTERSECTION_IDS:
+                        if edge_id in INCOMING_EDGES[nid]:
+                            inc_wait[nid].append(wait)
+                            break
+                wait_per_intersection = {
+                    nid: float(sum(ws) / len(ws)) if ws else 0.0
+                    for nid, ws in inc_wait.items()
+                }
+        except Exception:
+            pass  # fallback về 0.0 nếu TraCI lỗi — pressure vẫn active
+
+        # Compute rewards — Hybrid: Waiting Time (70%) + Pressure (30%)
         rewards   = {}
         pressures = {}
         for nid in INTERSECTION_IDS:
             inc = get_incoming_queues(nid, flat_queue)
             out = get_outgoing_queues(nid, flat_queue)
-            rewards[nid]   = compute_reward(nid, inc, out)
+            rewards[nid]   = compute_reward(nid, inc, out, wait_per_intersection[nid])
             pressures[nid] = -rewards[nid]
 
         done = self._step >= SIM_END
@@ -255,25 +277,39 @@ class TrafficEnv:
         else:
             lane_indices = list(range(n_lanes))  # fallback = all
 
+        # Vehicle classes cần disallow — đủ loại để không xe nào lọt qua
+        _ALL_VCLASS = ["passenger", "truck", "bus", "motorcycle", "bicycle",
+                       "pedestrian", "emergency", "authority", "army", "vip",
+                       "ignoring", "rail", "ship", "custom1", "custom2"]
+
         for lane_idx in lane_indices:
             lane_id = f"{edge_id}_{lane_idx}"
             try:
-                traci.lane.setMaxSpeed(lane_id, 0.3)  # 0.3 m/s ~ dừng hẳn
+                if block_mode == "all":
+                    # Disallow toàn bộ vehicle class → xe không thể vào lane
+                    traci.lane.setDisallowed(lane_id, _ALL_VCLASS)
+                else:
+                    # Partial block: chỉ giảm tốc, xe creep qua hoặc chuyển làn
+                    traci.lane.setMaxSpeed(lane_id, 0.3)
             except Exception:
                 pass
         self._accident_edges[edge_id] = block_mode
 
     def clear_accident(self, edge_id: str = None):
-        """Restore tất cả lanes về tốc độ bình thường."""
+        """Restore tất cả lanes về trạng thái bình thường."""
         edges_to_clear = list(self._accident_edges.keys()) if edge_id is None else [edge_id]
         for eid in edges_to_clear:
+            block_mode = self._accident_edges.get(eid, "all")
             try:
                 n_lanes = traci.edge.getLaneNumber(eid)
             except Exception:
                 n_lanes = NUM_LANES
             for lane_idx in range(n_lanes):
+                lane_id = f"{eid}_{lane_idx}"
                 try:
-                    traci.lane.setMaxSpeed(f"{eid}_{lane_idx}", 13.89)
+                    if block_mode == "all":
+                        traci.lane.setAllowed(lane_id, [])  # [] = allow all vclass
+                    traci.lane.setMaxSpeed(lane_id, 13.89)
                 except Exception:
                     pass
         if edge_id is None:

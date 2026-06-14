@@ -283,9 +283,9 @@ function ScoreTooltip() {
           boxShadow:"0 4px 16px rgba(0,0,0,0.10)", lineHeight:1.6,
         }}>
           <div style={{ fontWeight:600, marginBottom:6 }}>Cách tính điểm</div>
-          <div>⚡ Tốc độ TB: <b>40%</b></div>
-          <div>🚗 Xe hoàn thành: <b>40%</b></div>
-          <div>⏱ Ít chờ: <b>20%</b></div>
+          <div>⏱ Ít chờ: <b>50%</b></div>
+          <div>🚗 Xe hoàn thành: <b>30%</b></div>
+          <div>⚡ Tốc độ TB: <b>20%</b></div>
           <div style={{ marginTop:6, color:"#888780" }}>
             Tốc độ = avg toàn bộ session.<br/>
             Mỗi tiêu chí normalize 0–100 so với model tốt nhất.
@@ -332,9 +332,9 @@ function RankTable({ history, totalWait, speedHistory }) {
   const ranked = raw.map(r => ({
     ...r,
     score: Math.round(
-      (r.speed     / maxSpd)       * 40 +   // tốc độ 40%
-      (r.completed / maxCompleted) * 40 +   // throughput 40%
-      (1 - r.wait  / maxWait)      * 20     // ít chờ 20%
+      (1 - r.wait  / maxWait)      * 50 +   // ít chờ 50%  ← tiêu chí số 1 (HCM/SCOOT)
+      (r.completed / maxCompleted) * 30 +   // throughput 30%
+      (r.speed     / maxSpd)       * 20     // tốc độ 20%  ← hệ quả, ít weight nhất
     ),
   })).sort((a, b) => b.score - a.score);
 

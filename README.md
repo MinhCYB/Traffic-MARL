@@ -44,8 +44,22 @@ obs_i (queue, density, phase, time_since_change)
 Q(s, keep) · Q(s, switch) → argmax → Action
 ```
 
-**Reward:** Weighted Max Pressure — `reward_i = -|Σ(queue_in × w_e) - Σ(queue_out × w_e)| / N_lanes`
-(arterial edges weight 2.0, secondary 1.0)
+**Reward:** Hybrid Waiting Time + Weighted Pressure
+
+```
+reward_i = -(α × wait_norm_i + β × pressure_i)
+
+  wait_norm_i = mean_waiting_time_i / 120s   ← normalize về [0,1], clip tại 2 phút
+  pressure_i  = |Σ(queue_in × w_e) - Σ(queue_out × w_e)| / N_lanes
+
+  α = 0.7  → waiting time là primary signal (sát tiêu chí HCM / SCOOT)
+  β = 0.3  → pressure làm regularizer, tránh spillback
+```
+
+Lý do chọn hybrid thay vì pure pressure:
+- **Waiting time** đo trực tiếp trải nghiệm người dùng — tiêu chí số 1 theo HCM 7th Edition và hệ thống SCOOT/SCATS thực tế
+- **Pressure** giữ vai trò regularizer: tránh agent "hy sinh" một hướng để tối ưu waiting time cục bộ, đồng thời ổn định training khi xe còn thưa (đầu episode)
+- Arterial edges weight 2.0, secondary 1.0
 
 ---
 

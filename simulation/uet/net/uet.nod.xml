@@ -4,112 +4,114 @@
 
     <!-- ══════════════════════════════════════════════════════
          15 NGÃ TƯ/BA — khu ĐH Công Nghệ UET (Cầu Giấy)
-         Tọa độ (mét), ánh xạ từ layout bản vẽ:
+         Tọa độ (mét), ánh xạ từ layout bản vẽ tay thực tế:
            x: Tây(-) → Đông(+)
            y: Nam(-) → Bắc(+)
 
-         Layout (row-major, trái→phải, trên→dưới):
-           Row 1: N01 = N02 = N03 = N04 = N05 = N06   ← đường lớn ngang
-           Row M: N07 — N08 — N09 — N10               ← đường nhỏ ngang (giữa)
-           Row 2: N11 = N12 = N13 = N14 = N15         ← đường lớn ngang
+         Lưới nghiêng ~30° Tây Bắc → Đông Nam, khoảng cách KHÔNG đều
+         (tránh fixed-time hưởng lợi từ green wave, sát thực tế hơn)
 
          Ngã 3 (xanh): N01, N02, N07, N12
          Ngã 4 (đỏ): N03, N04, N05, N06, N08, N09, N10, N11, N13, N14, N15
 
          Đường lớn dọc (arterial): N01-N11, N02-N12, N06-N10
-         Đường nhỏ dọc (secondary): N03-N07/N13, N04-N08-N14, N05-N09-N15, N09-N10
+         Đường nhỏ dọc (secondary): N03-N07-N13, N04-N08-N14, N05-N09-N15
     ══════════════════════════════════════════════════════ -->
 
-    <!-- ── Row 1: Đường Xuân Thủy / Phạm Văn Đồng (ngang lớn) ── -->
-    <node id="N01" x="-1200" y="400"  type="traffic_light"/>   <!-- ngã 3 — không có hướng Bắc -->
-    <node id="N02" x="-600"  y="400"  type="traffic_light"/>   <!-- ngã 3 — không có hướng Bắc -->
-    <node id="N03" x="0"     y="400"  type="traffic_light"/>   <!-- ngã 4 -->
-    <node id="N04" x="600"   y="400"  type="traffic_light"/>   <!-- ngã 4 -->
-    <node id="N05" x="1200"  y="400"  type="traffic_light"/>   <!-- ngã 4 -->
-    <node id="N06" x="1800"  y="400"  type="traffic_light"/>   <!-- ngã 4 -->
+    <!-- ── Nhóm trên-trái (Tây Bắc) ── -->
+    <node id="N01" x="-1350" y="820"  type="traffic_light"/>   <!-- ngã 3 — không có hướng Bắc -->
+    <node id="N02" x="-750"  y="600"  type="traffic_light"/>   <!-- ngã 3 — không có hướng Bắc -->
 
-    <!-- ── Row giữa: Đường nội bộ (secondary) ── -->
-    <node id="N07" x="0"     y="0"    type="traffic_light"/>   <!-- ngã 3 — không có hướng Bắc -->
-    <node id="N08" x="600"   y="0"    type="traffic_light"/>   <!-- ngã 4 -->
-    <node id="N09" x="1200"  y="0"    type="traffic_light"/>   <!-- ngã 4 -->
-    <node id="N10" x="1800"  y="0"    type="traffic_light"/>   <!-- ngã 4 -->
+    <!-- ── Hàng trên (lệch dần xuống về phía Đông) ── -->
+    <node id="N03" x="-100"  y="380"  type="traffic_light"/>   <!-- ngã 4 -->
+    <node id="N04" x="480"   y="280"  type="traffic_light"/>   <!-- ngã 4 -->
+    <node id="N05" x="1000"  y="150"  type="traffic_light"/>   <!-- ngã 4 -->
+    <node id="N06" x="1600"  y="60"   type="traffic_light"/>   <!-- ngã 4 -->
 
-    <!-- ── Row 2: Đường Nguyễn Phong Sắc / Trần Thái Tông (ngang lớn) ── -->
-    <node id="N11" x="-1200" y="-400" type="traffic_light"/>   <!-- ngã 4 -->
-    <node id="N12" x="-600"  y="-400" type="traffic_light"/>   <!-- ngã 3 — không có hướng Nam -->
-    <node id="N13" x="0"     y="-400" type="traffic_light"/>   <!-- ngã 4 -->
-    <node id="N14" x="600"   y="-400" type="traffic_light"/>   <!-- ngã 4 -->
-    <node id="N15" x="1200"  y="-400" type="traffic_light"/>   <!-- ngã 4 -->
+    <!-- ── Hàng giữa (secondary, lệch không đều) ── -->
+    <node id="N07" x="-100"  y="20"   type="traffic_light"/>   <!-- ngã 3 — không có hướng Bắc -->
+    <node id="N08" x="480"   y="-80"  type="traffic_light"/>   <!-- ngã 4 -->
+    <node id="N09" x="1000"  y="-190" type="traffic_light"/>   <!-- ngã 4 -->
+    <node id="N10" x="1600"  y="-350" type="traffic_light"/>   <!-- ngã 4 -->
+
+    <!-- ── Nhóm dưới-trái (Tây Nam) ── -->
+    <node id="N11" x="-1350" y="-80"  type="traffic_light"/>   <!-- ngã 4 -->
+    <node id="N12" x="-750"  y="-230" type="traffic_light"/>   <!-- ngã 3 — không có hướng Nam -->
+
+    <!-- ── Hàng dưới (lệch dần xuống về phía Đông) ── -->
+    <node id="N13" x="-100"  y="-430" type="traffic_light"/>   <!-- ngã 4 -->
+    <node id="N14" x="480"   y="-540" type="traffic_light"/>   <!-- ngã 4 -->
+    <node id="N15" x="1000"  y="-620" type="traffic_light"/>   <!-- ngã 4 -->
 
     <!-- ══════════════════════════════════════════════════════
          BOUNDARY NODES — external source/sink (~300m ra ngoài)
+         Hướng offset theo đúng góc của đường tại điểm đó
     ══════════════════════════════════════════════════════ -->
 
-    <!-- Tây (từ N01, N11 ra tây — đường lớn dọc) -->
-    <node id="EXT_W_N01" x="-1500" y="400"  type="priority"/>
-    <node id="EXT_W_N11" x="-1500" y="-400" type="priority"/>
+    <!-- Tây (N01, N11 ra ngoài theo hướng ngược N02, N12) -->
+    <node id="EXT_W_N01" x="-1632" y="923"  type="priority"/>
+    <node id="EXT_W_N11" x="-1641" y="-7"   type="priority"/>
 
-    <!-- Đông (từ N06, N10 ra đông — đường lớn dọc) -->
-    <node id="EXT_E_N06" x="2100"  y="400"  type="priority"/>
-    <node id="EXT_E_N10" x="2100"  y="0"    type="priority"/>
-    <node id="EXT_E_N15" x="1500"  y="-400" type="priority"/>
+    <!-- Đông (N06, N10, N15 ra ngoài) -->
+    <node id="EXT_E_N06" x="1897"  y="15"   type="priority"/>
+    <node id="EXT_E_N10" x="1890"  y="-427" type="priority"/>
+    <node id="EXT_E_N15" x="1297"  y="-666" type="priority"/>
 
-    <!-- Bắc (từ N03–N06 đi lên — dọc) -->
-    <node id="EXT_N_N03" x="0"     y="700"  type="priority"/>
-    <node id="EXT_N_N04" x="600"   y="700"  type="priority"/>
-    <node id="EXT_N_N05" x="1200"  y="700"  type="priority"/>
-    <node id="EXT_N_N06" x="1800"  y="700"  type="priority"/>
+    <!-- Bắc (N03–N06 lên trên, theo hướng dọc tại node đó) -->
+    <node id="EXT_N_N03" x="-100"  y="680"  type="priority"/>
+    <node id="EXT_N_N04" x="480"   y="580"  type="priority"/>
+    <node id="EXT_N_N05" x="1000"  y="450"  type="priority"/>
+    <node id="EXT_N_N06" x="1600"  y="360"  type="priority"/>
 
-    <!-- Nam (từ N11–N15 đi xuống) -->
-    <node id="EXT_S_N11" x="-1200" y="-700" type="priority"/>
-    <node id="EXT_S_N13" x="0"     y="-700" type="priority"/>
-    <node id="EXT_S_N14" x="600"   y="-700" type="priority"/>
-    <node id="EXT_S_N15" x="1200"  y="-700" type="priority"/>
-    <node id="EXT_S_N10" x="1800"  y="-700" type="priority"/>
+    <!-- Nam (N11–N15, N10 xuống dưới) -->
+    <node id="EXT_S_N11" x="-1350" y="-380" type="priority"/>
+    <node id="EXT_S_N13" x="-100"  y="-730" type="priority"/>
+    <node id="EXT_S_N14" x="480"   y="-840" type="priority"/>
+    <node id="EXT_S_N15" x="1000"  y="-920" type="priority"/>
+    <node id="EXT_S_N10" x="1600"  y="-650" type="priority"/>
 
     <!-- ══════════════════════════════════════════════════════
          INTERNAL SOURCE NODES — xe spawn giữa đường
-         Đặt chính giữa mỗi đoạn đường giữa 2 ngã tư
+         Đặt tại trung điểm chính xác giữa 2 ngã tư
     ══════════════════════════════════════════════════════ -->
 
     <!-- Đường lớn ngang Row 1: N01-N02-N03-N04-N05-N06 -->
-    <node id="SRC_R1_AB" x="-900"  y="400"  type="priority"/>  <!-- giữa N01-N02 -->
-    <node id="SRC_R1_BC" x="-300"  y="400"  type="priority"/>  <!-- giữa N02-N03 -->
-    <node id="SRC_R1_CD" x="300"   y="400"  type="priority"/>  <!-- giữa N03-N04 -->
-    <node id="SRC_R1_DE" x="900"   y="400"  type="priority"/>  <!-- giữa N04-N05 -->
-    <node id="SRC_R1_EF" x="1500"  y="400"  type="priority"/>  <!-- giữa N05-N06 -->
+    <node id="SRC_R1_AB" x="-1050" y="710"  type="priority"/>  <!-- giữa N01-N02 -->
+    <node id="SRC_R1_BC" x="-425"  y="490"  type="priority"/>  <!-- giữa N02-N03 -->
+    <node id="SRC_R1_CD" x="190"   y="330"  type="priority"/>  <!-- giữa N03-N04 -->
+    <node id="SRC_R1_DE" x="740"   y="215"  type="priority"/>  <!-- giữa N04-N05 -->
+    <node id="SRC_R1_EF" x="1300"  y="105"  type="priority"/>  <!-- giữa N05-N06 -->
 
     <!-- Đường lớn ngang Row 2: N11-N12-N13-N14-N15 -->
-    <node id="SRC_R2_AB" x="-900"  y="-400" type="priority"/>  <!-- giữa N11-N12 -->
-    <node id="SRC_R2_BC" x="-300"  y="-400" type="priority"/>  <!-- giữa N12-N13 -->
-    <node id="SRC_R2_CD" x="300"   y="-400" type="priority"/>  <!-- giữa N13-N14 -->
-    <node id="SRC_R2_DE" x="900"   y="-400" type="priority"/>  <!-- giữa N14-N15 -->
+    <node id="SRC_R2_AB" x="-1050" y="-155" type="priority"/>  <!-- giữa N11-N12 -->
+    <node id="SRC_R2_BC" x="-425"  y="-330" type="priority"/>  <!-- giữa N12-N13 -->
+    <node id="SRC_R2_CD" x="190"   y="-485" type="priority"/>  <!-- giữa N13-N14 -->
+    <node id="SRC_R2_DE" x="740"   y="-580" type="priority"/>  <!-- giữa N14-N15 -->
 
     <!-- Đường nhỏ ngang giữa: N07-N08-N09-N10 -->
-    <node id="SRC_RM_AB" x="300"   y="0"    type="priority"/>  <!-- giữa N07-N08 -->
-    <node id="SRC_RM_BC" x="900"   y="0"    type="priority"/>  <!-- giữa N08-N09 -->
-    <node id="SRC_RM_CD" x="1500"  y="0"    type="priority"/>  <!-- giữa N09-N10 -->
+    <node id="SRC_RM_AB" x="190"   y="-30"  type="priority"/>  <!-- giữa N07-N08 -->
+    <node id="SRC_RM_BC" x="740"   y="-135" type="priority"/>  <!-- giữa N08-N09 -->
+    <node id="SRC_RM_CD" x="1300"  y="-270" type="priority"/>  <!-- giữa N09-N10 -->
 
     <!-- Dọc arterial: N01-N11 -->
-    <node id="SRC_V1"    x="-1200" y="0"    type="priority"/>  <!-- giữa N01-N11 -->
+    <node id="SRC_V1"    x="-1350" y="370"  type="priority"/>  <!-- giữa N01-N11 -->
 
     <!-- Dọc arterial: N02-N12 -->
-    <node id="SRC_V2"    x="-600"  y="0"    type="priority"/>  <!-- giữa N02-N12 -->
+    <node id="SRC_V2"    x="-750"  y="185"  type="priority"/>  <!-- giữa N02-N12 -->
 
     <!-- Dọc arterial: N06-N10 -->
-    <node id="SRC_V6"    x="1800"  y="200"  type="priority"/>  <!-- giữa N06-N10 -->
+    <node id="SRC_V6"    x="1600"  y="-145" type="priority"/>  <!-- giữa N06-N10 -->
 
     <!-- Dọc secondary: N03-N07, N07-N13 -->
-    <node id="SRC_V3N"   x="0"     y="200"  type="priority"/>  <!-- giữa N03-N07 -->
-    <node id="SRC_V3S"   x="0"     y="-200" type="priority"/>  <!-- giữa N07-N13 -->
+    <node id="SRC_V3N"   x="-100"  y="200"  type="priority"/>  <!-- giữa N03-N07 -->
+    <node id="SRC_V3S"   x="-100"  y="-205" type="priority"/>  <!-- giữa N07-N13 -->
 
     <!-- Dọc secondary: N04-N08, N08-N14 -->
-    <node id="SRC_V4N"   x="600"   y="200"  type="priority"/>  <!-- giữa N04-N08 -->
-    <node id="SRC_V4S"   x="600"   y="-200" type="priority"/>  <!-- giữa N08-N14 -->
+    <node id="SRC_V4N"   x="480"   y="100"  type="priority"/>  <!-- giữa N04-N08 -->
+    <node id="SRC_V4S"   x="480"   y="-310" type="priority"/>  <!-- giữa N08-N14 -->
 
     <!-- Dọc secondary: N05-N09, N09-N15 -->
-    <node id="SRC_V5N"   x="1200"  y="200"  type="priority"/>  <!-- giữa N05-N09 -->
-    <node id="SRC_V5S"   x="1200"  y="-200" type="priority"/>  <!-- giữa N09-N15 -->
-
+    <node id="SRC_V5N"   x="1000"  y="-20"  type="priority"/>  <!-- giữa N05-N09 -->
+    <node id="SRC_V5S"   x="1000"  y="-405" type="priority"/>  <!-- giữa N09-N15 -->
 
 </nodes>

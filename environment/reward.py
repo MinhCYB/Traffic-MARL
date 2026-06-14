@@ -33,6 +33,8 @@ BETA            = 0.3   # weight cho pressure (regularizer)
 WEIGHT_DEFAULT  = 1.0
 MAX_WAIT_NORM   = 120.0  # giây — normalize waiting time về [0,1], clip tại 2 phút
 MAX_PRESSURE    = 5.0    # normalize pressure về [0,1] — queue max ~20xe / 4 lanes → ~5
+REWARD_SCALE    = 10.0   # scale reward lên để gradient đủ lớn để học
+                         # không normalize thì loss ~0.001 phẳng — network fit mean ngay
 
 
 def _edge_weight(edge_id: str) -> float:
@@ -99,7 +101,7 @@ def compute_reward(
     wait_norm     = min(avg_waiting_time, MAX_WAIT_NORM) / MAX_WAIT_NORM
     pressure_norm = min(pressure, MAX_PRESSURE) / MAX_PRESSURE
 
-    return -(ALPHA * wait_norm + BETA * pressure_norm)
+    return -(ALPHA * wait_norm + BETA * pressure_norm) * REWARD_SCALE
 
 
 def compute_global_reward(pressures: dict[str, float]) -> float:

@@ -32,7 +32,7 @@ from environment.state_builder import (
     get_incoming_queues,
     get_outgoing_queues,
 )
-from environment.reward import compute_reward, compute_global_reward
+from environment.reward import compute_reward, compute_global_reward, REWARD_SCALE
 from training.config import SIM_END as _CFG_SIM_END
 
 # ── Cấu hình ─────────────────────────────────────────────────────────────────
@@ -241,7 +241,7 @@ class TrafficEnv:
         # Phạt teleport: chia đều cho tất cả agents — đây là lỗi chung của cả mạng
         # Mỗi xe bị teleport = penalty 0.5 (half max per-step reward), chia đều cho N agents
         n_agents = len(INTERSECTION_IDS)
-        teleport_penalty = (0.5 * teleport_count) / n_agents
+        teleport_penalty = (0.5 * teleport_count) / n_agents * REWARD_SCALE
         for nid in INTERSECTION_IDS:
             inc = get_incoming_queues(nid, flat_queue)
             out = get_outgoing_queues(nid, flat_queue)

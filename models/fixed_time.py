@@ -6,7 +6,7 @@ Không có neural network, không học.
 Dùng làm lower bound trong ablation study.
 """
 
-from env.state_builder import INTERSECTION_IDS
+from environment.state_builder import INTERSECTION_IDS
 
 GREEN_DURATION  = 30   # giây
 YELLOW_DURATION = 3    # giây

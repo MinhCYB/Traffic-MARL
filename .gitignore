@@ -18,7 +18,10 @@ env/
 conda-meta/
 
 # ── Checkpoints & logs ────────────────────────────────────────────────────────
-!checkpoints/*.pt
+# Periodic saves — không push (có thể nặng)
+checkpoints/**/*.pt
+# Final weights — push lên git (nhẹ, tiện theo dõi)
+!checkpoints/final/*.pt
 logs/*/
 logs/merged.json
 # Giữ lại cấu trúc folder
@@ -50,3 +53,4 @@ dashboard/.vite/
 .DS_Store
 Thumbs.db
 repomix*
+*.txt

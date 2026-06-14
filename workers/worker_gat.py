@@ -6,7 +6,7 @@ Thêm attention_weights vào payload để dashboard visualize.
 
 import numpy as np
 from workers.worker_base import WorkerBase
-from training.config import PORT_GAT, CHECKPOINT_DIR
+from training.config import PORT_GAT, FINAL_DIR, TOPOLOGY
 
 
 class GATWorker(WorkerBase):
@@ -27,7 +27,7 @@ class GATWorker(WorkerBase):
             num_heads=NUM_HEADS, num_actions=NUM_ACTIONS,
             epsilon=EPSILON_MIN,
         )
-        ckpt = CHECKPOINT_DIR / "gat_marl_final.pt"
+        ckpt = FINAL_DIR / f"gat_marl_{TOPOLOGY}_best.pt"
         if ckpt.exists():
             agent.load(str(ckpt))
             print(f"[gat_marl] Loaded checkpoint: {ckpt}")

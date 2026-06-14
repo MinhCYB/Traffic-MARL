@@ -1,0 +1,204 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<edges xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+       xsi:noNamespaceSchemaLocation="http://sumo.dlr.de/xsd/edges_file.xsd">
+
+    <!-- ══════════════════════════════════════════════════════
+         ĐƯỜNG LỚN NGANG ROW 1 — arterial (3 làn)
+         N01 ←→ N02 ←→ N03 ←→ N04 ←→ N05 ←→ N06
+         qua các SRC node: SRC_R1_AB, SRC_R1_BC, SRC_R1_CD, SRC_R1_DE, SRC_R1_EF
+    ══════════════════════════════════════════════════════ -->
+
+    <!-- N01 ↔ N02 -->
+    <edge id="N01_SRC_R1_AB"   from="N01"        to="SRC_R1_AB"  type="arterial"/>
+    <edge id="SRC_R1_AB_N02"   from="SRC_R1_AB"  to="N02"        type="arterial"/>
+    <edge id="N02_SRC_R1_AB"   from="N02"        to="SRC_R1_AB"  type="arterial"/>
+    <edge id="SRC_R1_AB_N01"   from="SRC_R1_AB"  to="N01"        type="arterial"/>
+
+    <!-- N02 ↔ N03 -->
+    <edge id="N02_SRC_R1_BC"   from="N02"        to="SRC_R1_BC"  type="arterial"/>
+    <edge id="SRC_R1_BC_N03"   from="SRC_R1_BC"  to="N03"        type="arterial"/>
+    <edge id="N03_SRC_R1_BC"   from="N03"        to="SRC_R1_BC"  type="arterial"/>
+    <edge id="SRC_R1_BC_N02"   from="SRC_R1_BC"  to="N02"        type="arterial"/>
+
+    <!-- N03 ↔ N04 -->
+    <edge id="N03_SRC_R1_CD"   from="N03"        to="SRC_R1_CD"  type="arterial"/>
+    <edge id="SRC_R1_CD_N04"   from="SRC_R1_CD"  to="N04"        type="arterial"/>
+    <edge id="N04_SRC_R1_CD"   from="N04"        to="SRC_R1_CD"  type="arterial"/>
+    <edge id="SRC_R1_CD_N03"   from="SRC_R1_CD"  to="N03"        type="arterial"/>
+
+    <!-- N04 ↔ N05 -->
+    <edge id="N04_SRC_R1_DE"   from="N04"        to="SRC_R1_DE"  type="arterial"/>
+    <edge id="SRC_R1_DE_N05"   from="SRC_R1_DE"  to="N05"        type="arterial"/>
+    <edge id="N05_SRC_R1_DE"   from="N05"        to="SRC_R1_DE"  type="arterial"/>
+    <edge id="SRC_R1_DE_N04"   from="SRC_R1_DE"  to="N04"        type="arterial"/>
+
+    <!-- N05 ↔ N06 -->
+    <edge id="N05_SRC_R1_EF"   from="N05"        to="SRC_R1_EF"  type="arterial"/>
+    <edge id="SRC_R1_EF_N06"   from="SRC_R1_EF"  to="N06"        type="arterial"/>
+    <edge id="N06_SRC_R1_EF"   from="N06"        to="SRC_R1_EF"  type="arterial"/>
+    <edge id="SRC_R1_EF_N05"   from="SRC_R1_EF"  to="N05"        type="arterial"/>
+
+    <!-- ══════════════════════════════════════════════════════
+         ĐƯỜNG LỚN NGANG ROW 2 — arterial (3 làn)
+         N11 ←→ N12 ←→ N13 ←→ N14 ←→ N15
+    ══════════════════════════════════════════════════════ -->
+
+    <!-- N11 ↔ N12 -->
+    <edge id="N11_SRC_R2_AB"   from="N11"        to="SRC_R2_AB"  type="arterial"/>
+    <edge id="SRC_R2_AB_N12"   from="SRC_R2_AB"  to="N12"        type="arterial"/>
+    <edge id="N12_SRC_R2_AB"   from="N12"        to="SRC_R2_AB"  type="arterial"/>
+    <edge id="SRC_R2_AB_N11"   from="SRC_R2_AB"  to="N11"        type="arterial"/>
+
+    <!-- N12 ↔ N13 -->
+    <edge id="N12_SRC_R2_BC"   from="N12"        to="SRC_R2_BC"  type="arterial"/>
+    <edge id="SRC_R2_BC_N13"   from="SRC_R2_BC"  to="N13"        type="arterial"/>
+    <edge id="N13_SRC_R2_BC"   from="N13"        to="SRC_R2_BC"  type="arterial"/>
+    <edge id="SRC_R2_BC_N12"   from="SRC_R2_BC"  to="N12"        type="arterial"/>
+
+    <!-- N13 ↔ N14 -->
+    <edge id="N13_SRC_R2_CD"   from="N13"        to="SRC_R2_CD"  type="arterial"/>
+    <edge id="SRC_R2_CD_N14"   from="SRC_R2_CD"  to="N14"        type="arterial"/>
+    <edge id="N14_SRC_R2_CD"   from="N14"        to="SRC_R2_CD"  type="arterial"/>
+    <edge id="SRC_R2_CD_N13"   from="SRC_R2_CD"  to="N13"        type="arterial"/>
+
+    <!-- N14 ↔ N15 -->
+    <edge id="N14_SRC_R2_DE"   from="N14"        to="SRC_R2_DE"  type="arterial"/>
+    <edge id="SRC_R2_DE_N15"   from="SRC_R2_DE"  to="N15"        type="arterial"/>
+    <edge id="N15_SRC_R2_DE"   from="N15"        to="SRC_R2_DE"  type="arterial"/>
+    <edge id="SRC_R2_DE_N14"   from="SRC_R2_DE"  to="N14"        type="arterial"/>
+
+    <!-- ══════════════════════════════════════════════════════
+         ĐƯỜNG NHỎ NGANG GIỮA — secondary (2 làn)
+         N07 ←→ N08 ←→ N09 ←→ N10
+    ══════════════════════════════════════════════════════ -->
+
+    <!-- N07 ↔ N08 -->
+    <edge id="N07_SRC_RM_AB"   from="N07"        to="SRC_RM_AB"  type="secondary"/>
+    <edge id="SRC_RM_AB_N08"   from="SRC_RM_AB"  to="N08"        type="secondary"/>
+    <edge id="N08_SRC_RM_AB"   from="N08"        to="SRC_RM_AB"  type="secondary"/>
+    <edge id="SRC_RM_AB_N07"   from="SRC_RM_AB"  to="N07"        type="secondary"/>
+
+    <!-- N08 ↔ N09 -->
+    <edge id="N08_SRC_RM_BC"   from="N08"        to="SRC_RM_BC"  type="secondary"/>
+    <edge id="SRC_RM_BC_N09"   from="SRC_RM_BC"  to="N09"        type="secondary"/>
+    <edge id="N09_SRC_RM_BC"   from="N09"        to="SRC_RM_BC"  type="secondary"/>
+    <edge id="SRC_RM_BC_N08"   from="SRC_RM_BC"  to="N08"        type="secondary"/>
+
+    <!-- N09 ↔ N10 -->
+    <edge id="N09_SRC_RM_CD"   from="N09"        to="SRC_RM_CD"  type="secondary"/>
+    <edge id="SRC_RM_CD_N10"   from="SRC_RM_CD"  to="N10"        type="secondary"/>
+    <edge id="N10_SRC_RM_CD"   from="N10"        to="SRC_RM_CD"  type="secondary"/>
+    <edge id="SRC_RM_CD_N09"   from="SRC_RM_CD"  to="N09"        type="secondary"/>
+
+    <!-- ══════════════════════════════════════════════════════
+         ĐƯỜNG DỌC ARTERIAL (3 làn)
+         N01 ←→ N11  (trục dọc lớn phía Tây)
+         N02 ←→ N12  (trục dọc lớn giữa-Tây)
+         N06 ←→ N10  (trục dọc lớn phía Đông)
+    ══════════════════════════════════════════════════════ -->
+
+    <!-- N01 ↔ N11 -->
+    <edge id="N01_SRC_V1"      from="N01"        to="SRC_V1"     type="arterial"/>
+    <edge id="SRC_V1_N11"      from="SRC_V1"     to="N11"        type="arterial"/>
+    <edge id="N11_SRC_V1"      from="N11"        to="SRC_V1"     type="arterial"/>
+    <edge id="SRC_V1_N01"      from="SRC_V1"     to="N01"        type="arterial"/>
+
+    <!-- N02 ↔ N12 -->
+    <edge id="N02_SRC_V2"      from="N02"        to="SRC_V2"     type="arterial"/>
+    <edge id="SRC_V2_N12"      from="SRC_V2"     to="N12"        type="arterial"/>
+    <edge id="N12_SRC_V2"      from="N12"        to="SRC_V2"     type="arterial"/>
+    <edge id="SRC_V2_N02"      from="SRC_V2"     to="N02"        type="arterial"/>
+
+    <!-- N06 ↔ N10 -->
+    <edge id="N06_SRC_V6"      from="N06"        to="SRC_V6"     type="arterial"/>
+    <edge id="SRC_V6_N10"      from="SRC_V6"     to="N10"        type="arterial"/>
+    <edge id="N10_SRC_V6"      from="N10"        to="SRC_V6"     type="arterial"/>
+    <edge id="SRC_V6_N06"      from="SRC_V6"     to="N06"        type="arterial"/>
+
+    <!-- ══════════════════════════════════════════════════════
+         ĐƯỜNG DỌC SECONDARY (2 làn)
+         N03 ←→ N07 ←→ N13
+         N04 ←→ N08 ←→ N14
+         N05 ←→ N09 ←→ N15
+         N10 ←→ N15  (đường cong nối góc Đông)
+    ══════════════════════════════════════════════════════ -->
+
+    <!-- N03 ↔ N07 -->
+    <edge id="N03_SRC_V3N"     from="N03"        to="SRC_V3N"    type="secondary"/>
+    <edge id="SRC_V3N_N07"     from="SRC_V3N"    to="N07"        type="secondary"/>
+    <edge id="N07_SRC_V3N"     from="N07"        to="SRC_V3N"    type="secondary"/>
+    <edge id="SRC_V3N_N03"     from="SRC_V3N"    to="N03"        type="secondary"/>
+
+    <!-- N07 ↔ N13 -->
+    <edge id="N07_SRC_V3S"     from="N07"        to="SRC_V3S"    type="secondary"/>
+    <edge id="SRC_V3S_N13"     from="SRC_V3S"    to="N13"        type="secondary"/>
+    <edge id="N13_SRC_V3S"     from="N13"        to="SRC_V3S"    type="secondary"/>
+    <edge id="SRC_V3S_N07"     from="SRC_V3S"    to="N07"        type="secondary"/>
+
+    <!-- N04 ↔ N08 -->
+    <edge id="N04_SRC_V4N"     from="N04"        to="SRC_V4N"    type="secondary"/>
+    <edge id="SRC_V4N_N08"     from="SRC_V4N"    to="N08"        type="secondary"/>
+    <edge id="N08_SRC_V4N"     from="N08"        to="SRC_V4N"    type="secondary"/>
+    <edge id="SRC_V4N_N04"     from="SRC_V4N"    to="N04"        type="secondary"/>
+
+    <!-- N08 ↔ N14 -->
+    <edge id="N08_SRC_V4S"     from="N08"        to="SRC_V4S"    type="secondary"/>
+    <edge id="SRC_V4S_N14"     from="SRC_V4S"    to="N14"        type="secondary"/>
+    <edge id="N14_SRC_V4S"     from="N14"        to="SRC_V4S"    type="secondary"/>
+    <edge id="SRC_V4S_N08"     from="SRC_V4S"    to="N08"        type="secondary"/>
+
+    <!-- N05 ↔ N09 -->
+    <edge id="N05_SRC_V5N"     from="N05"        to="SRC_V5N"    type="secondary"/>
+    <edge id="SRC_V5N_N09"     from="SRC_V5N"    to="N09"        type="secondary"/>
+    <edge id="N09_SRC_V5N"     from="N09"        to="SRC_V5N"    type="secondary"/>
+    <edge id="SRC_V5N_N05"     from="SRC_V5N"    to="N05"        type="secondary"/>
+
+    <!-- N09 ↔ N15 -->
+    <edge id="N09_SRC_V5S"     from="N09"        to="SRC_V5S"    type="secondary"/>
+    <edge id="SRC_V5S_N15"     from="SRC_V5S"    to="N15"        type="secondary"/>
+    <edge id="N15_SRC_V5S"     from="N15"        to="SRC_V5S"    type="secondary"/>
+    <edge id="SRC_V5S_N09"     from="SRC_V5S"    to="N09"        type="secondary"/>
+
+
+
+    <!-- ══════════════════════════════════════════════════════
+         BOUNDARY EDGES — external source/sink
+    ══════════════════════════════════════════════════════ -->
+
+    <!-- Tây -->
+    <edge id="EXT_W_N01_in"    from="EXT_W_N01"  to="N01"        type="outskirts"/>
+    <edge id="N01_EXT_W_N01"   from="N01"         to="EXT_W_N01"  type="outskirts"/>
+    <edge id="EXT_W_N11_in"    from="EXT_W_N11"  to="N11"        type="outskirts"/>
+    <edge id="N11_EXT_W_N11"   from="N11"         to="EXT_W_N11"  type="outskirts"/>
+
+    <!-- Đông -->
+    <edge id="EXT_E_N06_in"    from="EXT_E_N06"  to="N06"        type="outskirts"/>
+    <edge id="N06_EXT_E_N06"   from="N06"         to="EXT_E_N06"  type="outskirts"/>
+    <edge id="EXT_E_N10_in"    from="EXT_E_N10"  to="N10"        type="outskirts"/>
+    <edge id="N10_EXT_E_N10"   from="N10"         to="EXT_E_N10"  type="outskirts"/>
+    <edge id="EXT_E_N15_in"    from="EXT_E_N15"  to="N15"        type="outskirts"/>
+    <edge id="N15_EXT_E_N15"   from="N15"         to="EXT_E_N15"  type="outskirts"/>
+
+    <!-- Bắc -->
+    <edge id="EXT_N_N03_in"    from="EXT_N_N03"  to="N03"        type="outskirts"/>
+    <edge id="N03_EXT_N_N03"   from="N03"         to="EXT_N_N03"  type="outskirts"/>
+    <edge id="EXT_N_N04_in"    from="EXT_N_N04"  to="N04"        type="outskirts"/>
+    <edge id="N04_EXT_N_N04"   from="N04"         to="EXT_N_N04"  type="outskirts"/>
+    <edge id="EXT_N_N05_in"    from="EXT_N_N05"  to="N05"        type="outskirts"/>
+    <edge id="N05_EXT_N_N05"   from="N05"         to="EXT_N_N05"  type="outskirts"/>
+    <edge id="EXT_N_N06_in"    from="EXT_N_N06"  to="N06"        type="outskirts"/>
+    <edge id="N06_EXT_N_N06"   from="N06"         to="EXT_N_N06"  type="outskirts"/>
+
+    <!-- Nam -->
+    <edge id="EXT_S_N11_in"    from="EXT_S_N11"  to="N11"        type="outskirts"/>
+    <edge id="N11_EXT_S_N11"   from="N11"         to="EXT_S_N11"  type="outskirts"/>
+    <edge id="EXT_S_N13_in"    from="EXT_S_N13"  to="N13"        type="outskirts"/>
+    <edge id="N13_EXT_S_N13"   from="N13"         to="EXT_S_N13"  type="outskirts"/>
+    <edge id="EXT_S_N14_in"    from="EXT_S_N14"  to="N14"        type="outskirts"/>
+    <edge id="N14_EXT_S_N14"   from="N14"         to="EXT_S_N14"  type="outskirts"/>
+    <edge id="EXT_S_N15_in"    from="EXT_S_N15"  to="N15"        type="outskirts"/>
+    <edge id="N15_EXT_S_N15"   from="N15"         to="EXT_S_N15"  type="outskirts"/>
+    <edge id="EXT_S_N10_in"    from="EXT_S_N10"  to="N10"        type="outskirts"/>
+    <edge id="N10_EXT_S_N10"   from="N10"         to="EXT_S_N10"  type="outskirts"/>
+
+</edges>

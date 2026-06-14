@@ -1,16 +1,13 @@
 """
 worker_idqn.py — IDQN worker cho live demo
 
-Load checkpoint đã train, chạy inference realtime,
-gửi metrics lên server mỗi 5s để hiển thị trên dashboard.
+Chạy IDQNAgent trong eval mode, POST data lên server mỗi DELTA_TIME giây.
+Interface giống GATWorker — không cần thêm extra payload vì IDQN
+không có attention weights để visualize.
 """
 
 from workers.worker_base import WorkerBase
-from training.config import (
-    PORT_IDQN, CHECKPOINT_DIR,
-    STATE_DIM, HIDDEN_DIM, NUM_ACTIONS,
-    LR, GAMMA, EPSILON_MIN, EPSILON_DECAY, TARGET_UPDATE_FREQ,
-)
+from training.config import PORT_IDQN, FINAL_DIR, TOPOLOGY
 
 
 class IDQNWorker(WorkerBase):
@@ -22,32 +19,29 @@ class IDQNWorker(WorkerBase):
 
     def build_agent(self):
         """
-        Load IDQNAgent từ checkpoint đã train.
-        Nếu chưa có checkpoint thì chạy với epsilon=0 (random policy).
+        Khởi tạo IDQNAgent và load checkpoint nếu có.
+        Luôn trả về agent ở eval mode (epsilon = 0).
         """
         from agents.idqn_agent import IDQNAgent
-
-        agent = IDQNAgent(
-            state_dim=STATE_DIM,
-            hidden_dim=HIDDEN_DIM,
-            num_actions=NUM_ACTIONS,
-            lr=LR,
-            gamma=GAMMA,
-            epsilon=0.0,             # demo mode: không explore
-            epsilon_min=EPSILON_MIN,
-            epsilon_decay=EPSILON_DECAY,
-            target_update_freq=TARGET_UPDATE_FREQ,
+        from training.config import (
+            STATE_DIM, HIDDEN_DIM, NUM_ACTIONS, EPSILON_MIN,
         )
 
-        # Load checkpoint nếu có
-        ckpt = CHECKPOINT_DIR / "idqn_final.pt"
+        agent = IDQNAgent(
+            state_dim   = STATE_DIM,
+            hidden_dim  = HIDDEN_DIM,
+            num_actions = NUM_ACTIONS,
+            epsilon     = EPSILON_MIN,  # bắt đầu ở epsilon thấp cho demo
+        )
+
+        ckpt = FINAL_DIR / f"idqn_mydinh_{TOPOLOGY}_best.pt"
         if ckpt.exists():
             agent.load(str(ckpt))
-            print(f"[IDQNWorker] Loaded checkpoint: {ckpt}")
+            print(f"[idqn] Loaded checkpoint: {ckpt}")
         else:
-            print(f"[IDQNWorker] Không tìm thấy checkpoint tại {ckpt}")
-            print(f"[IDQNWorker] Chạy với random policy — hãy train trước bằng:")
-            print(f"             python training/train.py --model idqn")
+            print(f"[idqn] Warning: checkpoint không tồn tại tại {ckpt}")
+            print(f"[idqn] Chạy với random weights — train trước bằng:")
+            print(f"[idqn]   python -m training.train --model idqn")
 
         agent.set_eval()
         return agent

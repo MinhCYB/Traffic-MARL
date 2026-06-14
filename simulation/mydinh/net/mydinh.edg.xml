@@ -1,0 +1,115 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<edges xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+       xsi:noNamespaceSchemaLocation="http://sumo.dlr.de/xsd/edges_file.xsd">
+
+    <!-- ══════════════════════════════════════════════════════
+         HỒ TÙNG MẬU — ngang, high traffic (type: arterial)
+         N01 ←→ SRC_HTM_W ←→ N02 ←→ SRC_HTM_E ←→ N03
+    ══════════════════════════════════════════════════════ -->
+    <edge id="N01_SRC_HTM_W" from="N01"        to="SRC_HTM_W" type="arterial"/>
+    <edge id="SRC_HTM_W_N02" from="SRC_HTM_W"  to="N02"       type="arterial"/>
+    <edge id="N02_SRC_HTM_W" from="N02"        to="SRC_HTM_W" type="arterial"/>
+    <edge id="SRC_HTM_W_N01" from="SRC_HTM_W"  to="N01"       type="arterial"/>
+
+    <edge id="N02_SRC_HTM_E" from="N02"        to="SRC_HTM_E" type="arterial"/>
+    <edge id="SRC_HTM_E_N03" from="SRC_HTM_E"  to="N03"       type="arterial"/>
+    <edge id="N03_SRC_HTM_E" from="N03"        to="SRC_HTM_E" type="arterial"/>
+    <edge id="SRC_HTM_E_N02" from="SRC_HTM_E"  to="N02"       type="arterial"/>
+
+    <!-- ══════════════════════════════════════════════════════
+         LÊ ĐỨC THỌ — dọc, high traffic (type: arterial)
+         N02 ←→ SRC_LDT_N ←→ N05 ←→ SRC_LDT_S ←→ N08
+    ══════════════════════════════════════════════════════ -->
+    <edge id="N02_SRC_LDT_N" from="N02"        to="SRC_LDT_N" type="arterial"/>
+    <edge id="SRC_LDT_N_N05" from="SRC_LDT_N"  to="N05"       type="arterial"/>
+    <edge id="N05_SRC_LDT_N" from="N05"        to="SRC_LDT_N" type="arterial"/>
+    <edge id="SRC_LDT_N_N02" from="SRC_LDT_N"  to="N02"       type="arterial"/>
+
+    <edge id="N05_SRC_LDT_S" from="N05"        to="SRC_LDT_S" type="arterial"/>
+    <edge id="SRC_LDT_S_N08" from="SRC_LDT_S"  to="N08"       type="arterial"/>
+    <edge id="N08_SRC_LDT_S" from="N08"        to="SRC_LDT_S" type="arterial"/>
+    <edge id="SRC_LDT_S_N05" from="SRC_LDT_S"  to="N05"       type="arterial"/>
+
+    <!-- ══════════════════════════════════════════════════════
+         PHẠM HÙNG — dọc, high traffic (type: arterial)
+         N03 ←→ SRC_PH ←→ N06
+    ══════════════════════════════════════════════════════ -->
+    <edge id="N03_SRC_PH"    from="N03"         to="SRC_PH"    type="arterial"/>
+    <edge id="SRC_PH_N06"    from="SRC_PH"       to="N06"       type="arterial"/>
+    <edge id="N06_SRC_PH"    from="N06"          to="SRC_PH"    type="arterial"/>
+    <edge id="SRC_PH_N03"    from="SRC_PH"       to="N03"       type="arterial"/>
+
+    <!-- ══════════════════════════════════════════════════════
+         NGUYỄN CƠ THẠCH — dọc, secondary
+         N01 ←→ SRC_NCT_N ←→ N04 ←→ SRC_NCT_S ←→ N07
+    ══════════════════════════════════════════════════════ -->
+    <edge id="N01_SRC_NCT_N" from="N01"         to="SRC_NCT_N" type="secondary"/>
+    <edge id="SRC_NCT_N_N04" from="SRC_NCT_N"   to="N04"       type="secondary"/>
+    <edge id="N04_SRC_NCT_N" from="N04"         to="SRC_NCT_N" type="secondary"/>
+    <edge id="SRC_NCT_N_N01" from="SRC_NCT_N"   to="N01"       type="secondary"/>
+
+    <edge id="N04_SRC_NCT_S" from="N04"         to="SRC_NCT_S" type="secondary"/>
+    <edge id="SRC_NCT_S_N07" from="SRC_NCT_S"   to="N07"       type="secondary"/>
+    <edge id="N07_SRC_NCT_S" from="N07"         to="SRC_NCT_S" type="secondary"/>
+    <edge id="SRC_NCT_S_N04" from="SRC_NCT_S"   to="N04"       type="secondary"/>
+
+    <!-- ══════════════════════════════════════════════════════
+         HÀM NGHI — ngang, secondary
+         N04 ←→ SRC_HN ←→ N05
+    ══════════════════════════════════════════════════════ -->
+    <edge id="N04_SRC_HN"    from="N04"          to="SRC_HN"    type="secondary"/>
+    <edge id="SRC_HN_N05"    from="SRC_HN"        to="N05"       type="secondary"/>
+    <edge id="N05_SRC_HN"    from="N05"           to="SRC_HN"    type="secondary"/>
+    <edge id="SRC_HN_N04"    from="SRC_HN"        to="N04"       type="secondary"/>
+
+    <!-- ══════════════════════════════════════════════════════
+         NGUYỄN HOÀNG — ngang, secondary
+         N05 ←→ SRC_NH ←→ N06
+    ══════════════════════════════════════════════════════ -->
+    <edge id="N05_SRC_NH"    from="N05"           to="SRC_NH"    type="secondary"/>
+    <edge id="SRC_NH_N06"    from="SRC_NH"         to="N06"       type="secondary"/>
+    <edge id="N06_SRC_NH"    from="N06"            to="SRC_NH"    type="secondary"/>
+    <edge id="SRC_NH_N05"    from="SRC_NH"         to="N05"       type="secondary"/>
+
+    <!-- ══════════════════════════════════════════════════════
+         TRẦN HỮU ĐỨC — ngang, secondary
+         N07 ←→ SRC_THD ←→ N08
+    ══════════════════════════════════════════════════════ -->
+    <edge id="N07_SRC_THD"   from="N07"          to="SRC_THD"   type="secondary"/>
+    <edge id="SRC_THD_N08"   from="SRC_THD"       to="N08"       type="secondary"/>
+    <edge id="N08_SRC_THD"   from="N08"           to="SRC_THD"   type="secondary"/>
+    <edge id="SRC_THD_N07"   from="SRC_THD"       to="N07"       type="secondary"/>
+
+    <!-- ══════════════════════════════════════════════════════
+         BOUNDARY EDGES — external source/sink
+    ══════════════════════════════════════════════════════ -->
+
+    <!-- Bắc -->
+    <edge id="EXT_N_N01_in"  from="EXT_N_N01"    to="N01"       type="outskirts"/>
+    <edge id="N01_EXT_N_N01" from="N01"           to="EXT_N_N01" type="outskirts"/>
+    <edge id="EXT_N_N02_in"  from="EXT_N_N02"    to="N02"       type="outskirts"/>
+    <edge id="N02_EXT_N_N02" from="N02"           to="EXT_N_N02" type="outskirts"/>
+    <edge id="EXT_N_N03_in"  from="EXT_N_N03"    to="N03"       type="outskirts"/>
+    <edge id="N03_EXT_N_N03" from="N03"           to="EXT_N_N03" type="outskirts"/>
+
+    <!-- Nam -->
+    <edge id="EXT_S_N07_in"  from="EXT_S_N07"    to="N07"       type="outskirts"/>
+    <edge id="N07_EXT_S_N07" from="N07"           to="EXT_S_N07" type="outskirts"/>
+    <edge id="EXT_S_N08_in"  from="EXT_S_N08"    to="N08"       type="outskirts"/>
+    <edge id="N08_EXT_S_N08" from="N08"           to="EXT_S_N08" type="outskirts"/>
+
+    <!-- Tây -->
+    <edge id="EXT_W_N01_in"  from="EXT_W_N01"    to="N01"       type="outskirts"/>
+    <edge id="N01_EXT_W_N01" from="N01"           to="EXT_W_N01" type="outskirts"/>
+    <edge id="EXT_W_N04_in"  from="EXT_W_N04"    to="N04"       type="outskirts"/>
+    <edge id="N04_EXT_W_N04" from="N04"           to="EXT_W_N04" type="outskirts"/>
+    <edge id="EXT_W_N07_in"  from="EXT_W_N07"    to="N07"       type="outskirts"/>
+    <edge id="N07_EXT_W_N07" from="N07"           to="EXT_W_N07" type="outskirts"/>
+
+    <!-- Đông -->
+    <edge id="EXT_E_N03_in"  from="EXT_E_N03"    to="N03"       type="outskirts"/>
+    <edge id="N03_EXT_E_N03" from="N03"           to="EXT_E_N03" type="outskirts"/>
+    <edge id="EXT_E_N06_in"  from="EXT_E_N06"    to="N06"       type="outskirts"/>
+    <edge id="N06_EXT_E_N06" from="N06"           to="EXT_E_N06" type="outskirts"/>
+
+</edges>

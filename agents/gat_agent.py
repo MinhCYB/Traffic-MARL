@@ -15,7 +15,7 @@ import torch.optim as optim
 
 from agents.base_agent import BaseAgent
 from models.gat_marl import GATMARLNet
-from env.state_builder import INTERSECTION_IDS, EDGE_INDEX
+from environment.state_builder import INTERSECTION_IDS, EDGE_INDEX
 
 
 class GATAgent(BaseAgent):
@@ -85,7 +85,7 @@ class GATAgent(BaseAgent):
 
         self.online_net.eval()
         with torch.no_grad():
-            q_values = self.online_net(x, self.edge_index)  # (4, 2)
+            q_values = self.online_net(x, self.edge_index)  # (N, num_actions)
 
         actions = q_values.argmax(dim=-1).cpu().numpy()  # (4,)
         return {nid: int(actions[i]) for i, nid in enumerate(INTERSECTION_IDS)}
@@ -98,7 +98,7 @@ class GATAgent(BaseAgent):
         Returns:
             attn_matrix: (4, 4) numpy array hoặc None
         """
-        matrix = self.online_net.get_attention_matrix(self.edge_index, n_nodes=4)
+        matrix = self.online_net.get_attention_matrix(self.edge_index, n_nodes=len(INTERSECTION_IDS))
         return matrix.cpu().numpy() if matrix is not None else None
 
     # ── Learning ──────────────────────────────────────────────────────────────
@@ -191,13 +191,49 @@ class GATAgent(BaseAgent):
             "update_count": self._update_count,
         }, path)
 
-    def load(self, path: str):
+    def load(self, path: str, finetune: bool = False):
+        """
+        Load checkpoint.
+        finetune=True: chỉ load weights (warm-start), reset optimizer + epsilon.
+        finetune=False: load toàn bộ state (resume).
+        """
         ckpt = torch.load(path, map_location=self.device)
+
+        # ── Validate checkpoint vs topology hiện tại ──────────────────────────
+        # Chỉ check STATE_DIM (input dim của encoder) — att_src shape là [1, num_heads, dim]
+        # KHÔNG phải [n_nodes, ...], không dùng để check số nodes
+        ckpt_input_dim = ckpt["online_net"]["encoder.net.0.weight"].shape[1]
+        cur_input_dim  = self.online_net.encoder.net[0].weight.shape[1]
+
+        if ckpt_input_dim != cur_input_dim:
+            raise ValueError(
+                f"\n{'='*55}\n"
+                f"  ✗ Checkpoint không tương thích với topology hiện tại!\n"
+                f"  File: {path}\n"
+                f"  STATE_DIM: checkpoint={ckpt_input_dim}, current topology={cur_input_dim}\n"
+                f"  → Dùng --finetune thay vì --resume nếu muốn transfer,\n"
+                f"    hoặc train lại checkpoint đúng topology.\n"
+                f"{'='*55}"
+            )
+
         self.online_net.load_state_dict(ckpt["online_net"])
         self.target_net.load_state_dict(ckpt["target_net"])
-        self.optimizer.load_state_dict(ckpt["optimizer"])
-        self.epsilon      = ckpt.get("epsilon", self.epsilon_min)
-        self._update_count = ckpt.get("update_count", 0)
+        if not finetune:
+            self.optimizer.load_state_dict(ckpt["optimizer"])
+            self.epsilon       = ckpt.get("epsilon", self.epsilon_min)
+            self._update_count = ckpt.get("update_count", 0)
+        # finetune: giữ epsilon_start để explore map mới
+
+    def freeze_gat(self):
+        """Freeze GAT layer — chỉ train Q-head khi finetune giai đoạn đầu."""
+        for name, param in self.online_net.named_parameters():
+            if "gat" in name.lower():
+                param.requires_grad = False
+
+    def unfreeze_gat(self):
+        """Unfreeze GAT layer sau freeze_gat_epochs."""
+        for param in self.online_net.parameters():
+            param.requires_grad = True
 
     def set_eval(self):
         self.online_net.eval()

@@ -1,0 +1,29 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<types xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+       xsi:noNamespaceSchemaLocation="http://sumo.dlr.de/xsd/types_file.xsd">
+
+    <!-- Đường trục chính (Hồ Tùng Mậu, Lê Đức Thọ, Phạm Hùng)
+         3 lane, 60 km/h — xanh lá trên map, high traffic -->
+    <type id="arterial"
+          numLanes="3"
+          speed="16.67"
+          priority="14"
+          allow="passenger motorcycle bus"/>
+
+    <!-- Đường thứ cấp (Nguyễn Cơ Thạch, Hàm Nghi, Trần Hữu Dực)
+         2 lane, 50 km/h -->
+    <type id="secondary"
+          numLanes="2"
+          speed="13.89"
+          priority="12"
+          allow="passenger motorcycle bus"/>
+
+    <!-- Ngoại thành — boundary source/sink
+         2 lane, 70 km/h -->
+    <type id="outskirts"
+          numLanes="2"
+          speed="19.44"
+          priority="10"
+          allow="passenger motorcycle bus"/>
+
+</types>

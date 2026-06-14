@@ -1,0 +1,93 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<nodes xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+       xsi:noNamespaceSchemaLocation="http://sumo.dlr.de/xsd/nodes_file.xsd">
+
+    <!-- ══════════════════════════════════════════════════════
+         8 NGÃ TƯ CHÍNH — khu Mỹ Đình / Cầu Giấy
+         Tọa độ (mét) ánh xạ từ Google Maps:
+           x: Tây(-) → Đông(+)
+           y: Nam(-) → Bắc(+)
+
+         Row 1 (Hồ Tùng Mậu):
+           N01: Nguyễn Cơ Thạch / Hồ Tùng Mậu
+           N02: Lê Đức Thọ / Hồ Tùng Mậu
+           N03: Phạm Hùng / Hồ Tùng Mậu  (ngã tư Mai Dịch)
+         Row 2 (Hàm Nghi):
+           N04: Nguyễn Cơ Thạch / Hàm Nghi
+           N05: Lê Đức Thọ-Nguyễn Hoàng / Hàm Nghi
+           N06: Nguyễn Hoàng-Tôn Thất Thuyết / Phạm Hùng
+         Row 3 (Trần Hữu Dực):
+           N07: Trần Hữu Dực / Nguyễn Cơ Thạch
+           N08: Trần Hữu Dực / Lê Đức Thọ-Lê Quang Đạo
+    ══════════════════════════════════════════════════════ -->
+
+    <!-- Row 1 — Hồ Tùng Mậu (đường xanh, cao tải) -->
+    <node id="N01" x="-600" y="400"  type="traffic_light"/>
+    <node id="N02" x="0"    y="400"  type="traffic_light"/>
+    <node id="N03" x="600"  y="400"  type="traffic_light"/>
+
+    <!-- Row 2 — Hàm Nghi / Phạm Hùng -->
+    <node id="N04" x="-600" y="0"    type="traffic_light"/>
+    <node id="N05" x="0"    y="0"    type="traffic_light"/>
+    <node id="N06" x="600"  y="0"    type="traffic_light"/>
+
+    <!-- Row 3 — Trần Hữu Dực (chỉ cột trái + giữa) -->
+    <node id="N07" x="-600" y="-400" type="traffic_light"/>
+    <node id="N08" x="0"    y="-400" type="traffic_light"/>
+
+    <!-- ══════════════════════════════════════════════════════
+         BOUNDARY NODES — external source/sink
+         Đặt ~300m ra ngoài mỗi hướng của các ngã tư biên
+    ══════════════════════════════════════════════════════ -->
+
+    <!-- Bắc (từ Hồ Tùng Mậu đi lên) -->
+    <node id="EXT_N_N01" x="-600" y="700"  type="priority"/>
+    <node id="EXT_N_N02" x="0"    y="700"  type="priority"/>
+    <node id="EXT_N_N03" x="600"  y="700"  type="priority"/>
+
+    <!-- Nam (từ Trần Hữu Dực đi xuống) -->
+    <node id="EXT_S_N07" x="-600" y="-700" type="priority"/>
+    <node id="EXT_S_N08" x="0"    y="-700" type="priority"/>
+
+    <!-- Tây (từ Nguyễn Cơ Thạch đi ra tây) -->
+    <node id="EXT_W_N01" x="-900" y="400"  type="priority"/>
+    <node id="EXT_W_N04" x="-900" y="0"    type="priority"/>
+    <node id="EXT_W_N07" x="-900" y="-400" type="priority"/>
+
+    <!-- Đông (từ Phạm Hùng đi ra đông) -->
+    <node id="EXT_E_N03" x="900"  y="400"  type="priority"/>
+    <node id="EXT_E_N06" x="900"  y="0"    type="priority"/>
+
+    <!-- Nam-giữa (từ Lê Đức Thọ / Lê Quang Đạo đi tiếp xuống) -->
+    <node id="EXT_S_N05" x="0"    y="-700" type="priority"/>  <!-- trùng EXT_S_N08 về y nhưng khác node -->
+
+    <!-- ══════════════════════════════════════════════════════
+         INTERNAL SOURCE NODES — xe spawn giữa đường
+         Đặt giữa mỗi đoạn đường chính
+    ══════════════════════════════════════════════════════ -->
+
+    <!-- Hồ Tùng Mậu ngang (high traffic) -->
+    <node id="SRC_HTM_W"  x="-300" y="400"  type="priority"/>  <!-- giữa N01-N02 -->
+    <node id="SRC_HTM_E"  x="300"  y="400"  type="priority"/>  <!-- giữa N02-N03 -->
+
+    <!-- Lê Đức Thọ dọc (high traffic) -->
+    <node id="SRC_LDT_N"  x="0"    y="200"  type="priority"/>  <!-- giữa N02-N05 -->
+    <node id="SRC_LDT_S"  x="0"    y="-200" type="priority"/>  <!-- giữa N05-N08 -->
+
+    <!-- Phạm Hùng dọc (high traffic) -->
+    <node id="SRC_PH"     x="600"  y="200"  type="priority"/>  <!-- giữa N03-N06 -->
+
+    <!-- Nguyễn Cơ Thạch dọc -->
+    <node id="SRC_NCT_N"  x="-600" y="200"  type="priority"/>  <!-- giữa N01-N04 -->
+    <node id="SRC_NCT_S"  x="-600" y="-200" type="priority"/>  <!-- giữa N04-N07 -->
+
+    <!-- Hàm Nghi ngang -->
+    <node id="SRC_HN"     x="-300" y="0"    type="priority"/>  <!-- giữa N04-N05 -->
+
+    <!-- Nguyễn Hoàng ngang -->
+    <node id="SRC_NH"     x="300"  y="0"    type="priority"/>  <!-- giữa N05-N06 -->
+
+    <!-- Trần Hữu Dực ngang -->
+    <node id="SRC_THD"    x="-300" y="-400" type="priority"/>  <!-- giữa N07-N08 -->
+
+</nodes>

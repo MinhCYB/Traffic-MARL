@@ -59,6 +59,19 @@ SYNC_EVERY         = 50     # sync thường hơn → workers dùng policy mới
 MAX_EXP_QUEUE      = 12000  # tăng buffer để worker ít drop hơn khi GPU bận
 WORKER_EPSILON_MIN = 0.10   # workers luôn explore tối thiểu 10%
 
+# Mỗi worker giữ một "vai" epsilon cố định suốt quá trình training.
+# Không decay về cùng điểm → buffer luôn đa dạng từ đầu đến cuối.
+# W0: explorer mạnh  — random action nhiều, phủ rộng state space
+# W1: explorer vừa   — cân bằng explore/exploit
+# W2: exploiter nhẹ  — chủ yếu greedy nhưng vẫn có noise
+# W3: near-greedy    — gần như pure policy, giúp learner thấy on-policy experience
+# Scale tự động theo num_workers: chia đều khoảng [eps_max, eps_min]
+def _worker_epsilon(worker_id: int, num_workers: int,
+                    eps_max: float = 1.0, eps_min: float = WORKER_EPSILON_MIN) -> float:
+    if num_workers == 1:
+        return eps_max
+    return eps_max - (eps_max - eps_min) * worker_id / (num_workers - 1)
+
 # ── Danh sách tất cả edge có thể xảy ra tai nạn ──────────────────────────────
 # Mỗi worker process có bản copy riêng sau fork/spawn nên thread-safe
 _ALL_ACCIDENT_EDGES: list[str] = list(
@@ -120,6 +133,7 @@ def _schedule_obstacles(
 def rollout_worker(
     worker_id:        int,
     model_name:       str,
+    num_workers:      int,        # cần để tính fixed role epsilon
     exp_queue:        mp.Queue,   # push raw transitions
     stats_queue:      mp.Queue,   # push episode summary dict
     weight_queue:     mp.Queue,   # nhận state_dict từ learner
@@ -138,15 +152,16 @@ def rollout_worker(
 
     port   = BASE_PORT + worker_id
     seed   = SEED + worker_id
-    # Epsilon staggered: đa dạng exploration giữa các workers
-    eps    = max(WORKER_EPSILON_MIN, EPSILON_START - worker_id * 0.15)
+    # Fixed role: mỗi worker giữ epsilon cố định suốt training
+    # → buffer luôn đa dạng từ đầu đến cuối, không hội tụ về cùng điểm
+    eps    = _worker_epsilon(worker_id, num_workers)
 
-    print(f"[Worker-{worker_id}] port={port} | ε_start={eps:.2f} | obstacle_prob={obstacle_prob:.0%}")
+    print(f"[Worker-{worker_id}] port={port} | ε_fixed={eps:.2f} | obstacle_prob={obstacle_prob:.0%}")
 
     agent = _build_agent(model_name, device="cpu",
                          epsilon=eps,
-                         epsilon_min=WORKER_EPSILON_MIN,
-                         epsilon_decay=EPSILON_DECAY)
+                         epsilon_min=eps,        # min = start → không decay
+                         epsilon_decay=1.0)      # decay=1.0 → epsilon bất biến
     env   = TrafficEnv(port=port, topology=TOPOLOGY,
                        use_gui=False, seed=seed, delta_time=delta_time)
 
@@ -192,6 +207,12 @@ def rollout_worker(
             actions = agent.select_actions(obs)
             next_obs, rewards, done, info = env.step(actions)
 
+            # GAT-MARL: dùng shared reward để khuyến khích cooperative behavior
+            # IDQN: giữ individual reward vì không có communication
+            if model_name == "gat_marl":
+                shared_r = sum(rewards.values()) / len(rewards)
+                rewards  = {nid: shared_r for nid in rewards}
+
             # Push transition — drop nếu queue full (không block SUMO)
             try:
                 exp_queue.put_nowait((
@@ -204,7 +225,7 @@ def rollout_worker(
             except Exception:
                 pass
 
-            ep_reward += info.get("global_reward", 0.0)
+            ep_reward += sum(rewards.values())   # hybrid reward (wait+pressure) — consistent với training signal
             ep_steps  += 1
             last_info  = info
             obs        = next_obs
@@ -232,15 +253,12 @@ def rollout_worker(
             "had_obstacle":     int(len(obstacles) > 0),
             "obstacle_edges":   ",".join(e for _, _, e in obstacles) if obstacles else "",
             "obstacle_count":   len(obstacles),
+            "vehicles_teleported": last_info.get("vehicles_teleported", 0),
         }
         try:
             stats_queue.put_nowait(summary)
         except Exception:
             pass
-
-        # Decay epsilon
-        if hasattr(agent, "epsilon"):
-            agent.epsilon = max(WORKER_EPSILON_MIN, agent.epsilon * EPSILON_DECAY)
 
         global_episode += 1
 
@@ -308,7 +326,8 @@ def run_learner(
         "episode", "worker_id", "total_steps", "global_reward",
         "avg_speed", "avg_waiting_time", "throughput",
         "loss", "epsilon", "duration_s",
-        "had_obstacle", "obstacle_edges", "obstacle_count",   # ← obstacle fields
+        "had_obstacle", "obstacle_edges", "obstacle_count",
+        "vehicles_teleported",   # ← xe kẹt bị SUMO xóa — indicator chất lượng policy
     ]
 
     total_updates  = 0
@@ -316,10 +335,14 @@ def run_learner(
     ready          = False
     steps_per_ep   = SIM_END // DELTA_TIME   # dùng SIM_END từ config
 
-    # Throttle: chỉ update khi có đủ transitions mới từ workers
-    # Tránh overfit vì learner update hàng chục nghìn lần trước khi workers push data mới
-    MIN_NEW_TRANSITIONS = BATCH_SIZE * 4   # = 128
-    last_buf_size = 0
+    # Tỉ lệ update/transition: bao nhiêu lần GPU update trên mỗi transition mới từ worker.
+    # Bottleneck thực sự là SUMO CPU-bound (~3-5 trans/s/worker), không phải GPU.
+    # Ratio cao → GPU làm việc nhiều hơn trên replay cũ (off-policy DQN chịu được).
+    # Ratio=8: mỗi transition được sample lại ~8 lần trước khi data mới đến — an toàn.
+    # Muốn GPU bận hơn nữa: tăng --num-workers hoặc giảm --delta-time.
+    UPDATE_TO_DATA_RATIO = 8
+    transitions_seen = 0
+    last_buf_size    = 0
 
     # Ước tính tổng episodes để log ETA
     total_episodes = episodes_per_worker * num_workers
@@ -372,13 +395,17 @@ def run_learner(
                 freeze_gat_episodes = 0   # chỉ unfreeze 1 lần
                 print(f"[Learner] GAT unfrozen tại episode {logged_episodes}")
 
-            # ── 4. GPU update (với throttle — tránh overfit data cũ) ──────────
-            # Chỉ update khi drain thread đã push đủ transitions mới vào buffer
+            # ── 4. GPU update — ratio-based throttle ─────────────────────
+            # Đếm transitions mới từ drain thread, update theo tỉ lệ UPDATE_TO_DATA_RATIO.
+            # Tránh idle (throttle cũ) và tránh overfit (update vô hạn trên data cũ).
             cur_size = len(buffer)
-            if cur_size - last_buf_size < MIN_NEW_TRANSITIONS:
-                time.sleep(0.02)
-                continue
+            transitions_seen += max(0, cur_size - last_buf_size)
             last_buf_size = cur_size
+
+            allowed_updates = int(transitions_seen * UPDATE_TO_DATA_RATIO)
+            if total_updates >= allowed_updates:
+                time.sleep(0.005)   # sleep ngắn, không 0.02
+                continue
 
             batch   = buffer.sample(BATCH_SIZE)
             metrics = agent.update(batch)
@@ -419,6 +446,7 @@ def run_learner(
                     "had_obstacle":     summary.get("had_obstacle", 0),
                     "obstacle_edges":   summary.get("obstacle_edges", ""),
                     "obstacle_count":   summary.get("obstacle_count", 0),
+                    "vehicles_teleported": summary.get("vehicles_teleported", 0),
                 }
                 writer.writerow(row)
                 f.flush()
@@ -562,7 +590,7 @@ def train_parallel(
         p = mp.Process(
             target=rollout_worker,
             args=(
-                i, model_name, exp_queue, stats_queue,
+                i, model_name, num_workers, exp_queue, stats_queue,
                 weight_queues[i], stop_event, episodes, delta_time,
                 obstacle_prob, obstacle_max_count,
                 obstacle_duration_min, obstacle_duration_max,

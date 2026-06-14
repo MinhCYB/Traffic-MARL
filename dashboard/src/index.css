@@ -1,4 +1,4 @@
-@import url('https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;600&family=Syne:wght@400;600;700;800&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Be+Vietnam+Pro:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;600&display=swap');
 
 *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
 
@@ -14,7 +14,7 @@
   --yellow:   #ba7517;
   --red:      #e24b4a;
   --purple:   #534ab7;
-  --font-ui:  'Syne', sans-serif;
+  --font-ui:  'Be Vietnam Pro', sans-serif;
   --font-mono:'JetBrains Mono', monospace;
 }
 
@@ -348,3 +348,34 @@ body {
   60%  { stroke-width: 1; opacity: 0.4; transform: scale(1.08); }
   100% { stroke-width: 0; opacity: 0;   transform: scale(1.15); }
 }
+
+/* ── Results page ─────────────────────────────────────────────────── */
+.tab-bar        { display: flex; gap: 8px; }
+.tab-btn        { padding: 6px 16px; border-radius: 8px; border: 1px solid #334155;
+                  background: transparent; color: #64748b; cursor: pointer; font-size: 13px; }
+.tab-btn--active { background: #1e293b; color: #f1f5f9; border-color: #475569; }
+
+.charts-grid-2x2 { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin: 16px 0; }
+.charts-grid-2x2 > :last-child:nth-child(odd) { grid-column: 1 / -1; max-width: 50%; margin: 0 auto; width: 100%; }
+.mini-chart-card  { background: var(--surface); border: 1px solid var(--border); border-radius: 10px; padding: 12px; }
+.mini-chart-title { font-size: 12px; color: var(--muted); margin-bottom: 6px; font-weight: 600; font-family: var(--font-ui); }
+
+.rt-header       { display: flex; align-items: center; justify-content: space-between;
+                   margin-bottom: 12px; flex-wrap: wrap; gap: 8px; }
+.rt-model-select { display: flex; align-items: center; gap: 8px; }
+.rt-label        { font-size: 13px; color: var(--muted); }
+.rt-status       { display: flex; align-items: center; gap: 8px; }
+.rt-status-text  { font-size: 13px; color: var(--muted); }
+.rt-last-poll    { font-size: 11px; color: var(--muted); }
+.rt-dot          { width: 8px; height: 8px; border-radius: 50%; animation: pulse 1.5s infinite; }
+.rt-dot--live    { background: #22c55e; }
+@keyframes pulse { 0%,100% { opacity: 1; } 50% { opacity: 0.3; } }
+
+.rt-stats-row    { display: flex; gap: 24px; margin: 12px 0 4px; flex-wrap: wrap; }
+.rt-stat         { display: flex; flex-direction: column; gap: 2px; }
+.rt-stat-label   { font-size: 11px; color: var(--muted); }
+.rt-stat-value   { font-size: 18px; font-weight: 700; color: var(--text); }
+
+.rt-accident-note { font-size: 11px; color: var(--muted); margin-top: 4px; }
+
+.realtime-tab, .compare-tab { padding: 4px 0; }

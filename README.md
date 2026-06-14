@@ -385,7 +385,8 @@ Thêm `environment/maps/map_<map_name>.py` với `INTERSECTION_IDS`, `INCOMING_E
 
 | Paper | Liên quan |
 |-------|-----------|
-| [PressLight — Wei et al., KDD 2019](https://faculty.ist.psu.edu/jessieli/Publications/2019-KDD-presslight.pdf) | Max Pressure reward |
+| [PressLight — Wei et al., KDD 2019](https://faculty.ist.psu.edu/jessieli/Publications/2019-KDD-presslight.pdf) | Weighted pressure làm regularizer (β=0.3) |
+| [AttentionLight — Shao et al., 2023](https://arxiv.org/abs/2307.05170) | Waiting time làm primary reward signal (α=0.7) |
 | [CoLight — Wei et al., CIKM 2019](https://arxiv.org/abs/1905.05717) | GAT cho traffic signal control |
 | [MPLight — Chen et al., AAAI 2020](https://ojs.aaai.org/index.php/AAAI/article/view/5744) | Parameter sharing |
 | [GAT — Veličković et al., ICLR 2018](https://arxiv.org/abs/1710.10903) | Graph Attention Networks |

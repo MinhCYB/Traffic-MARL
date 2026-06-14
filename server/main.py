@@ -128,6 +128,41 @@ async def startup():
 
 # ── Run ───────────────────────────────────────────────────────────────────────
 
+# ── Training log endpoint ──────────────────────────────────────────────────────
+
+import csv as _csv
+from pathlib import Path
+from training.config import LOG_DIR, NUM_EPISODES
+
+@app.get("/logs/{model}")
+async def get_training_log(model: str):
+    """Đọc CSV training log, trả JSON cho dashboard real-time chart."""
+    log_path = LOG_DIR / model / "training_log.csv"
+    if not log_path.exists():
+        return JSONResponse({"status": "no_data", "rows": [], "total_episodes": NUM_EPISODES})
+    try:
+        rows = []
+        with open(log_path, newline="") as f:
+            for row in _csv.DictReader(f):
+                rows.append({
+                    "episode":          int(row["episode"]),
+                    "global_reward":    float(row["global_reward"]),
+                    "avg_speed":        float(row["avg_speed"]),
+                    "avg_waiting_time": float(row["avg_waiting_time"]),
+                    "throughput":       float(row["throughput"]),
+                    "epsilon":          float(row["epsilon"]),
+                    "loss":             float(row["loss"]) if row.get("loss") else None,
+                    "had_accident":     row.get("had_accident", "False") == "True",
+                })
+        return JSONResponse({
+            "status": "ok",
+            "rows": rows,
+            "total_episodes": NUM_EPISODES,
+        })
+    except Exception as e:
+        return JSONResponse({"status": "error", "message": str(e), "rows": [], "total_episodes": NUM_EPISODES})
+
+
 if __name__ == "__main__":
     import uvicorn
     from training.config import SERVER_PORT

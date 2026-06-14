@@ -52,7 +52,7 @@ from environment.state_builder import INTERSECTION_IDS, INCOMING_EDGES
 
 # ── Parallel-specific knobs ───────────────────────────────────────────────────
 BASE_PORT          = 8820   # worker i dùng port BASE_PORT + i
-SYNC_EVERY         = 200    # RTX 3050 Ti: 50 quá thường → interrupt GPU liên tục
+SYNC_EVERY         = 50     # sync thường hơn → workers dùng policy mới hơn
                             # 200 = sync ~3 lần/episode, đủ fresh mà không overhead
 MAX_EXP_QUEUE      = 12000  # tăng buffer để worker ít drop hơn khi GPU bận
 WORKER_EPSILON_MIN = 0.10   # workers luôn explore tối thiểu 10%

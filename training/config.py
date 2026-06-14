@@ -54,7 +54,7 @@ GRAD_CLIP           = 10.0
 # ── Epsilon-greedy ────────────────────────────────────────────────────────────
 EPSILON_START       = 1.0
 EPSILON_MIN         = 0.05
-EPSILON_DECAY       = 0.995   # nhân mỗi episode
+EPSILON_DECAY       = 0.993   # nhân mỗi episode
 
 # ── TraCI ports (1 port per process) ──────────────────────────────────────────
 PORT_GAT            = 8813

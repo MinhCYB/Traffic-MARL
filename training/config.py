@@ -15,7 +15,13 @@ TOPOLOGY            = "mydinh"  # "2x2" | "mydinh" | "uet" — đổi ở đây 
 DELTA_TIME          = 5         # giây — agent quyết định mỗi 5s
 MIN_GREEN_TIME      = 10        # giây — enforce ở env wrapper
 YELLOW_TIME         = 3         # giây
-SIM_END             = 3600      # giây — 1 episode = 1 giờ
+SIM_END             = 1800      # giây — 1 episode = 30 phút (đổi từ 3600)
+
+# ── Obstacle (vật cản: công trình, xe hỏng, sửa đường...) ────────────────────
+OBSTACLE_PROB         = 0.4    # xác suất có vật cản trong episode
+OBSTACLE_MAX_COUNT    = 3      # tối đa 3 vật cản đồng thời
+OBSTACLE_DURATION_MIN = 300    # giây — tối thiểu
+OBSTACLE_DURATION_MAX = None   # None = xuyên suốt episode
 SEED                = 42
 
 # ── Checkpoint & log dirs ─────────────────────────────────────────────────────

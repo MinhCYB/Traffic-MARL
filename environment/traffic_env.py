@@ -33,6 +33,7 @@ from environment.state_builder import (
     get_outgoing_queues,
 )
 from environment.reward import compute_reward, compute_global_reward
+from training.config import SIM_END as _CFG_SIM_END
 
 # ── Cấu hình ─────────────────────────────────────────────────────────────────
 
@@ -55,10 +56,10 @@ ROUTE_WEIGHTS = {"peak": 0.9, "night": 0.1}
 YELLOW_PHASE = {0: 1, 2: 3}   # green phase → yellow phase trước khi switch
 NEXT_GREEN_PHASE = {1: 2, 3: 0}  # yellow phase → green phase tiếp theo
 
-MIN_GREEN_TIME = 10   # giây — enforce ở env, không phải model
-YELLOW_TIME    = 3    # giây — yellow phase cố định
-DELTA_TIME     = 5    # giây — agent quyết định mỗi 5s
-SIM_END        = 3600 # giây — 1 episode = 1 giờ
+MIN_GREEN_TIME = 10          # giây — enforce ở env, không phải model
+YELLOW_TIME    = 3           # giây — yellow phase cố định
+DELTA_TIME     = 5           # giây — agent quyết định mỗi 5s
+SIM_END        = _CFG_SIM_END  # giây — lấy từ training/config.py (hiện tại: 1800)
 
 
 class TrafficEnv:

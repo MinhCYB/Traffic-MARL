@@ -152,7 +152,9 @@ async def get_training_log(model: str):
                     "throughput":       float(row["throughput"]),
                     "epsilon":          float(row["epsilon"]),
                     "loss":             float(row["loss"]) if row.get("loss") else None,
-                    "had_accident":     row.get("had_accident", "False") == "True",
+                    "had_accident":     (
+                        row.get("had_obstacle", row.get("had_accident", "0")) not in ("0", "False", "")
+                    ),
                 })
         return JSONResponse({
             "status": "ok",

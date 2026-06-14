@@ -19,6 +19,14 @@ Yêu cầu:
 import os
 import subprocess
 import sys
+from pathlib import Path
+
+# Import SIM_END từ config trung tâm
+sys.path.insert(0, str(Path(__file__).parents[3]))  # root project
+try:
+    from training.config import SIM_END
+except ImportError:
+    SIM_END = 1800  # fallback nếu chạy standalone không có package
 
 SUMO_HOME = os.environ.get("SUMO_HOME", "")
 if not SUMO_HOME:
@@ -99,16 +107,19 @@ VEHICLE_TYPES = """    <vType id="passenger"   vClass="passenger"   length="4.5"
 
 
 def gen_flows(mix, suffix):
+    # Scale vehsPerHour để giữ mật độ xe khi episode ngắn hơn 3600s
+    # Ví dụ: SIM_END=1800 → SCALE=2.0 → xe vẫn đến với tốc độ thực tế
+    SCALE = 3600 / SIM_END
     lines = []
     fid = 0
     for (frm, to, peak_vph, night_vph, dspeed) in FLOWS:
         vph = peak_vph if suffix == "peak" else night_vph
         for (vtype, ratio) in mix:
-            count = max(1, int(vph * ratio))
+            count = max(1, int(vph * ratio * SCALE))
             lines.append(
                 f'    <flow id="f{fid}_{vtype}" type="{vtype}" '
                 f'from="{frm}" to="{to}" '
-                f'begin="0" end="3600" vehsPerHour="{count}" '
+                f'begin="0" end="{SIM_END}" vehsPerHour="{count}" '
                 f'departSpeed="{dspeed}" departLane="best"/>'
             )
             fid += 1

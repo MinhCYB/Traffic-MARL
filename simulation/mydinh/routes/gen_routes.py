@@ -14,6 +14,14 @@ Yêu cầu:
 import os
 import subprocess
 import sys
+from pathlib import Path
+
+# Import SIM_END từ config trung tâm
+sys.path.insert(0, str(Path(__file__).parents[3]))  # root project
+try:
+    from training.config import SIM_END
+except ImportError:
+    SIM_END = 1800  # fallback nếu chạy standalone không có package
 
 SUMO_HOME = os.environ.get("SUMO_HOME", "")
 if not SUMO_HOME:
@@ -86,8 +94,13 @@ MIX_PEAK  = [("passenger", 0.65), ("motorcycle", 0.30), ("bus", 0.05)]
 MIX_NIGHT = [("passenger", 0.55), ("motorcycle", 0.40), ("bus", 0.05)]
 
 # ══════════════════════════════════════════════════════════════════
-def write_rou(filename: str, flows_vph: list, mix: list, duration: int = 3600):
-    """Ghi file .rou.xml với flow definitions."""
+def write_rou(filename: str, flows_vph: list, mix: list, duration: int = SIM_END):
+    """Ghi file .rou.xml với flow definitions.
+    
+    vehsPerHour được scale theo tỉ lệ 3600/duration để giữ mật độ xe
+    thực tế bất kể episode dài bao lâu.
+    """
+    SCALE = 3600 / duration  # = 2.0 nếu duration=1800
     lines = ['<?xml version="1.0" encoding="UTF-8"?>',
              '<routes xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"',
              '        xsi:noNamespaceSchemaLocation="http://sumo.dlr.de/xsd/routes_file.xsd">',
@@ -98,7 +111,7 @@ def write_rou(filename: str, flows_vph: list, mix: list, duration: int = 3600):
     flow_id = 0
     for (from_e, to_e, vph, depart_speed) in flows_vph:
         for vtype, ratio in mix:
-            scaled_vph = max(1, int(vph * ratio))
+            scaled_vph = max(1, int(vph * ratio * SCALE))
             lines.append(
                 f'    <flow id="f{flow_id}" type="{vtype}" '
                 f'from="{from_e}" to="{to_e}" '
@@ -112,7 +125,7 @@ def write_rou(filename: str, flows_vph: list, mix: list, duration: int = 3600):
     lines += ["", "</routes>"]
     with open(filename, "w", encoding="utf-8") as f:
         f.write("\n".join(lines))
-    print(f"[OK] {filename}  ({flow_id} flows)")
+    print(f"[OK] {filename}  ({flow_id} flows, end={duration}s, scale×{SCALE:.1f})")
 
 
 # ══════════════════════════════════════════════════════════════════

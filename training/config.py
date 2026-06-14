@@ -47,7 +47,7 @@ TARGET_UPDATE_FREQ  = 100     # steps
 SAVE_FREQ           = 50      # episodes
 
 # ── Optimizer ─────────────────────────────────────────────────────────────────
-LR                  = 1e-3
+LR                  = 3e-4
 GAMMA               = 0.99
 GRAD_CLIP           = 10.0
 

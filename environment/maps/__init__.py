@@ -31,5 +31,16 @@ elif TOPOLOGY == "mydinh":
         get_edge_lanes,
     )
 
+elif TOPOLOGY == "uet":
+    from environment.maps.map_uet import (
+        INTERSECTION_IDS,
+        INCOMING_EDGES,
+        OUTGOING_EDGES,
+        ADJACENCY_MATRIX,
+        NUM_LANES,
+        EDGE_WEIGHTS,
+        get_edge_lanes,
+    )
+
 else:
     raise ValueError(f"[maps] Unknown topology: '{TOPOLOGY}'. Thêm file map_{TOPOLOGY}.py vào env/maps/")

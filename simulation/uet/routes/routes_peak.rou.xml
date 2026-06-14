@@ -1,0 +1,76 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<routes xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+        xsi:noNamespaceSchemaLocation="http://sumo.dlr.de/xsd/routes_file.xsd">
+
+    <vType id="passenger"   vClass="passenger"   length="4.5" maxSpeed="16.67" accel="2.6" decel="4.5" sigma="0.5"/>
+    <vType id="motorcycle"  vClass="motorcycle"  length="2.2" maxSpeed="16.67" accel="3.0" decel="5.0" sigma="0.6"/>
+    <vType id="bus"         vClass="bus"         length="12"  maxSpeed="13.89" accel="1.5" decel="3.5" sigma="0.3"/>
+
+    <flow id="f0_passenger" type="passenger" from="EXT_W_N01_in" to="N06_EXT_E_N06" begin="0" end="3600" vehsPerHour="540" departSpeed="max" departLane="best"/>
+    <flow id="f1_motorcycle" type="motorcycle" from="EXT_W_N01_in" to="N06_EXT_E_N06" begin="0" end="3600" vehsPerHour="315" departSpeed="max" departLane="best"/>
+    <flow id="f2_bus" type="bus" from="EXT_W_N01_in" to="N06_EXT_E_N06" begin="0" end="3600" vehsPerHour="45" departSpeed="max" departLane="best"/>
+    <flow id="f3_passenger" type="passenger" from="EXT_E_N06_in" to="N01_EXT_W_N01" begin="0" end="3600" vehsPerHour="540" departSpeed="max" departLane="best"/>
+    <flow id="f4_motorcycle" type="motorcycle" from="EXT_E_N06_in" to="N01_EXT_W_N01" begin="0" end="3600" vehsPerHour="315" departSpeed="max" departLane="best"/>
+    <flow id="f5_bus" type="bus" from="EXT_E_N06_in" to="N01_EXT_W_N01" begin="0" end="3600" vehsPerHour="45" departSpeed="max" departLane="best"/>
+    <flow id="f6_passenger" type="passenger" from="EXT_W_N11_in" to="N15_EXT_E_N15" begin="0" end="3600" vehsPerHour="450" departSpeed="max" departLane="best"/>
+    <flow id="f7_motorcycle" type="motorcycle" from="EXT_W_N11_in" to="N15_EXT_E_N15" begin="0" end="3600" vehsPerHour="262" departSpeed="max" departLane="best"/>
+    <flow id="f8_bus" type="bus" from="EXT_W_N11_in" to="N15_EXT_E_N15" begin="0" end="3600" vehsPerHour="37" departSpeed="max" departLane="best"/>
+    <flow id="f9_passenger" type="passenger" from="EXT_E_N15_in" to="N11_EXT_W_N11" begin="0" end="3600" vehsPerHour="450" departSpeed="max" departLane="best"/>
+    <flow id="f10_motorcycle" type="motorcycle" from="EXT_E_N15_in" to="N11_EXT_W_N11" begin="0" end="3600" vehsPerHour="262" departSpeed="max" departLane="best"/>
+    <flow id="f11_bus" type="bus" from="EXT_E_N15_in" to="N11_EXT_W_N11" begin="0" end="3600" vehsPerHour="37" departSpeed="max" departLane="best"/>
+    <flow id="f12_passenger" type="passenger" from="EXT_W_N01_in" to="N11_EXT_S_N11" begin="0" end="3600" vehsPerHour="360" departSpeed="max" departLane="best"/>
+    <flow id="f13_motorcycle" type="motorcycle" from="EXT_W_N01_in" to="N11_EXT_S_N11" begin="0" end="3600" vehsPerHour="210" departSpeed="max" departLane="best"/>
+    <flow id="f14_bus" type="bus" from="EXT_W_N01_in" to="N11_EXT_S_N11" begin="0" end="3600" vehsPerHour="30" departSpeed="max" departLane="best"/>
+    <flow id="f15_passenger" type="passenger" from="EXT_S_N11_in" to="N01_EXT_W_N01" begin="0" end="3600" vehsPerHour="360" departSpeed="max" departLane="best"/>
+    <flow id="f16_motorcycle" type="motorcycle" from="EXT_S_N11_in" to="N01_EXT_W_N01" begin="0" end="3600" vehsPerHour="210" departSpeed="max" departLane="best"/>
+    <flow id="f17_bus" type="bus" from="EXT_S_N11_in" to="N01_EXT_W_N01" begin="0" end="3600" vehsPerHour="30" departSpeed="max" departLane="best"/>
+    <flow id="f18_passenger" type="passenger" from="EXT_W_N01_in" to="N12_SRC_R2_BC" begin="0" end="3600" vehsPerHour="300" departSpeed="max" departLane="best"/>
+    <flow id="f19_motorcycle" type="motorcycle" from="EXT_W_N01_in" to="N12_SRC_R2_BC" begin="0" end="3600" vehsPerHour="175" departSpeed="max" departLane="best"/>
+    <flow id="f20_bus" type="bus" from="EXT_W_N01_in" to="N12_SRC_R2_BC" begin="0" end="3600" vehsPerHour="25" departSpeed="max" departLane="best"/>
+    <flow id="f21_passenger" type="passenger" from="EXT_W_N11_in" to="N02_SRC_R1_BC" begin="0" end="3600" vehsPerHour="300" departSpeed="max" departLane="best"/>
+    <flow id="f22_motorcycle" type="motorcycle" from="EXT_W_N11_in" to="N02_SRC_R1_BC" begin="0" end="3600" vehsPerHour="175" departSpeed="max" departLane="best"/>
+    <flow id="f23_bus" type="bus" from="EXT_W_N11_in" to="N02_SRC_R1_BC" begin="0" end="3600" vehsPerHour="25" departSpeed="max" departLane="best"/>
+    <flow id="f24_passenger" type="passenger" from="EXT_N_N06_in" to="N10_EXT_E_N10" begin="0" end="3600" vehsPerHour="390" departSpeed="max" departLane="best"/>
+    <flow id="f25_motorcycle" type="motorcycle" from="EXT_N_N06_in" to="N10_EXT_E_N10" begin="0" end="3600" vehsPerHour="227" departSpeed="max" departLane="best"/>
+    <flow id="f26_bus" type="bus" from="EXT_N_N06_in" to="N10_EXT_E_N10" begin="0" end="3600" vehsPerHour="32" departSpeed="max" departLane="best"/>
+    <flow id="f27_passenger" type="passenger" from="EXT_E_N10_in" to="N06_EXT_N_N06" begin="0" end="3600" vehsPerHour="390" departSpeed="max" departLane="best"/>
+    <flow id="f28_motorcycle" type="motorcycle" from="EXT_E_N10_in" to="N06_EXT_N_N06" begin="0" end="3600" vehsPerHour="227" departSpeed="max" departLane="best"/>
+    <flow id="f29_bus" type="bus" from="EXT_E_N10_in" to="N06_EXT_N_N06" begin="0" end="3600" vehsPerHour="32" departSpeed="max" departLane="best"/>
+    <flow id="f30_passenger" type="passenger" from="EXT_N_N03_in" to="N13_EXT_S_N13" begin="0" end="3600" vehsPerHour="210" departSpeed="max" departLane="best"/>
+    <flow id="f31_motorcycle" type="motorcycle" from="EXT_N_N03_in" to="N13_EXT_S_N13" begin="0" end="3600" vehsPerHour="122" departSpeed="max" departLane="best"/>
+    <flow id="f32_bus" type="bus" from="EXT_N_N03_in" to="N13_EXT_S_N13" begin="0" end="3600" vehsPerHour="17" departSpeed="max" departLane="best"/>
+    <flow id="f33_passenger" type="passenger" from="EXT_N_N04_in" to="N14_EXT_S_N14" begin="0" end="3600" vehsPerHour="210" departSpeed="max" departLane="best"/>
+    <flow id="f34_motorcycle" type="motorcycle" from="EXT_N_N04_in" to="N14_EXT_S_N14" begin="0" end="3600" vehsPerHour="122" departSpeed="max" departLane="best"/>
+    <flow id="f35_bus" type="bus" from="EXT_N_N04_in" to="N14_EXT_S_N14" begin="0" end="3600" vehsPerHour="17" departSpeed="max" departLane="best"/>
+    <flow id="f36_passenger" type="passenger" from="EXT_N_N05_in" to="N15_EXT_S_N15" begin="0" end="3600" vehsPerHour="180" departSpeed="max" departLane="best"/>
+    <flow id="f37_motorcycle" type="motorcycle" from="EXT_N_N05_in" to="N15_EXT_S_N15" begin="0" end="3600" vehsPerHour="105" departSpeed="max" departLane="best"/>
+    <flow id="f38_bus" type="bus" from="EXT_N_N05_in" to="N15_EXT_S_N15" begin="0" end="3600" vehsPerHour="15" departSpeed="max" departLane="best"/>
+    <flow id="f39_passenger" type="passenger" from="EXT_S_N13_in" to="N03_EXT_N_N03" begin="0" end="3600" vehsPerHour="210" departSpeed="max" departLane="best"/>
+    <flow id="f40_motorcycle" type="motorcycle" from="EXT_S_N13_in" to="N03_EXT_N_N03" begin="0" end="3600" vehsPerHour="122" departSpeed="max" departLane="best"/>
+    <flow id="f41_bus" type="bus" from="EXT_S_N13_in" to="N03_EXT_N_N03" begin="0" end="3600" vehsPerHour="17" departSpeed="max" departLane="best"/>
+    <flow id="f42_passenger" type="passenger" from="EXT_S_N14_in" to="N04_EXT_N_N04" begin="0" end="3600" vehsPerHour="210" departSpeed="max" departLane="best"/>
+    <flow id="f43_motorcycle" type="motorcycle" from="EXT_S_N14_in" to="N04_EXT_N_N04" begin="0" end="3600" vehsPerHour="122" departSpeed="max" departLane="best"/>
+    <flow id="f44_bus" type="bus" from="EXT_S_N14_in" to="N04_EXT_N_N04" begin="0" end="3600" vehsPerHour="17" departSpeed="max" departLane="best"/>
+    <flow id="f45_passenger" type="passenger" from="EXT_S_N15_in" to="N05_EXT_N_N05" begin="0" end="3600" vehsPerHour="180" departSpeed="max" departLane="best"/>
+    <flow id="f46_motorcycle" type="motorcycle" from="EXT_S_N15_in" to="N05_EXT_N_N05" begin="0" end="3600" vehsPerHour="105" departSpeed="max" departLane="best"/>
+    <flow id="f47_bus" type="bus" from="EXT_S_N15_in" to="N05_EXT_N_N05" begin="0" end="3600" vehsPerHour="15" departSpeed="max" departLane="best"/>
+    <flow id="f48_passenger" type="passenger" from="EXT_W_N01_in" to="N10_EXT_E_N10" begin="0" end="3600" vehsPerHour="150" departSpeed="max" departLane="best"/>
+    <flow id="f49_motorcycle" type="motorcycle" from="EXT_W_N01_in" to="N10_EXT_E_N10" begin="0" end="3600" vehsPerHour="87" departSpeed="max" departLane="best"/>
+    <flow id="f50_bus" type="bus" from="EXT_W_N01_in" to="N10_EXT_E_N10" begin="0" end="3600" vehsPerHour="12" departSpeed="max" departLane="best"/>
+    <flow id="f51_passenger" type="passenger" from="EXT_E_N10_in" to="N01_EXT_W_N01" begin="0" end="3600" vehsPerHour="150" departSpeed="max" departLane="best"/>
+    <flow id="f52_motorcycle" type="motorcycle" from="EXT_E_N10_in" to="N01_EXT_W_N01" begin="0" end="3600" vehsPerHour="87" departSpeed="max" departLane="best"/>
+    <flow id="f53_bus" type="bus" from="EXT_E_N10_in" to="N01_EXT_W_N01" begin="0" end="3600" vehsPerHour="12" departSpeed="max" departLane="best"/>
+    <flow id="f54_passenger" type="passenger" from="EXT_N_N03_in" to="N07_SRC_V3S" begin="0" end="3600" vehsPerHour="120" departSpeed="max" departLane="best"/>
+    <flow id="f55_motorcycle" type="motorcycle" from="EXT_N_N03_in" to="N07_SRC_V3S" begin="0" end="3600" vehsPerHour="70" departSpeed="max" departLane="best"/>
+    <flow id="f56_bus" type="bus" from="EXT_N_N03_in" to="N07_SRC_V3S" begin="0" end="3600" vehsPerHour="10" departSpeed="max" departLane="best"/>
+    <flow id="f57_passenger" type="passenger" from="EXT_W_N01_in" to="N07_SRC_RM_AB" begin="0" end="3600" vehsPerHour="120" departSpeed="max" departLane="best"/>
+    <flow id="f58_motorcycle" type="motorcycle" from="EXT_W_N01_in" to="N07_SRC_RM_AB" begin="0" end="3600" vehsPerHour="70" departSpeed="max" departLane="best"/>
+    <flow id="f59_bus" type="bus" from="EXT_W_N01_in" to="N07_SRC_RM_AB" begin="0" end="3600" vehsPerHour="10" departSpeed="max" departLane="best"/>
+    <flow id="f60_passenger" type="passenger" from="EXT_E_N10_in" to="N15_EXT_S_N15" begin="0" end="3600" vehsPerHour="120" departSpeed="max" departLane="best"/>
+    <flow id="f61_motorcycle" type="motorcycle" from="EXT_E_N10_in" to="N15_EXT_S_N15" begin="0" end="3600" vehsPerHour="70" departSpeed="max" departLane="best"/>
+    <flow id="f62_bus" type="bus" from="EXT_E_N10_in" to="N15_EXT_S_N15" begin="0" end="3600" vehsPerHour="10" departSpeed="max" departLane="best"/>
+    <flow id="f63_passenger" type="passenger" from="EXT_S_N15_in" to="N10_EXT_E_N10" begin="0" end="3600" vehsPerHour="120" departSpeed="max" departLane="best"/>
+    <flow id="f64_motorcycle" type="motorcycle" from="EXT_S_N15_in" to="N10_EXT_E_N10" begin="0" end="3600" vehsPerHour="70" departSpeed="max" departLane="best"/>
+    <flow id="f65_bus" type="bus" from="EXT_S_N15_in" to="N10_EXT_E_N10" begin="0" end="3600" vehsPerHour="10" departSpeed="max" departLane="best"/>
+
+</routes>

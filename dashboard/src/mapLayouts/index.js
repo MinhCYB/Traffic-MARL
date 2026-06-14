@@ -1,10 +1,12 @@
 // mapLayouts/index.js — load layout đúng theo topology string
 import * as layout2x2    from "./layout_2x2.js";
 import * as layoutMydinh from "./layout_mydinh.js";
+import * as layoutUet from "./layout_uet.js";
 
 const LAYOUTS = {
   "2x2":    layout2x2,
   "mydinh": layoutMydinh,
+  "uet": layoutUet
 };
 
 const FALLBACK = layout2x2;
@@ -22,4 +24,4 @@ export function getLayout(topology) {
   return layout;
 }
 
-export { layout2x2, layoutMydinh };
+export { layout2x2, layoutMydinh, layoutUet };

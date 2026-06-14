@@ -7,7 +7,7 @@ không có attention weights để visualize.
 """
 
 from workers.worker_base import WorkerBase
-from training.config import PORT_IDQN, FINAL_DIR
+from training.config import PORT_IDQN, FINAL_DIR, TOPOLOGY
 
 
 class IDQNWorker(WorkerBase):
@@ -34,7 +34,7 @@ class IDQNWorker(WorkerBase):
             epsilon     = EPSILON_MIN,  # bắt đầu ở epsilon thấp cho demo
         )
 
-        ckpt = FINAL_DIR / "idqn_mydinh_final.pt"
+        ckpt = FINAL_DIR / f"idqn_mydinh_{TOPOLOGY}_best.pt"
         if ckpt.exists():
             agent.load(str(ckpt))
             print(f"[idqn] Loaded checkpoint: {ckpt}")

@@ -36,12 +36,14 @@ function smoothData(rows, key, window = 10) {
 
 function calcETA(rows, total) {
   if (rows.length < 5) return null;
-  const recent = rows.slice(-10);
-  const secPerEp = recent.reduce((s, r) => s, 0); // placeholder — dùng timestamp
   const remaining = total - rows.length;
   if (remaining <= 0) return "Hoàn thành";
-  // ước tính ~12s/episode (DELTA_TIME × steps ÷ realtime_factor)
-  const estSec = remaining * 12;
+  // Dùng duration_s thực tế từ log nếu có, fallback ~12s/ep
+  const recentWithDur = rows.slice(-10).filter(r => r.duration_s != null);
+  const avgSecPerEp = recentWithDur.length > 0
+    ? recentWithDur.reduce((s, r) => s + r.duration_s, 0) / recentWithDur.length
+    : 12;
+  const estSec = remaining * avgSecPerEp;
   const h = Math.floor(estSec / 3600);
   const m = Math.floor((estSec % 3600) / 60);
   return h > 0 ? `~${h}h ${m}m` : `~${m}m`;
@@ -107,6 +109,9 @@ function RealtimeTab() {
   const accs     = rows.filter(r => r.had_accident).map(r => r.episode);
   const lastSec  = lastPoll ? Math.round((Date.now() - lastPoll) / 1000) : null;
   const isTraining = status === "ok" && current < total;
+  const totalTeleported = rows.reduce((s, r) => s + (r.vehicles_teleported ?? 0), 0);
+  const durRows = rows.filter(r => r.duration_s != null).slice(-20);
+  const avgDuration = durRows.length > 0 ? durRows.reduce((s, r) => s + r.duration_s, 0) / durRows.length : null;
 
   return (
     <div className="realtime-tab">
@@ -183,6 +188,18 @@ function RealtimeTab() {
               <span className="rt-stat-label">Accidents</span>
               <span className="rt-stat-value" style={{ color: "#f97316" }}>{accs.length} ep</span>
             </div>
+            <div className="rt-stat">
+              <span className="rt-stat-label">Teleported</span>
+              <span className="rt-stat-value" style={{ color: totalTeleported > 0 ? "#ef4444" : "var(--muted)" }}>
+                {totalTeleported}
+              </span>
+            </div>
+            {avgDuration != null && (
+              <div className="rt-stat">
+                <span className="rt-stat-label">Tốc độ train</span>
+                <span className="rt-stat-value">{avgDuration.toFixed(1)}s/ep</span>
+              </div>
+            )}
             {eta && (
               <div className="rt-stat">
                 <span className="rt-stat-label">ETA</span>

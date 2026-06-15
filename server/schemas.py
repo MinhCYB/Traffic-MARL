@@ -22,9 +22,10 @@ class MetricsData(BaseModel):
     total_waiting_time: float = 0.0
     throughput:         int
     n_vehicles:         int
-    vehicles_spawned:   int   = 0
-    vehicles_completed: int   = 0
-    global_reward:      float
+    vehicles_spawned:    int   = 0
+    vehicles_completed:  int   = 0
+    vehicles_teleported: int   = 0   # xe kẹt quá 300s bị SUMO xóa — indicator chất lượng policy
+    global_reward:       float
 
 
 class VehicleData(BaseModel):

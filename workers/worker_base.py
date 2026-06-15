@@ -172,6 +172,7 @@ class WorkerBase(ABC):
                 "n_vehicles":         info.get("n_vehicles", 0),
                 "vehicles_spawned":   info.get("vehicles_spawned", 0),
                 "vehicles_completed": info.get("vehicles_completed", 0),
+                "vehicles_teleported": info.get("vehicles_teleported", 0),
                 "global_reward":      round(info.get("global_reward", 0), 4),
             },
             "global_reward":    round(info.get("global_reward", 0), 4),

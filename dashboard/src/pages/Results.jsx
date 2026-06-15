@@ -51,7 +51,8 @@ function calcETA(rows, total) {
 
 // ── MiniChart ─────────────────────────────────────────────────────────────────
 function MiniChart({ data, metricKey, label, color, accidentEps }) {
-  const smoothed = smoothData(data, metricKey);
+  // LR là monotone curve (warmup → cosine decay) — không cần smooth, smooth sẽ làm sai shape
+  const smoothed = metricKey === "learning_rate" ? data : smoothData(data, metricKey);
 
   // Auto-scale Y domain với padding 10%, tránh bị bám sàn khi giá trị nhỏ
   const vals = smoothed.map(d => d[metricKey]).filter(v => v != null && isFinite(v));

@@ -30,6 +30,10 @@ app.add_middleware(
 sync_buffer   = SyncBuffer()
 ws_clients:   list[WebSocket] = []
 
+# ── Comm counter cho GAT worker ───────────────────────────────────────────────
+_gat_total_comm: int   = 0
+_gat_steps_with_comm: int = 0   # số step đã nhận comm_this_step > 0 (để tính avg)
+
 # pending_cmds: mỗi worker giữ command của riêng mình.
 # Chỉ clear khi chính worker đó đã poll — không bị worker khác clear mất.
 pending_cmds: dict[str, str | None] = {mode: None for mode in WORKER_MODES}
@@ -72,6 +76,11 @@ async def receive_data(payload: WorkerPayload):
       - Event-only (vd: episode_done): chỉ có mode/step/event → bỏ qua, không push.
     """
     if payload.intersections is not None and payload.metrics is not None:
+        # Tích lũy comm stats cho GAT worker
+        if payload.mode == "gat_marl" and payload.comm_this_step is not None:
+            global _gat_total_comm, _gat_steps_with_comm
+            _gat_total_comm      += payload.comm_this_step
+            _gat_steps_with_comm += 1
         await sync_buffer.push(payload.mode, payload.dict())
     else:
         # Event-only payload (episode_done, v.v.) — log nhẹ, không broadcast
@@ -182,8 +191,10 @@ _broadcast_step: int = 0   # step counter chung — tất cả workers dùng gi�
 
 def _reset_broadcast_step():
     """Gọi khi nhận lệnh start/reset để đồng bộ lại step về 0."""
-    global _broadcast_step
-    _broadcast_step = 0
+    global _broadcast_step, _gat_total_comm, _gat_steps_with_comm
+    _broadcast_step      = 0
+    _gat_total_comm      = 0
+    _gat_steps_with_comm = 0
 
 
 async def broadcast_loop():
@@ -206,6 +217,15 @@ async def broadcast_loop():
         for mode in merged:
             if isinstance(merged[mode], dict):
                 merged[mode]["step"] = _broadcast_step
+
+        # Inject comm stats vào GAT payload để dashboard render
+        if "gat_marl" in merged and isinstance(merged["gat_marl"], dict):
+            avg_comm = (
+                round(_gat_total_comm / _gat_steps_with_comm, 1)
+                if _gat_steps_with_comm > 0 else 0.0
+            )
+            merged["gat_marl"]["total_comm"] = _gat_total_comm
+            merged["gat_marl"]["avg_comm"]   = avg_comm
 
         broadcast_data = {
             "workers": merged,

@@ -37,13 +37,18 @@ class GATWorker(WorkerBase):
         return agent
 
     def get_extra_payload(self) -> dict:
-        """Thêm attention matrix (N x N) vào payload — N = số ngã tư trong topology."""
+        """Thêm attention matrix (N x N) và comm_this_step vào payload."""
         from environment.state_builder import INTERSECTION_IDS
         n = len(INTERSECTION_IDS)
         attn = self.agent.get_attention_weights()
         if attn is not None:
-            return {"attention_weights": attn.tolist()}
-        return {"attention_weights": [[0.0] * n for _ in range(n)]}
+            threshold = 1.5 / n
+            comm = int(sum(
+                1 for i in range(n) for j in range(n)
+                if i != j and attn[i][j] > threshold
+            ))
+            return {"attention_weights": attn.tolist(), "comm_this_step": comm}
+        return {"attention_weights": [[0.0] * n for _ in range(n)], "comm_this_step": 0}
 
 
 if __name__ == "__main__":

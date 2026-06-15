@@ -400,7 +400,7 @@ def run_learner(
         writer = csv.DictWriter(f, fieldnames=fieldnames)
 
         # Chỉ ghi header khi tạo file mới
-        if log_file_mode == "w":
+        if log_file_mode == "w" or f.tell() == 0:
             writer.writeheader()
 
         while not stop_event.is_set():

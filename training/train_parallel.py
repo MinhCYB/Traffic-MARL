@@ -356,11 +356,7 @@ def run_learner(
     # Ratio=8: mỗi transition được sample lại ~8 lần trước khi data mới đến — an toàn.
     # Muốn GPU bận hơn nữa: tăng --num-workers hoặc giảm --delta-time.
     UPDATE_TO_DATA_RATIO = 8
-    transitions_seen = 0
-    last_buf_size    = 0
 
-    # Ước tính tổng episodes để log ETA
-    total_episodes = episodes_per_worker * num_workers
     logged_episodes = 0
 
     print(f"[Learner] Chờ workers collect đủ {MIN_REPLAY_SIZE} transitions...")
@@ -371,7 +367,11 @@ def run_learner(
     # Tách ra thread riêng để drain chạy song song với backprop
     import threading
 
+    _transitions_pushed = 0          # counter riêng — không bị cap khi buffer đầy
+    _counter_lock       = threading.Lock()
+
     def _drain_loop():
+        nonlocal _transitions_pushed
         while not stop_event.is_set():
             drained = 0
             while drained < 512:
@@ -379,6 +379,8 @@ def run_learner(
                     s, a, r, ns, d = exp_queue.get(timeout=0.05)
                     buffer.push(s, a, r, ns, d)
                     drained += 1
+                    with _counter_lock:
+                        _transitions_pushed += 1
                 except Exception:
                     break
 
@@ -411,15 +413,14 @@ def run_learner(
                 print(f"[Learner] GAT unfrozen tại episode {logged_episodes}")
 
             # ── 4. GPU update — ratio-based throttle ─────────────────────
-            # Đếm transitions mới từ drain thread, update theo tỉ lệ UPDATE_TO_DATA_RATIO.
-            # Tránh idle (throttle cũ) và tránh overfit (update vô hạn trên data cũ).
-            cur_size = len(buffer)
-            transitions_seen += max(0, cur_size - last_buf_size)
-            last_buf_size = cur_size
+            # Dùng counter riêng thay vì len(buffer) — len() bị cap khi buffer đầy
+            # → transitions_seen không freeze → GPU tiếp tục update sau ep ~46
+            with _counter_lock:
+                cur_pushed = _transitions_pushed
 
-            allowed_updates = int(transitions_seen * UPDATE_TO_DATA_RATIO)
+            allowed_updates = int(cur_pushed * UPDATE_TO_DATA_RATIO)
             if total_updates >= allowed_updates:
-                time.sleep(0.005)   # sleep ngắn, không 0.02
+                time.sleep(0.005)
                 continue
 
             batch   = buffer.sample(BATCH_SIZE)

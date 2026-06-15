@@ -41,16 +41,19 @@ class VehicleData(BaseModel):
 class WorkerPayload(BaseModel):
     mode:               str
     step:               int
-    timestamp:          float
-    topology:           str = "2x2"          # NEW — map hiện tại đang chạy
-    intersections:      list[IntersectionData]
-    metrics:            MetricsData
-    vehicles:           Optional[list[VehicleData]]    = None
-    edge_speeds:        Optional[dict[str, float]]     = None
-    accident_edges:     Optional[dict[str, str]]       = None
-    attention_weights:  Optional[list[list[float]]]    = None
-    event:              Optional[str]                  = None
-    phase_duration:     Optional[int]                  = None   # MIN_GREEN + YELLOW_TIME
+    # timestamp và intersections/metrics là Optional để hỗ trợ
+    # event-only payloads (vd: episode_done) không có simulation data.
+    timestamp:          Optional[float]              = None
+    topology:           str = "2x2"
+    intersections:      Optional[list[IntersectionData]] = None
+    metrics:            Optional[MetricsData]            = None
+    vehicles:           Optional[list[VehicleData]]      = None
+    edge_speeds:        Optional[dict[str, float]]        = None
+    accident_edges:     Optional[dict[str, str]]          = None
+    attention_weights:  Optional[list[list[float]]]       = None
+    event:              Optional[str]                     = None
+    phase_duration:     Optional[int]                     = None
+    global_reward:      Optional[float]                   = None   # top-level alias (cũng có trong metrics)
 
 
 class CommandPayload(BaseModel):

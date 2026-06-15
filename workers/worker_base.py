@@ -260,13 +260,15 @@ class WorkerBase(ABC):
     def _post(self, payload: dict):
         """POST JSON lên server, bỏ qua nếu server chưa sẵn sàng."""
         try:
-            requests.post(
+            r = requests.post(
                 f"{self.base_url}/data",
                 json=payload,
                 timeout=1.0,
             )
-        except requests.exceptions.RequestException:
-            pass  # server chưa sẵn sàng hoặc lag — bỏ qua
+            if r.status_code != 200:
+                print(f"[{self.model_name}] POST /data failed: {r.status_code} {r.text[:200]}")
+        except requests.exceptions.RequestException as e:
+            print(f"[{self.model_name}] POST /data error: {e}")
 
     def _poll_command(self) -> str | None:
         """GET lệnh từ server command channel."""

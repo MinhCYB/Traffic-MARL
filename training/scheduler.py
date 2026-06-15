@@ -43,12 +43,14 @@ class WarmupScheduler:
     Class này để dành nếu muốn experiment sau.
     """
 
-    def __init__(self, optimizer, warmup_episodes: int = 50, total_episodes: int = 500):
+    def __init__(self, optimizer, warmup_episodes: int = 50, total_episodes: int = 500,
+                 lr_min: float = 1e-6):
         self.optimizer        = optimizer
         self.warmup_episodes  = warmup_episodes
         self.total_episodes   = total_episodes
         self._episode         = 0
         self._base_lr         = optimizer.param_groups[0]["lr"]
+        self._lr_min          = lr_min
 
     def step(self):
         self._episode += 1
@@ -62,7 +64,7 @@ class WarmupScheduler:
             lr = self._base_lr * 0.5 * (1 + math.cos(math.pi * progress))
 
         for pg in self.optimizer.param_groups:
-            pg["lr"] = max(lr, 1e-5)
+            pg["lr"] = max(lr, self._lr_min)
 
     def get_lr(self) -> float:
         return self.optimizer.param_groups[0]["lr"]

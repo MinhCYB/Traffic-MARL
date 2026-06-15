@@ -15,7 +15,13 @@ TOPOLOGY            = "mydinh"  # "2x2" | "mydinh" | "uet" — đổi ở đây 
 DELTA_TIME          = 5         # giây — agent quyết định mỗi 5s
 MIN_GREEN_TIME      = 10        # giây — enforce ở env wrapper
 YELLOW_TIME         = 3         # giây
-SIM_END             = 3600      # giây — 1 episode = 1 giờ
+SIM_END             = 1800      # giây — 1 episode = 30 phút (đổi từ 3600)
+
+# ── Obstacle (vật cản: công trình, xe hỏng, sửa đường...) ────────────────────
+OBSTACLE_PROB         = 0.4    # xác suất có vật cản trong episode
+OBSTACLE_MAX_COUNT    = 3      # tối đa 3 vật cản đồng thời
+OBSTACLE_DURATION_MIN = 300    # giây — tối thiểu
+OBSTACLE_DURATION_MAX = 600   # None = xuyên suốt episode
 SEED                = 42
 
 # ── Checkpoint & log dirs ─────────────────────────────────────────────────────
@@ -40,21 +46,21 @@ DROPOUT             = 0.1
 
 # ── Training ──────────────────────────────────────────────────────────────────
 NUM_EPISODES        = 500
-BATCH_SIZE          = 32
+BATCH_SIZE          = 64       # tăng từ 32 → gradient ổn hơn với GAT 4 nodes
 REPLAY_BUFFER_SIZE  = 50_000
 MIN_REPLAY_SIZE     = 1_000   # bắt đầu update sau khi có đủ experience
-TARGET_UPDATE_FREQ  = 100     # steps
+TARGET_UPDATE_FREQ  = 400      # gradient updates → 400/4 = 100 sim steps thực tế
 SAVE_FREQ           = 50      # episodes
 
 # ── Optimizer ─────────────────────────────────────────────────────────────────
-LR                  = 3e-4
-GAMMA               = 0.99
+LR                  = 1e-4     # giảm từ 3e-4 → ổn định hơn với Q scale lớn
+GAMMA               = 0.95     # giảm từ 0.99 → Q range [-200, 0] thay vì [-1000, 0]
 GRAD_CLIP           = 10.0
 
 # ── Epsilon-greedy ────────────────────────────────────────────────────────────
 EPSILON_START       = 1.0
 EPSILON_MIN         = 0.05
-EPSILON_DECAY       = 0.993   # nhân mỗi episode
+EPSILON_DECAY       = 0.996   # train.py solo only — parallel dùng fixed-role epsilon
 
 # ── TraCI ports (1 port per process) ──────────────────────────────────────────
 PORT_GAT            = 8813

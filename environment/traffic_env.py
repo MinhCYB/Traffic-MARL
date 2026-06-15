@@ -32,7 +32,8 @@ from environment.state_builder import (
     get_incoming_queues,
     get_outgoing_queues,
 )
-from environment.reward import compute_reward, compute_global_reward
+from environment.reward import compute_reward, compute_global_reward, REWARD_SCALE
+from training.config import SIM_END as _CFG_SIM_END
 
 # ── Cấu hình ─────────────────────────────────────────────────────────────────
 
@@ -48,17 +49,17 @@ def _get_route_files(topology: str) -> dict[str, Path]:
         "night": base / "routes_night.rou.xml",
     }
 
-ROUTE_WEIGHTS = {"peak": 0.9, "night": 0.1}
+ROUTE_WEIGHTS = {"peak": 0.7, "night": 0.3}
 
 # Phase definitions cho mỗi ngã tư
 # 0: NS_green, 1: NS_yellow, 2: EW_green, 3: EW_yellow
 YELLOW_PHASE = {0: 1, 2: 3}   # green phase → yellow phase trước khi switch
 NEXT_GREEN_PHASE = {1: 2, 3: 0}  # yellow phase → green phase tiếp theo
 
-MIN_GREEN_TIME = 10   # giây — enforce ở env, không phải model
-YELLOW_TIME    = 3    # giây — yellow phase cố định
-DELTA_TIME     = 5    # giây — agent quyết định mỗi 5s
-SIM_END        = 3600 # giây — 1 episode = 1 giờ
+MIN_GREEN_TIME = 10          # giây — enforce ở env, không phải model
+YELLOW_TIME    = 3           # giây — yellow phase cố định
+DELTA_TIME     = 5           # giây — agent quyết định mỗi 5s
+SIM_END        = _CFG_SIM_END  # giây — lấy từ training/config.py (hiện tại: 1800)
 
 
 class TrafficEnv:
@@ -182,12 +183,14 @@ class TrafficEnv:
         # Advance simulation delta_time steps
         departed_count = 0
         arrived_count  = 0
+        teleport_count = 0
         for _ in range(self.delta_time):
             traci.simulationStep()
             self._step += 1
             self._update_timers()
             departed_count += traci.simulation.getDepartedNumber()
             arrived_count  += traci.simulation.getArrivedNumber()
+            teleport_count += traci.simulation.getStartingTeleportNumber()
 
         # Đọc detector data
         queue_data, density_data = self._read_detectors()
@@ -235,15 +238,19 @@ class TrafficEnv:
         # Compute rewards — Hybrid: Waiting Time (70%) + Pressure (30%)
         rewards   = {}
         pressures = {}
+        # Phạt teleport: chia đều cho tất cả agents — đây là lỗi chung của cả mạng
+        # Mỗi xe bị teleport = penalty 0.5 (half max per-step reward), chia đều cho N agents
+        n_agents = len(INTERSECTION_IDS)
+        teleport_penalty = (0.5 * teleport_count) / n_agents * REWARD_SCALE
         for nid in INTERSECTION_IDS:
             inc = get_incoming_queues(nid, flat_queue)
             out = get_outgoing_queues(nid, flat_queue)
-            rewards[nid]   = compute_reward(nid, inc, out, wait_per_intersection[nid])
+            rewards[nid]   = compute_reward(nid, inc, out, wait_per_intersection[nid]) - teleport_penalty
             pressures[nid] = -rewards[nid]
 
         done = self._step >= SIM_END
 
-        info = self._get_info(pressures, departed_count, arrived_count)
+        info = self._get_info(pressures, departed_count, arrived_count, teleport_count)
 
         obs = {"states": states, "node_features": node_features}
         return obs, rewards, done, info
@@ -433,7 +440,7 @@ class TrafficEnv:
         )
         return {"states": states, "node_features": build_node_features(states)}
 
-    def _get_info(self, pressures: dict[str, float], departed: int = 0, arrived: int = 0) -> dict:
+    def _get_info(self, pressures: dict[str, float], departed: int = 0, arrived: int = 0, teleported: int = 0) -> dict:
         """Metrics cho logging — không dùng để train."""
         vehicles = traci.vehicle.getIDList()
         speeds   = [traci.vehicle.getSpeed(v) for v in vehicles] if vehicles else [0.0]
@@ -450,6 +457,7 @@ class TrafficEnv:
             "throughput":         arrived,
             "vehicles_spawned":   departed,
             "vehicles_completed": arrived,
+            "vehicles_teleported": teleported,   # ← xe bị kẹt quá 300s, bị SUMO xóa
             "n_vehicles": len(vehicles),
             "edge_speeds":     self._read_edge_speeds(),
             "accident_edges":  dict(self._accident_edges),

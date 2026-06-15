@@ -32,6 +32,9 @@ ALPHA           = 0.7   # weight cho waiting time
 BETA            = 0.3   # weight cho pressure (regularizer)
 WEIGHT_DEFAULT  = 1.0
 MAX_WAIT_NORM   = 120.0  # giây — normalize waiting time về [0,1], clip tại 2 phút
+MAX_PRESSURE    = 5.0    # normalize pressure về [0,1] — queue max ~20xe / 4 lanes → ~5
+REWARD_SCALE    = 5.0    # scale reward lên để gradient đủ lớn để học
+                         # =10 kết hợp GAMMA=0.95 → Q range [-100, 0] — ổn định
 
 
 def _edge_weight(edge_id: str) -> float:
@@ -94,12 +97,16 @@ def compute_reward(
     """
     pressure = compute_pressure(intersection_id, incoming_queues, outgoing_queues)
 
-    # Normalize waiting time về [0, 1]
-    wait_norm = min(avg_waiting_time, MAX_WAIT_NORM) / MAX_WAIT_NORM
+    # Normalize cả hai về [0, 1] để α và β thực sự là 70-30
+    wait_norm     = min(avg_waiting_time, MAX_WAIT_NORM) / MAX_WAIT_NORM
+    pressure_norm = min(pressure, MAX_PRESSURE) / MAX_PRESSURE
 
-    return -(ALPHA * wait_norm + BETA * pressure)
+    return -(ALPHA * wait_norm + BETA * pressure_norm) * REWARD_SCALE
 
 
 def compute_global_reward(pressures: dict[str, float]) -> float:
-    """Tổng reward toàn mạng — dùng để log/eval, không train."""
+    """Tổng reward toàn mạng — dùng để log/eval, không train.
+    Dùng hybrid (pressure đã scaled) để nhất quán với training objective.
+    pressures[nid] = -rewards[nid] = hybrid penalty đã scale.
+    """
     return -sum(pressures.values())

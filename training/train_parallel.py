@@ -45,17 +45,33 @@ from training.config import (
     EPSILON_START, EPSILON_MIN, EPSILON_DECAY,
     LR, GAMMA, TARGET_UPDATE_FREQ,
     STATE_DIM, HIDDEN_DIM, NUM_HEADS, NUM_ACTIONS,
-    TOPOLOGY, DELTA_TIME,
+    TOPOLOGY, DELTA_TIME, SIM_END,
+    OBSTACLE_PROB, OBSTACLE_MAX_COUNT,
+    OBSTACLE_DURATION_MIN, OBSTACLE_DURATION_MAX,
 )
+from training.scheduler import WarmupScheduler
 from training.replay_buffer import ReplayBuffer
 from environment.state_builder import INTERSECTION_IDS, INCOMING_EDGES
 
 # ── Parallel-specific knobs ───────────────────────────────────────────────────
 BASE_PORT          = 8820   # worker i dùng port BASE_PORT + i
-SYNC_EVERY         = 200    # RTX 3050 Ti: 50 quá thường → interrupt GPU liên tục
+SYNC_EVERY         = 50     # sync thường hơn → workers dùng policy mới hơn
                             # 200 = sync ~3 lần/episode, đủ fresh mà không overhead
 MAX_EXP_QUEUE      = 12000  # tăng buffer để worker ít drop hơn khi GPU bận
 WORKER_EPSILON_MIN = 0.10   # workers luôn explore tối thiểu 10%
+
+# Mỗi worker giữ một "vai" epsilon cố định suốt quá trình training.
+# Không decay về cùng điểm → buffer luôn đa dạng từ đầu đến cuối.
+# W0: explorer mạnh  — random action nhiều, phủ rộng state space
+# W1: explorer vừa   — cân bằng explore/exploit
+# W2: exploiter nhẹ  — chủ yếu greedy nhưng vẫn có noise
+# W3: near-greedy    — gần như pure policy, giúp learner thấy on-policy experience
+# Scale tự động theo num_workers: chia đều khoảng [eps_max, eps_min]
+def _worker_epsilon(worker_id: int, num_workers: int,
+                    eps_max: float = 1.0, eps_min: float = WORKER_EPSILON_MIN) -> float:
+    if num_workers == 1:
+        return eps_max
+    return eps_max - (eps_max - eps_min) * worker_id / (num_workers - 1)
 
 # ── Danh sách tất cả edge có thể xảy ra tai nạn ──────────────────────────────
 # Mỗi worker process có bản copy riêng sau fork/spawn nên thread-safe
@@ -65,36 +81,50 @@ _ALL_ACCIDENT_EDGES: list[str] = list(
 
 
 # ══════════════════════════════════════════════════════════════════════════════
-# Accident helper — dùng trong worker
+# Obstacle helper — dùng trong worker
+# "Tai nạn" → "Vật cản" (công trình, xe hỏng, sửa đường...)
+# Duration có thể xuyên suốt episode (OBSTACLE_DURATION_MAX = None)
 # ══════════════════════════════════════════════════════════════════════════════
 
-def _schedule_accident(
-    accident_prob: float,
-    accident_duration: int,
-    delta_time: int,
-) -> tuple[int | None, int | None, str | None]:
+def _schedule_obstacles(
+    obstacle_prob: float,
+    max_count:     int,
+    duration_min:  int,
+    duration_max:  int | None,
+    sim_end:       int,
+    delta_time:    int,
+) -> list[tuple[int, int, str]]:
     """
-    Quyết định có sinh tai nạn cho episode này không.
+    Quyết định có sinh vật cản cho episode này không.
 
     Returns:
-        (inject_step, clear_step, edge_id) nếu có tai nạn,
-        (None, None, None) nếu không có.
+        list[(inject_step, clear_step, edge_id)]
+        List rỗng nếu không có vật cản.
 
     inject_step / clear_step tính theo đơn vị step (1 step = delta_time giây).
+    Nếu duration_max is None → clear_step vượt qua cuối episode (xuyên suốt).
     """
-    if not _ALL_ACCIDENT_EDGES or random.random() >= accident_prob:
-        return None, None, None
+    if not _ALL_ACCIDENT_EDGES or random.random() >= obstacle_prob:
+        return []
 
-    # Thời điểm bắt đầu: 60s → 600s kể từ đầu episode (tính ra step)
+    count = random.randint(1, min(max_count, len(_ALL_ACCIDENT_EDGES)))
+    edges = random.sample(_ALL_ACCIDENT_EDGES, count)
+
     start_step_min = max(1, 60 // delta_time)
     start_step_max = max(start_step_min + 1, 600 // delta_time)
-    inject_step = random.randint(start_step_min, start_step_max)
 
-    duration_steps = max(1, accident_duration // delta_time)
-    clear_step = inject_step + duration_steps
+    obstacles = []
+    for edge in edges:
+        inject_step = random.randint(start_step_min, start_step_max)
+        if duration_max is None:
+            # Xuyên suốt episode
+            clear_step = sim_end // delta_time + 1
+        else:
+            dur = random.randint(duration_min, duration_max)
+            clear_step = inject_step + max(1, dur // delta_time)
+        obstacles.append((inject_step, clear_step, edge))
 
-    edge_id = random.choice(_ALL_ACCIDENT_EDGES)
-    return inject_step, clear_step, edge_id
+    return obstacles
 
 
 # ══════════════════════════════════════════════════════════════════════════════
@@ -104,14 +134,17 @@ def _schedule_accident(
 def rollout_worker(
     worker_id:        int,
     model_name:       str,
+    num_workers:      int,        # cần để tính fixed role epsilon
     exp_queue:        mp.Queue,   # push raw transitions
     stats_queue:      mp.Queue,   # push episode summary dict
     weight_queue:     mp.Queue,   # nhận state_dict từ learner
     stop_event:       mp.Event,
     episodes:         int,
     delta_time:       int,
-    accident_prob:    float = 0.0,
-    accident_duration: int  = 300,
+    obstacle_prob:    float = 0.0,
+    obstacle_max_count: int = 3,
+    obstacle_duration_min: int = 300,
+    obstacle_duration_max: int | None = None,
 ):
     """Chạy SUMO, collect experience, gửi episode stats về learner."""
     os.environ["CUDA_VISIBLE_DEVICES"] = ""   # worker chỉ dùng CPU
@@ -120,15 +153,16 @@ def rollout_worker(
 
     port   = BASE_PORT + worker_id
     seed   = SEED + worker_id
-    # Epsilon staggered: đa dạng exploration giữa các workers
-    eps    = max(WORKER_EPSILON_MIN, EPSILON_START - worker_id * 0.15)
+    # Fixed role: mỗi worker giữ epsilon cố định suốt training
+    # → buffer luôn đa dạng từ đầu đến cuối, không hội tụ về cùng điểm
+    eps    = _worker_epsilon(worker_id, num_workers)
 
-    print(f"[Worker-{worker_id}] port={port} | ε_start={eps:.2f} | accident_prob={accident_prob:.0%}")
+    print(f"[Worker-{worker_id}] port={port} | ε_fixed={eps:.2f} | obstacle_prob={obstacle_prob:.0%}")
 
     agent = _build_agent(model_name, device="cpu",
                          epsilon=eps,
-                         epsilon_min=WORKER_EPSILON_MIN,
-                         epsilon_decay=EPSILON_DECAY)
+                         epsilon_min=eps,        # min = start → không decay
+                         epsilon_decay=1.0)      # decay=1.0 → epsilon bất biến
     env   = TrafficEnv(port=port, topology=TOPOLOGY,
                        use_gui=False, seed=seed, delta_time=delta_time)
 
@@ -143,37 +177,46 @@ def rollout_worker(
         ep_steps     = 0
         last_info    = {}
 
-        # ── Lập lịch tai nạn cho episode này ─────────────────────────────────
-        inject_step, clear_step, acc_edge = _schedule_accident(
-            accident_prob, accident_duration, delta_time
+        # ── Lập lịch vật cản cho episode này ────────────────────────────────
+        obstacles = _schedule_obstacles(
+            obstacle_prob, obstacle_max_count,
+            obstacle_duration_min, obstacle_duration_max,
+            SIM_END, delta_time,
         )
-        had_accident    = False
-        accident_active = False
+        active_obstacles: set[str] = set()
 
-        if inject_step is not None:
+        if obstacles:
+            edges_str = ", ".join(e for _, _, e in obstacles)
             print(
                 f"  [Worker-{worker_id} | Ep {global_episode}] "
-                f"Tai nạn → edge={acc_edge} "
-                f"@ step {inject_step} → clear @ step {clear_step}"
+                f"Vật cản ({len(obstacles)}) → edges: {edges_str}"
             )
 
-        # Sync weights mới nhất từ learner trước mỗi episode
+        # Sync weights lần đầu trước episode
         _pull_weights(agent, weight_queue)
 
         while not done and not stop_event.is_set():
-            # ── Inject tai nạn ────────────────────────────────────────────────
-            if inject_step is not None and ep_steps == inject_step and not accident_active:
-                env.inject_accident(acc_edge)
-                accident_active = True
-                had_accident    = True
+            # ── Inject / clear vật cản ───────────────────────────────────────
+            for (inj, clr, edge) in obstacles:
+                if ep_steps == inj and edge not in active_obstacles:
+                    env.inject_accident(edge)
+                    active_obstacles.add(edge)
+                if ep_steps == clr and edge in active_obstacles:
+                    env.clear_accident(edge)
+                    active_obstacles.discard(edge)
 
-            # ── Clear tai nạn ─────────────────────────────────────────────────
-            if accident_active and ep_steps == clear_step:
-                env.clear_accident(acc_edge)
-                accident_active = False
+            # Pull weights mỗi 80 steps — W3 (ε=0.1) near-greedy cần policy mới nhất
+            if ep_steps > 0 and ep_steps % 80 == 0:
+                _pull_weights(agent, weight_queue)
 
             actions = agent.select_actions(obs)
             next_obs, rewards, done, info = env.step(actions)
+
+            # GAT-MARL: dùng shared reward để khuyến khích cooperative behavior
+            # IDQN: giữ individual reward vì không có communication
+            if model_name == "gat_marl":
+                shared_r = sum(rewards.values()) / len(rewards)
+                rewards  = {nid: shared_r for nid in rewards}
 
             # Push transition — drop nếu queue full (không block SUMO)
             try:
@@ -187,17 +230,18 @@ def rollout_worker(
             except Exception:
                 pass
 
-            ep_reward += info.get("global_reward", 0.0)
+            ep_reward += sum(rewards.values())   # hybrid reward (wait+pressure) — consistent với training signal
             ep_steps  += 1
             last_info  = info
             obs        = next_obs
 
-        # ── Đảm bảo clear tai nạn nếu episode kết thúc sớm / bị ngắt ────────
-        if accident_active:
+        # ── Cleanup vật cản còn active khi episode kết thúc / bị ngắt ────────
+        for edge in list(active_obstacles):
             try:
-                env.clear_accident(acc_edge)
+                env.clear_accident(edge)
             except Exception:
                 pass
+        active_obstacles.clear()
 
         # ── Episode summary — cùng schema với train.py ────────────────────
         duration = time.time() - t0
@@ -211,17 +255,15 @@ def rollout_worker(
             "throughput":       last_info.get("throughput", 0),
             "epsilon":          round(getattr(agent, "epsilon", 0.0), 4),
             "duration_s":       round(duration, 1),
-            "had_accident":     int(had_accident),
-            "accident_edge":    acc_edge or "",
+            "had_obstacle":     int(len(obstacles) > 0),
+            "obstacle_edges":   ",".join(e for _, _, e in obstacles) if obstacles else "",
+            "obstacle_count":   len(obstacles),
+            "vehicles_teleported": last_info.get("vehicles_teleported", 0),
         }
         try:
             stats_queue.put_nowait(summary)
         except Exception:
             pass
-
-        # Decay epsilon
-        if hasattr(agent, "epsilon"):
-            agent.epsilon = max(WORKER_EPSILON_MIN, agent.epsilon * EPSILON_DECAY)
 
         global_episode += 1
 
@@ -280,6 +322,15 @@ def run_learner(
         agent.load(resume)
         print(f"[Learner] Resume ← {resume}")
 
+    # Warmup 10% episodes rồi cosine decay LR về 1e-5
+    total_episodes = episodes_per_worker * num_workers
+    lr_scheduler   = WarmupScheduler(
+        agent.optimizer,
+        warmup_episodes = max(1, total_episodes // 10),
+        total_episodes  = total_episodes,
+    )
+    print(f"[Learner] LR scheduler: warmup {total_episodes//10} ep → cosine decay")
+
     ckpt_dir = CHECKPOINT_DIR / model_name
     ckpt_dir.mkdir(parents=True, exist_ok=True)
 
@@ -289,16 +340,23 @@ def run_learner(
         "episode", "worker_id", "total_steps", "global_reward",
         "avg_speed", "avg_waiting_time", "throughput",
         "loss", "epsilon", "duration_s",
-        "had_accident", "accident_edge",          # ← cột mới để track sự cố
+        "had_obstacle", "obstacle_edges", "obstacle_count",
+        "vehicles_teleported",   # ← xe kẹt bị SUMO xóa — indicator chất lượng policy
+        "learning_rate",         # ← theo dõi warmup → cosine decay
     ]
 
     total_updates  = 0
     best_reward    = float("-inf")
     ready          = False
-    steps_per_ep   = 3600 // DELTA_TIME   # ~720
+    steps_per_ep   = SIM_END // DELTA_TIME   # dùng SIM_END từ config
 
-    # Ước tính tổng episodes để log ETA
-    total_episodes = episodes_per_worker * num_workers
+    # Tỉ lệ update/transition: bao nhiêu lần GPU update trên mỗi transition mới từ worker.
+    # Bottleneck thực sự là SUMO CPU-bound (~3-5 trans/s/worker), không phải GPU.
+    # Ratio cao → GPU làm việc nhiều hơn trên replay cũ (off-policy DQN chịu được).
+    # Ratio=8: mỗi transition được sample lại ~8 lần trước khi data mới đến — an toàn.
+    # Muốn GPU bận hơn nữa: tăng --num-workers hoặc giảm --delta-time.
+    UPDATE_TO_DATA_RATIO = 8
+
     logged_episodes = 0
 
     print(f"[Learner] Chờ workers collect đủ {MIN_REPLAY_SIZE} transitions...")
@@ -309,7 +367,11 @@ def run_learner(
     # Tách ra thread riêng để drain chạy song song với backprop
     import threading
 
+    _transitions_pushed = 0          # counter riêng — không bị cap khi buffer đầy
+    _counter_lock       = threading.Lock()
+
     def _drain_loop():
+        nonlocal _transitions_pushed
         while not stop_event.is_set():
             drained = 0
             while drained < 512:
@@ -317,6 +379,8 @@ def run_learner(
                     s, a, r, ns, d = exp_queue.get(timeout=0.05)
                     buffer.push(s, a, r, ns, d)
                     drained += 1
+                    with _counter_lock:
+                        _transitions_pushed += 1
                 except Exception:
                     break
 
@@ -348,7 +412,17 @@ def run_learner(
                 freeze_gat_episodes = 0   # chỉ unfreeze 1 lần
                 print(f"[Learner] GAT unfrozen tại episode {logged_episodes}")
 
-            # ── 4. GPU update ─────────────────────────────────────────────
+            # ── 4. GPU update — ratio-based throttle ─────────────────────
+            # Dùng counter riêng thay vì len(buffer) — len() bị cap khi buffer đầy
+            # → transitions_seen không freeze → GPU tiếp tục update sau ep ~46
+            with _counter_lock:
+                cur_pushed = _transitions_pushed
+
+            allowed_updates = int(cur_pushed * UPDATE_TO_DATA_RATIO)
+            if total_updates >= allowed_updates:
+                time.sleep(0.005)
+                continue
+
             batch   = buffer.sample(BATCH_SIZE)
             metrics = agent.update(batch)
             total_updates += 1
@@ -373,6 +447,7 @@ def run_learner(
 
                 logged_episodes += 1
                 ep_reward = summary["global_reward"]
+                lr_scheduler.step()   # warmup → cosine decay LR
 
                 row = {
                     "episode":          logged_episodes,       # global episode count
@@ -385,8 +460,11 @@ def run_learner(
                     "loss":             round(current_loss, 6),
                     "epsilon":          summary["epsilon"],
                     "duration_s":       summary["duration_s"],
-                    "had_accident":     summary.get("had_accident", 0),
-                    "accident_edge":    summary.get("accident_edge", ""),
+                    "had_obstacle":     summary.get("had_obstacle", 0),
+                    "obstacle_edges":   summary.get("obstacle_edges", ""),
+                    "obstacle_count":   summary.get("obstacle_count", 0),
+                    "vehicles_teleported": summary.get("vehicles_teleported", 0),
+                    "learning_rate":       round(lr_scheduler.get_lr(), 7),
                 }
                 writer.writerow(row)
                 f.flush()
@@ -401,8 +479,11 @@ def run_learner(
                         else f"{int(eta_s//60)}m {int(eta_s%60)}s"
                     )
                     q_size   = exp_queue.qsize()
-                    acc_flag = f" | 🚨 ACC({summary.get('accident_edge', '')})" \
-                               if summary.get("had_accident") else ""
+                    acc_flag = (
+                        f" | 🚧 OBS×{summary.get('obstacle_count',0)}"
+                        f"({summary.get('obstacle_edges', '')})"
+                        if summary.get("had_obstacle") else ""
+                    )
                     print(
                         f"Ep {logged_episodes:4d}/{total_episodes} "
                         f"[W{summary['worker_id']}] | "
@@ -477,15 +558,17 @@ def _build_agent(model_name, device, epsilon, epsilon_min, epsilon_decay):
 # ══════════════════════════════════════════════════════════════════════════════
 
 def train_parallel(
-    model_name:          str,
-    num_workers:         int   = 2,   # RTX 3050 Ti Laptop: 2 là sweet-spot
-    episodes:            int   = NUM_EPISODES,
-    delta_time:          int   = DELTA_TIME,
-    resume:              str | None = None,
-    finetune:            str | None = None,
-    freeze_gat_episodes: int   = 20,
-    accident_prob:       float = 0.0,
-    accident_duration:   int   = 300,
+    model_name:             str,
+    num_workers:            int   = 2,
+    episodes:               int   = NUM_EPISODES,
+    delta_time:             int   = DELTA_TIME,
+    resume:                 str | None = None,
+    finetune:               str | None = None,
+    freeze_gat_episodes:    int   = 20,
+    obstacle_prob:          float = OBSTACLE_PROB,
+    obstacle_max_count:     int   = OBSTACLE_MAX_COUNT,
+    obstacle_duration_min:  int   = OBSTACLE_DURATION_MIN,
+    obstacle_duration_max:  int | None = OBSTACLE_DURATION_MAX,
 ):
     mp.set_start_method("spawn", force=True)
 
@@ -509,9 +592,10 @@ def train_parallel(
     print(f"  Delta T           : {delta_time}s/step")
     print(f"  GPU Learner       : {'CUDA' if torch.cuda.is_available() else 'CPU'}")
     print(f"  Log               : {log_path}  [mode={log_file_mode!r}]")
-    if accident_prob > 0.0:
-        print(f"  Accident prob     : {accident_prob:.0%}")
-        print(f"  Accident duration : {accident_duration}s")
+    if obstacle_prob > 0.0:
+        print(f"  Obstacle prob     : {obstacle_prob:.0%}")
+        print(f"  Obstacle max      : {obstacle_max_count}")
+        print(f"  Obstacle dur      : {obstacle_duration_min}s – {'∞ (toàn ep)' if obstacle_duration_max is None else str(obstacle_duration_max)+'s'}")
     print(f"{'='*55}\n")
 
     exp_queue     = mp.Queue(maxsize=MAX_EXP_QUEUE)
@@ -524,9 +608,10 @@ def train_parallel(
         p = mp.Process(
             target=rollout_worker,
             args=(
-                i, model_name, exp_queue, stats_queue,
+                i, model_name, num_workers, exp_queue, stats_queue,
                 weight_queues[i], stop_event, episodes, delta_time,
-                accident_prob, accident_duration,          # ← truyền xuống worker
+                obstacle_prob, obstacle_max_count,
+                obstacle_duration_min, obstacle_duration_max,
             ),
             daemon=True,
             name=f"RolloutWorker-{i}",
@@ -572,28 +657,46 @@ if __name__ == "__main__":
     parser.add_argument("--resume", type=str, default=None)
     parser.add_argument("--finetune", type=str, default=None)
     parser.add_argument("--freeze-gat-episodes", type=int, default=20)
-    # ── Accident args ─────────────────────────────────────────────────────────
+    # ── Obstacle args ─────────────────────────────────────────────────────────
     parser.add_argument(
-        "--accident-prob", type=float, default=0.0,
-        help=(
-            "Xác suất xảy ra tai nạn trong 1 episode ở mỗi worker (0.0–1.0). "
-            "Mặc định 0.0 — không ảnh hưởng fresh train."
-        ),
+        "--obstacle-prob", type=float, default=OBSTACLE_PROB,
+        help=f"Xác suất có vật cản trong 1 episode (0.0–1.0). Default: {OBSTACLE_PROB}",
     )
     parser.add_argument(
-        "--accident-duration", type=int, default=300,
-        help="Thời gian kéo dài sự cố tính bằng giây (default: 300s)",
+        "--obstacle-max-count", type=int, default=OBSTACLE_MAX_COUNT,
+        help=f"Tối đa bao nhiêu vật cản đồng thời. Default: {OBSTACLE_MAX_COUNT}",
     )
+    parser.add_argument(
+        "--obstacle-duration-min", type=int, default=OBSTACLE_DURATION_MIN,
+        help=f"Thời gian tối thiểu mỗi vật cản (giây). Default: {OBSTACLE_DURATION_MIN}",
+    )
+    parser.add_argument(
+        "--obstacle-duration-max", type=int, default=OBSTACLE_DURATION_MAX,
+        help=f"Thời gian tối đa mỗi vật cản (giây). None = xuyên suốt episode. Default: {OBSTACLE_DURATION_MAX}",
+    )
+    # Backward compat: giữ accident args nhưng map sang obstacle
+    parser.add_argument("--accident-prob", type=float, default=None, help=argparse.SUPPRESS)
+    parser.add_argument("--accident-duration", type=int, default=None, help=argparse.SUPPRESS)
     args = parser.parse_args()
 
+    # Backward compat: --accident-prob maps sang --obstacle-prob
+    obs_prob = args.obstacle_prob
+    if args.accident_prob is not None:
+        obs_prob = args.accident_prob
+    obs_dur_min = args.obstacle_duration_min
+    if args.accident_duration is not None:
+        obs_dur_min = args.accident_duration
+
     train_parallel(
-        model_name          = args.model,
-        num_workers         = args.num_workers,
-        episodes            = args.episodes,
-        delta_time          = args.delta_time,
-        resume              = args.resume,
-        finetune            = args.finetune,
-        freeze_gat_episodes = args.freeze_gat_episodes,
-        accident_prob       = args.accident_prob,
-        accident_duration   = args.accident_duration,
+        model_name             = args.model,
+        num_workers            = args.num_workers,
+        episodes               = args.episodes,
+        delta_time             = args.delta_time,
+        resume                 = args.resume,
+        finetune               = args.finetune,
+        freeze_gat_episodes    = args.freeze_gat_episodes,
+        obstacle_prob          = obs_prob,
+        obstacle_max_count     = args.obstacle_max_count,
+        obstacle_duration_min  = obs_dur_min,
+        obstacle_duration_max  = args.obstacle_duration_max,
     )

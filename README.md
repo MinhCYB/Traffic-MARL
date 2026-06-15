@@ -78,7 +78,7 @@ Smart-Traffic-MARL/
 ├── environment/                 # RL Environment layer
 │   ├── traffic_env.py           # SUMO wrapper qua TraCI (batch subscription)
 │   ├── state_builder.py         # Build state vector, STATE_DIM tự tính theo map
-│   ├── reward.py                # Weighted Max Pressure formula
+│   ├── reward.py                # Hybrid Waiting Time + Weighted Pressure
 │   └── maps/                   # Topology data từng map
 │       ├── __init__.py          # Auto-load theo config.TOPOLOGY
 │       ├── map_2x2.py
@@ -197,127 +197,107 @@ python scripts/build_map.py
 
 Script tự chạy `netconvert` (gen `net.xml`) và `gen_routes.py` (gen `routes_peak.rou.xml` + `routes_night.rou.xml`).
 
+> **Lưu ý:** Sau khi đổi `SIM_END` trong `config.py`, cần chạy lại `gen_routes.py` để cập nhật `end` và `vehsPerHour` trong file route XML.
+
+---
+
+## Hyperparameters
+
+| Tham số | Giá trị | Ghi chú |
+|---------|---------|---------|
+| `LR` | 3e-4 | Learning rate |
+| `GAMMA` | 0.99 | Discount factor |
+| `EPSILON_DECAY` | 0.993 | Nhân mỗi episode |
+| `BATCH_SIZE` | 32 | |
+| `REPLAY_BUFFER_SIZE` | 50 000 | |
+| `TARGET_UPDATE_FREQ` | 100 | Steps |
+| `SYNC_EVERY` | 50 | Sync weights worker↔learner |
+| `SIM_END` | **1800** | Giây — 1 episode = 30 phút |
+| `NUM_EPISODES` | 500 | Per worker |
+| `NUM_WORKERS` | 2 | Song song (sweet-spot RTX 3050 Ti) |
+| `OBSTACLE_PROB` | 0.4 | Xác suất có vật cản mỗi episode |
+| `OBSTACLE_MAX_COUNT` | 3 | Tối đa vật cản đồng thời |
+| `OBSTACLE_DURATION_MIN` | 300 | Giây — tối thiểu mỗi vật cản |
+| `OBSTACLE_DURATION_MAX` | None | None = xuyên suốt episode |
+
 ---
 
 ## Training
 
-### Tham số chung
-
-| Tham số | Mô tả | Mặc định |
-|---------|-------|----------|
-| `--model` | Model cần train: `gat_marl`, `idqn`, `fixed_time` | *(bắt buộc)* |
-| `--episodes` | Số episodes | 500 |
-| `--device` | `auto`, `cpu`, `cuda` | `auto` |
-| `--resume` | Path checkpoint để tiếp tục train | — |
-| `--finetune` | Path checkpoint để finetune (warm-start) | — |
-| `--freeze-gat-epochs` | Số episodes freeze GAT khi finetune | 20 |
-| `--updates-per-step` | Số lần backprop mỗi SUMO step | 4 |
-| `--accident-prob` | Xác suất sinh tai nạn mỗi episode (0.0–1.0) | 0.0 |
-| `--accident-duration` | Thời gian kéo dài tai nạn (giây) | 300 |
-
-> `train_parallel.py` có thêm `--num-workers` (mặc định 2). Các tham số còn lại giống hệt.
-
----
-
-### 1. Fresh train
+### 1. Fresh train (recommended)
 
 ```bash
-# Single-process (debug / fixed_time)
+# Parallel — recommended cho gat_marl / idqn
+python -m training.train_parallel --model gat_marl --num-workers 2
+python -m training.train_parallel --model idqn    --num-workers 2
+
+# Single-process (debug / fixed_time baseline)
 python -m training.train --model gat_marl
-python -m training.train --model idqn
 python -m training.train --model fixed_time   # fixed_time chỉ dùng single-process
-
-# Parallel (recommended cho gat_marl / idqn khi config đã ổn định)
-# --episodes là số episodes MỖI WORKER, không phải tổng
-# Để tương đương 500 episodes: 500 / num-workers
-python -m training.train_parallel --model gat_marl --num-workers 2 --episodes 250
-python -m training.train_parallel --model idqn    --num-workers 2 --episodes 250
 ```
 
-### 2. Resume
+> `--episodes` mặc định = `NUM_EPISODES` trong config (500). Với parallel, đây là số episodes **mỗi worker** — tổng thực tế = episodes × num-workers.
 
-Log sẽ tự động ghi tiếp (mode `append`) vào file CSV cũ — không mất data.
+### 2. Override obstacle params
+
+Obstacle đã bật mặc định theo config (`OBSTACLE_PROB=0.4`). Có thể override qua CLI:
 
 ```bash
-# Single-process
-python -m training.train --model gat_marl \
-    --resume checkpoints/final/gat_marl_mydinh_best.pt
-
-# Parallel
-python -m training.train_parallel --model gat_marl \
-    --num-workers 2 --episodes 250 \
-    --resume checkpoints/final/gat_marl_mydinh_best.pt
+python -m training.train_parallel --model gat_marl --num-workers 2 \
+    --obstacle-prob 0.5 \
+    --obstacle-max-count 2 \
+    --obstacle-duration-min 200 \
+    --obstacle-duration-max 600    # None nếu muốn xuyên suốt episode
 ```
 
-### 3. Finetune sang map mới
+> **Backward compat:** `--accident-prob` và `--accident-duration` vẫn hoạt động, tự map sang obstacle params.
 
-Dùng khi đã có checkpoint từ map cũ (vd: `2x2`) và muốn chuyển sang map mới (`mydinh`). Nhanh hơn train từ đầu nhờ Local Encoder và Q-head đã học traffic pattern chung.
+### 3. Resume / Finetune
 
-**Cơ chế 2 phase:**
-- **Phase 1** (mặc định 20 episodes đầu): Freeze GAT, chỉ train Q-head — tránh gradient lớn phá vỡ attention weights ngay từ đầu.
-- **Phase 2** (sau episode 20): Unfreeze toàn bộ, train end-to-end.
+> ⚠️ Chỉ nên resume khi hyperparams và map **không đổi**. Nếu đã thay `SIM_END`, `reward function`, hoặc chuyển map → **train fresh** để tránh Q-value distribution shift.
 
 ```bash
-# Single-process
-python -m training.train --model gat_marl \
-    --finetune checkpoints/final/gat_marl_2x2_best.pt
+# Resume (tiếp tục train, log ghi append)
+python -m training.train_parallel --model gat_marl --num-workers 2 \
+    --resume checkpoints/final/gat_marl_mydinh_best.pt
 
-# Tăng freeze nếu map mới phức tạp hơn nhiều
-python -m training.train --model gat_marl \
-    --finetune checkpoints/final/gat_marl_2x2_best.pt \
-    --freeze-gat-epochs 50
-
-# Parallel
-python -m training.train_parallel --model gat_marl \
-    --num-workers 2 --episodes 150 \
+# Finetune từ map khác (freeze GAT 20 ep đầu)
+python -m training.train_parallel --model gat_marl --num-workers 2 \
     --finetune checkpoints/final/gat_marl_2x2_best.pt
 ```
 
 | Tình huống | Nên làm |
 |-----------|---------|
-| Chuyển từ `2x2` → `mydinh` (cùng loại bài toán, khác scale) | Finetune |
-| Thêm ngã tư mới vào map hiện tại | Finetune với `--freeze-gat-epochs 0` |
-| Thay đổi reward function hoặc state representation | Train fresh |
-| Map mới có số phase khác (`NUM_ACTIONS` thay đổi) | Train fresh |
-
-### 4. Finetune với tai nạn
-
-Dùng để dạy model xử lý sự cố giao thông. Nên chạy **sau** khi đã có checkpoint train tốt từ bước trên.
-
-```bash
-# Single-process
-python -m training.train --model gat_marl \
-    --finetune checkpoints/final/gat_marl_mydinh_best.pt \
-    --accident-prob 0.3 \
-    --accident-duration 300
-
-# Parallel
-python -m training.train_parallel --model gat_marl \
-    --num-workers 2 --episodes 150 \
-    --finetune checkpoints/final/gat_marl_mydinh_best.pt \
-    --accident-prob 0.3 \
-    --accident-duration 300
-```
-
-`--accident-prob 0.0` (mặc định) → không có tai nạn, không ảnh hưởng fresh train.
-
-Log CSV sẽ ghi thêm 2 cột `had_accident` (0/1) và `accident_edge` để theo dõi.
+| Cùng map, cùng config, tiếp tục train | Resume |
+| Chuyển từ `2x2` → `mydinh` | Finetune |
+| Đổi `SIM_END`, reward, hoặc state dim | Train fresh |
+| Map mới có `NUM_ACTIONS` khác | Train fresh |
 
 ### Workflow gợi ý
 
 ```
-1. Debug config mới
-   └─ train.py --model gat_marl --episodes 20
+1. Build map (1 lần)
+   └─ python scripts/build_map.py mydinh
 
-2. Train thật — parallel
-   └─ train_parallel.py --model gat_marl --num-workers 2 --episodes 250
+2. Debug nhanh (single-process, 20 ep)
+   └─ python -m training.train --model gat_marl --episodes 20
 
-3. Fixed-time baseline (chỉ single-process)
-   └─ train.py --model fixed_time
+3. Train thật — parallel
+   └─ python -m training.train_parallel --model gat_marl --num-workers 2
+   └─ python -m training.train_parallel --model idqn    --num-workers 2
 
-4. Finetune accident sau khi có checkpoint tốt
-   └─ train.py --model gat_marl --finetune <best.pt> --accident-prob 0.3
+4. Fixed-time baseline
+   └─ python -m training.train --model fixed_time
 ```
+
+### Vật cản (obstacle)
+
+Mô phỏng các tình huống thực tế: công trình, xe hỏng, sửa đường... Khác với "tai nạn" đơn lẻ, obstacle có thể:
+- Xuất hiện **1–3 cái đồng thời** trong 1 episode
+- Kéo dài **từ 300s đến xuyên suốt episode** (tuỳ config)
+- Inject vào random edge, clear tự động (hoặc kéo đến hết episode nếu `OBSTACLE_DURATION_MAX=None`)
+
+Log CSV ghi thêm 3 cột: `had_obstacle` (0/1), `obstacle_edges` (danh sách edge), `obstacle_count` (số lượng).
 
 ---
 
@@ -385,7 +365,8 @@ Thêm `environment/maps/map_<map_name>.py` với `INTERSECTION_IDS`, `INCOMING_E
 
 | Paper | Liên quan |
 |-------|-----------|
-| [PressLight — Wei et al., KDD 2019](https://faculty.ist.psu.edu/jessieli/Publications/2019-KDD-presslight.pdf) | Max Pressure reward |
+| [PressLight — Wei et al., KDD 2019](https://faculty.ist.psu.edu/jessieli/Publications/2019-KDD-presslight.pdf) | Weighted pressure làm regularizer (β=0.3) |
+| [AttentionLight — Shao et al., 2023](https://arxiv.org/abs/2307.05170) | Waiting time làm primary reward signal (α=0.7) |
 | [CoLight — Wei et al., CIKM 2019](https://arxiv.org/abs/1905.05717) | GAT cho traffic signal control |
 | [MPLight — Chen et al., AAAI 2020](https://ojs.aaai.org/index.php/AAAI/article/view/5744) | Parameter sharing |
 | [GAT — Veličković et al., ICLR 2018](https://arxiv.org/abs/1710.10903) | Graph Attention Networks |

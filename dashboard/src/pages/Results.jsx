@@ -11,11 +11,12 @@ const MODEL_LABELS  = { gat_marl: "GAT-MARL", idqn: "IDQN",   fixed_time: "Fixed
 const POLL_INTERVAL = 15_000; // 15s
 
 const REALTIME_METRICS = [
-  { key: "global_reward",    label: "Global Reward",        yLabel: "Reward",   higher: true  },
-  { key: "avg_waiting_time", label: "Thời gian chờ TB (s)", yLabel: "s",        higher: false },
-  { key: "avg_speed",        label: "Tốc độ TB (km/h)",     yLabel: "km/h",     higher: true  },
-  { key: "loss",             label: "Loss",                 yLabel: "loss",     higher: false },
-  { key: "epsilon",          label: "Epsilon (explore)",    yLabel: "ε",        higher: false },
+  { key: "global_reward",       label: "Global Reward",        yLabel: "Reward",  higher: true  },
+  { key: "avg_waiting_time",    label: "Thời gian chờ TB (s)", yLabel: "s",       higher: false },
+  { key: "avg_speed",           label: "Tốc độ TB (km/h)",     yLabel: "km/h",    higher: true  },
+  { key: "loss",                label: "Loss",                 yLabel: "loss",    higher: false },
+  { key: "vehicles_teleported", label: "Xe bị teleport",       yLabel: "xe/ep",   higher: false },
+  { key: "learning_rate",       label: "Learning Rate",        yLabel: "lr",      higher: false },
 ];
 
 const COMPARE_METRICS = [
@@ -38,11 +39,10 @@ function calcETA(rows, total) {
   if (rows.length < 5) return null;
   const remaining = total - rows.length;
   if (remaining <= 0) return "Hoàn thành";
-  // Dùng duration_s thực tế từ log nếu có, fallback ~12s/ep
-  const recentWithDur = rows.slice(-10).filter(r => r.duration_s != null);
-  const avgSecPerEp = recentWithDur.length > 0
-    ? recentWithDur.reduce((s, r) => s + r.duration_s, 0) / recentWithDur.length
-    : 12;
+  // Dùng duration_s thực tế từ log — average 10 ep gần nhất
+  const recent = rows.slice(-10).filter(r => r.duration_s > 0);
+  if (!recent.length) return null;
+  const avgSecPerEp = recent.reduce((s, r) => s + r.duration_s, 0) / recent.length;
   const estSec = remaining * avgSecPerEp;
   const h = Math.floor(estSec / 3600);
   const m = Math.floor((estSec % 3600) / 60);
@@ -109,9 +109,6 @@ function RealtimeTab() {
   const accs     = rows.filter(r => r.had_accident).map(r => r.episode);
   const lastSec  = lastPoll ? Math.round((Date.now() - lastPoll) / 1000) : null;
   const isTraining = status === "ok" && current < total;
-  const totalTeleported = rows.reduce((s, r) => s + (r.vehicles_teleported ?? 0), 0);
-  const durRows = rows.filter(r => r.duration_s != null).slice(-20);
-  const avgDuration = durRows.length > 0 ? durRows.reduce((s, r) => s + r.duration_s, 0) / durRows.length : null;
 
   return (
     <div className="realtime-tab">
@@ -185,21 +182,23 @@ function RealtimeTab() {
               <span className="rt-stat-value" style={{ color: MODEL_COLORS[model] }}>{best}</span>
             </div>
             <div className="rt-stat">
-              <span className="rt-stat-label">Accidents</span>
+              <span className="rt-stat-label">Obstacles</span>
               <span className="rt-stat-value" style={{ color: "#f97316" }}>{accs.length} ep</span>
             </div>
             <div className="rt-stat">
               <span className="rt-stat-label">Teleported</span>
-              <span className="rt-stat-value" style={{ color: totalTeleported > 0 ? "#ef4444" : "var(--muted)" }}>
-                {totalTeleported}
+              <span className="rt-stat-value" style={{ color: rows.length ? (rows[rows.length-1].vehicles_teleported > 0 ? "#ef4444" : "var(--text)") : "var(--text)" }}>
+                {rows.length ? rows[rows.length-1].vehicles_teleported : 0}
               </span>
             </div>
-            {avgDuration != null && (
-              <div className="rt-stat">
-                <span className="rt-stat-label">Tốc độ train</span>
-                <span className="rt-stat-value">{avgDuration.toFixed(1)}s/ep</span>
-              </div>
-            )}
+            <div className="rt-stat">
+              <span className="rt-stat-label">LR</span>
+              <span className="rt-stat-value">
+                {rows.length && rows[rows.length-1].learning_rate
+                  ? rows[rows.length-1].learning_rate.toExponential(1)
+                  : "—"}
+              </span>
+            </div>
             {eta && (
               <div className="rt-stat">
                 <span className="rt-stat-label">ETA</span>

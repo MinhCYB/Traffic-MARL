@@ -192,7 +192,7 @@ def rollout_worker(
                 f"Vật cản ({len(obstacles)}) → edges: {edges_str}"
             )
 
-        # Sync weights mới nhất từ learner trước mỗi episode
+        # Sync weights lần đầu trước episode
         _pull_weights(agent, weight_queue)
 
         while not done and not stop_event.is_set():
@@ -204,6 +204,10 @@ def rollout_worker(
                 if ep_steps == clr and edge in active_obstacles:
                     env.clear_accident(edge)
                     active_obstacles.discard(edge)
+
+            # Pull weights mỗi 80 steps — W3 (ε=0.1) near-greedy cần policy mới nhất
+            if ep_steps > 0 and ep_steps % 80 == 0:
+                _pull_weights(agent, weight_queue)
 
             actions = agent.select_actions(obs)
             next_obs, rewards, done, info = env.step(actions)
@@ -338,6 +342,7 @@ def run_learner(
         "loss", "epsilon", "duration_s",
         "had_obstacle", "obstacle_edges", "obstacle_count",
         "vehicles_teleported",   # ← xe kẹt bị SUMO xóa — indicator chất lượng policy
+        "learning_rate",         # ← theo dõi warmup → cosine decay
     ]
 
     total_updates  = 0
@@ -458,6 +463,7 @@ def run_learner(
                     "obstacle_edges":   summary.get("obstacle_edges", ""),
                     "obstacle_count":   summary.get("obstacle_count", 0),
                     "vehicles_teleported": summary.get("vehicles_teleported", 0),
+                    "learning_rate":       round(lr_scheduler.get_lr(), 7),
                 }
                 writer.writerow(row)
                 f.flush()
@@ -664,8 +670,8 @@ if __name__ == "__main__":
         help=f"Thời gian tối thiểu mỗi vật cản (giây). Default: {OBSTACLE_DURATION_MIN}",
     )
     parser.add_argument(
-        "--obstacle-duration-max", type=int, default=None,
-        help="Thời gian tối đa mỗi vật cản (giây). None = xuyên suốt episode. Default: None",
+        "--obstacle-duration-max", type=int, default=OBSTACLE_DURATION_MAX,
+        help=f"Thời gian tối đa mỗi vật cản (giây). None = xuyên suốt episode. Default: {OBSTACLE_DURATION_MAX}",
     )
     # Backward compat: giữ accident args nhưng map sang obstacle
     parser.add_argument("--accident-prob", type=float, default=None, help=argparse.SUPPRESS)

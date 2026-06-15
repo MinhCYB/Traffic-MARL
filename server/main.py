@@ -146,7 +146,6 @@ async def get_training_log(model: str):
             for row in _csv.DictReader(f):
                 rows.append({
                     "episode":              int(row["episode"]),
-                    "total_steps":          int(row["total_steps"]) if row.get("total_steps") else None,
                     "global_reward":        float(row["global_reward"]),
                     "avg_speed":            float(row["avg_speed"]),
                     "avg_waiting_time":     float(row["avg_waiting_time"]),
@@ -154,9 +153,10 @@ async def get_training_log(model: str):
                     "epsilon":              float(row["epsilon"]),
                     "loss":                 float(row["loss"]) if row.get("loss") else None,
                     "duration_s":           float(row["duration_s"]) if row.get("duration_s") else None,
-                    "accident_edge":        row.get("accident_edge", "") or None,
-                    "vehicles_teleported":  int(row["vehicles_teleported"]) if row.get("vehicles_teleported") else None,
-                    "had_accident":         (
+                    "learning_rate":         float(row["learning_rate"]) if row.get("learning_rate") else None,
+                    "vehicles_teleported":  int(row["vehicles_teleported"]) if row.get("vehicles_teleported") else 0,
+                    # had_obstacle (parallel) hoặc had_accident (single) — cùng nghĩa
+                    "had_obstacle":         (
                         row.get("had_obstacle", row.get("had_accident", "0")) not in ("0", "False", "")
                     ),
                 })

@@ -197,7 +197,7 @@ class GATAgent(BaseAgent):
         finetune=True: chỉ load weights (warm-start), reset optimizer + epsilon.
         finetune=False: load toàn bộ state (resume).
         """
-        ckpt = torch.load(path, map_location=self.device)
+        ckpt = torch.load(path, map_location=self.device, weights_only=True)
 
         # ── Validate checkpoint vs topology hiện tại ──────────────────────────
         # Chỉ check STATE_DIM (input dim của encoder) — att_src shape là [1, num_heads, dim]

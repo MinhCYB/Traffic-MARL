@@ -206,15 +206,26 @@ class GATAgent(BaseAgent):
         cur_input_dim  = self.online_net.encoder.net[0].weight.shape[1]
 
         if ckpt_input_dim != cur_input_dim:
-            raise ValueError(
-                f"\n{'='*55}\n"
-                f"  ✗ Checkpoint không tương thích với topology hiện tại!\n"
-                f"  File: {path}\n"
-                f"  STATE_DIM: checkpoint={ckpt_input_dim}, current topology={cur_input_dim}\n"
-                f"  → Dùng --finetune thay vì --resume nếu muốn transfer,\n"
-                f"    hoặc train lại checkpoint đúng topology.\n"
-                f"{'='*55}"
-            )
+            if not finetune: 
+                raise ValueError(
+                    f"\n{'='*55}\n"
+                    f"  ✗ Checkpoint không tương thích với topology hiện tại!\n"
+                    f"  File: {path}\n"
+                    f"  STATE_DIM: checkpoint={ckpt_input_dim}, current topology={cur_input_dim}\n"
+                    f"  → Dùng --finetune thay vì --resume nếu muốn transfer,\n"
+                    f"    hoặc train lại checkpoint đúng topology.\n"
+                    f"{'='*55}"
+                )
+            else:
+                # finetune + dim khác → chỉ load GAT và Q-head, bỏ encoder
+                print(f"[Finetune] STATE_DIM mismatch ({ckpt_input_dim} vs {cur_input_dim})")
+                print(f"[Finetune] Transfer GAT + Q-head weights, reset encoder cho topology mới")
+                
+                gat_qhead_keys = {k: v for k, v in ckpt["online_net"].items()
+                                if not k.startswith("encoder.")}
+                self.online_net.load_state_dict(gat_qhead_keys, strict=False)
+                self.target_net.load_state_dict(gat_qhead_keys, strict=False)
+                return   # load không được → bắt đầu fresh với weights ngẫu nhiên
 
         self.online_net.load_state_dict(ckpt["online_net"])
         self.target_net.load_state_dict(ckpt["target_net"])

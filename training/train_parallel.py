@@ -316,7 +316,7 @@ def run_learner(
                           n_agents=len(INTERSECTION_IDS))
 
     if finetune:
-        agent.load(finetune)
+        agent.load(finetune, finetune=True)
         print(f"[Learner] Finetune ← {finetune}")
         if freeze_gat_episodes > 0 and hasattr(agent, "freeze_gat"):
             agent.freeze_gat()

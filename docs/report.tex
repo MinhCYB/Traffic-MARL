@@ -57,7 +57,7 @@ HK2, 2025--2026
 %  ABSTRACT
 % ══════════════════════════════════════════════════════════════════════════════
 \begin{abstract}
-Bài báo trình bày hệ thống điều khiển đèn giao thông thông minh sử dụng Multi-Agent Reinforcement Learning (MARL) kết hợp Graph Attention Network (GAT) trên mạng lưới giao thông thực tế khu vực Mỹ Đình, Hà Nội (8 ngã tư). Hệ thống mô hình hóa bài toán dưới dạng Dec-POMDP, sử dụng kiến trúc GAT-MARL với parameter sharing để các agent giao tiếp qua cơ chế attention, kết hợp reward function hybrid (waiting time + weighted pressure). Phương pháp training parallel kiểu Ape-X với fixed-role epsilon workers được áp dụng để tăng tốc và đa dạng hóa dữ liệu huấn luyện. Kết quả thực nghiệm trên SUMO simulator cho thấy GAT-MARL vượt trội so với Independent DQN và fixed-time baseline về thời gian chờ trung bình, throughput, và khả năng thích ứng với sự cố giao thông.
+Báo cáo này mô tả quá trình thiết kế và xây dựng hệ thống điều khiển đèn giao thông thông minh sử dụng Multi-Agent Reinforcement Learning (MARL) kết hợp Graph Attention Network (GAT) trên mạng lưới giao thông thực tế khu vực Mỹ Đình, Hà Nội (8 ngã tư). Hệ thống mô hình hóa bài toán dưới dạng Dec-POMDP, sử dụng kiến trúc GAT-MARL với parameter sharing để các agent giao tiếp qua cơ chế attention, kết hợp reward function hybrid (waiting time + weighted pressure). Phương pháp training parallel kiểu Ape-X với fixed-role epsilon workers được áp dụng để tăng tốc và đa dạng hóa dữ liệu huấn luyện. Kết quả thực nghiệm trên SUMO simulator cho thấy GAT-MARL vượt trội so với Independent DQN và fixed-time baseline về thời gian chờ trung bình, throughput, và khả năng thích ứng với sự cố giao thông.
 \end{abstract}
 
 \begin{IEEEkeywords}
@@ -73,7 +73,7 @@ Tắc nghẽn giao thông đô thị là vấn đề nghiêm trọng tại các 
 
 Reinforcement Learning (RL) đã được chứng minh là hướng tiếp cận hiệu quả cho bài toán adaptive traffic signal control (ATSC)~\cite{PressLight2019, CoLight2019, MPLight2020}. Tuy nhiên, các phương pháp Independent RL gặp hạn chế khi mỗi agent chỉ quan sát ngã tư của mình, thiếu khả năng phối hợp toàn mạng. CoLight~\cite{CoLight2019} đề xuất sử dụng Graph Attention Network~\cite{Velickovic2018} để cho phép các agent giao tiếp qua cơ chế attention, đạt kết quả vượt trội trên nhiều bộ dữ liệu.
 
-Bài báo này trình bày hệ thống GAT-MARL cho mạng lưới giao thông thực tế khu vực Mỹ Đình (8 ngã tư), với các đóng góp chính:
+Báo cáo này trình bày hệ thống GAT-MARL cho mạng lưới giao thông thực tế khu vực Mỹ Đình (8 ngã tư), với các nội dung chính:
 
 \begin{itemize}[leftmargin=*]
     \item Thiết kế reward function hybrid kết hợp waiting time (70\%) và weighted pressure (30\%) với normalization về $[0, 1]$ trước khi scale, đảm bảo hai thành phần có cùng đơn vị.
@@ -128,7 +128,7 @@ Với multi-head attention ($K$ heads), output được average:
 
 Max Pressure~\cite{PressLight2019} định nghĩa ``áp suất'' tại ngã tư $i$ dựa trên chênh lệch queue giữa incoming và outgoing edges. PressLight~\cite{PressLight2019} là framework RL đầu tiên kết hợp lý thuyết Max Pressure vào thiết kế reward, chứng minh tính tối ưu lý thuyết khi throughput hội tụ.
 
-MPLight~\cite{MPLight2020} mở rộng PressLight với parameter sharing, cho phép scale lên hàng nghìn ngã tư. Hệ thống của chúng tôi kế thừa cả hai ý tưởng: pressure làm regularizer trong reward, parameter sharing cho toàn bộ agents.
+MPLight~\cite{MPLight2020} mở rộng PressLight với parameter sharing, cho phép scale lên hàng nghìn ngã tư. Hệ thống kế thừa cả hai ý tưởng: pressure làm regularizer trong reward, parameter sharing cho toàn bộ agents.
 
 % ══════════════════════════════════════════════════════════════════════════════
 %  3. MÔ TẢ HỆ THỐNG
@@ -137,7 +137,7 @@ MPLight~\cite{MPLight2020} mở rộng PressLight với parameter sharing, cho p
 
 \subsection{Môi trường mô phỏng SUMO}
 
-Chúng tôi sử dụng SUMO (Simulation of Urban Mobility)~\cite{SUMO2018} --- trình mô phỏng giao thông vi mô chuẩn công nghiệp, giao tiếp qua TraCI API.
+Hệ thống sử dụng SUMO (Simulation of Urban Mobility)~\cite{SUMO2018} --- trình mô phỏng giao thông vi mô chuẩn công nghiệp, giao tiếp qua TraCI API.
 
 \textbf{Bản đồ Mỹ Đình}: 8 ngã tư thực tế (N01--N08), mô phỏng khu vực giao giữa Hồ Tùng Mậu, Lê Đức Thọ, Phạm Hùng, Hàm Nghi, và Trần Hữu Dực (Hình~\ref{fig:topology}).
 
@@ -189,7 +189,7 @@ Constraint min-green ($\geq 10$s) và yellow cố định ($3$s) được enforc
 \subsection{Reward Function}
 \label{sec:reward}
 
-Chúng tôi thiết kế reward function hybrid kết hợp hai tín hiệu, cả hai đều được \textbf{normalize về $[0, 1]$} trước khi kết hợp:
+Reward function được thiết kế dạng hybrid, kết hợp hai tín hiệu, cả hai đều được \textbf{normalize về $[0, 1]$} trước khi kết hợp:
 \begin{equation}
     r_i = -\left(\alpha \cdot \hat{w}_i + \beta \cdot \hat{p}_i\right) \times S
     \label{eq:reward}
@@ -282,10 +282,21 @@ Hệ thống training parallel (Hình~\ref{fig:parallel}) theo kiến trúc Ape-
 
 \textbf{Fixed-role epsilon workers}: thay vì decay epsilon giống nhau, mỗi worker giữ epsilon \textit{cố định} suốt training, chia đều khoảng $[\varepsilon_{\max}, \varepsilon_{\min}]$:
 \begin{equation}
-    \varepsilon_k = \varepsilon_{\max} - \frac{(\varepsilon_{\max} - \varepsilon_{\min}) \cdot k}{K - 1}
+    \varepsilon_k = \varepsilon_{\max} - \frac{(\varepsilon_{\max} - \varepsilon_{\min}) \cdot k}{K - 1}, \quad k = 0, 1, \ldots, K-1
     \label{eq:fixed_eps}
 \end{equation}
 Worker $k=0$ (explorer, $\varepsilon=1.0$) tạo dữ liệu phủ rộng state space; worker $k=K-1$ (near-greedy, $\varepsilon=0.1$) tạo on-policy experience. Buffer luôn đa dạng từ đầu đến cuối training.
+
+Điểm khác biệt quan trọng so với Ape-X gốc~\cite{ApeX2018}: epsilon của mỗi worker là \textbf{cố định suốt quá trình training} (\texttt{epsilon\_decay=1.0}, \texttt{epsilon\_min=epsilon\_start}), không decay theo episode. Trong Ape-X gốc, các worker vẫn sử dụng epsilon decay (chỉ khác nhau về tốc độ decay), dẫn đến tất cả worker dần hội tụ về cùng mức epsilon thấp.
+
+Hệ quả của thiết kế fixed-role: replay buffer \textit{luôn} chứa một \textbf{hỗn hợp ổn định} giữa:
+\begin{itemize}[leftmargin=*]
+    \item \textbf{High-exploration data} (worker $k=0$, $\varepsilon=1.0$): random action, phủ rộng state space, phát hiện trạng thái hiếm gặp.
+    \item \textbf{Balanced data} (worker $k$ trung gian): cân bằng explore/exploit, tạo transition đa dạng về chất lượng action.
+    \item \textbf{Near-greedy data} (worker $k=K-1$, $\varepsilon=0.1$): gần như pure policy, cung cấp on-policy experience giúp learner thấy phân phối mà policy thực sự gặp khi deploy.
+\end{itemize}
+
+Thiết kế này tránh được vấn đề \textbf{distribution shift} phổ biến trong single-worker training: early episodes toàn noise (random actions) dẫn đến buffer chứa data kém chất lượng; late episodes toàn greedy dẫn đến buffer thiếu diversity --- cả hai đều gây instability cho off-policy learning.
 
 \subsection{Replay Buffer}
 
@@ -313,6 +324,25 @@ WarmupScheduler: linear warmup 10\% đầu rồi cosine decay:
 \end{equation}
 với $T_w = T / 10$, lr floor $= 10^{-5}$.
 
+\subsection{Chiến lược Finetune}
+\label{sec:finetune}
+
+GAT-MARL hỗ trợ \textbf{2-phase fine-tuning} khi chuyển sang map mới hoặc scenario có vật cản (obstacle), cho phép tận dụng knowledge đã học mà không cần train lại từ đầu.
+
+\textbf{Phase 1 --- Freeze GAT} (\texttt{freeze\_gat\_episodes} episode đầu, mặc định 20): toàn bộ tham số GAT layer bị đóng băng (\texttt{requires\_grad=False}), chỉ Q-head được cập nhật gradient. Lý do: GAT đã học được \textit{graph topology knowledge} --- cách aggregate thông tin từ neighbors --- từ quá trình training gốc. Kiến thức này có tính tổng quát cao, không phụ thuộc vào distribution cụ thể của traffic flow. Do đó, chỉ cần re-calibrate Q-values (output layer) cho distribution mới là đủ.
+
+\textbf{Phase 2 --- Unfreeze toàn bộ} (sau \texttt{freeze\_gat\_episodes}): toàn bộ network được unfreeze và tiếp tục train với learning rate thấp (đã qua warmup), cho phép GAT fine-tune attention weights cho topology/scenario mới.
+
+Đây là \textbf{lợi thế cạnh tranh} so với IDQN: vì IDQN không có communication layer tách biệt, toàn bộ network là một khối MLP đồng nhất --- không có module nào chứa ``transferable knowledge'' riêng. Khi đổi map hoặc scenario, IDQN phải train lại từ đầu hoặc chấp nhận negative transfer.
+
+\textbf{Cơ chế load checkpoint}:
+\begin{itemize}[leftmargin=*]
+    \item \texttt{finetune=True}: chỉ load weights (warm-start), \textit{reset} optimizer state và giữ \texttt{epsilon\_start} cao để agent có thể explore map mới. Optimizer mới bắt đầu với momentum sạch, tránh bị kéo theo hướng gradient cũ.
+    \item \texttt{resume=True}: load toàn bộ state (weights + optimizer + epsilon + update counter), tiếp tục training chính xác từ điểm dừng trước.
+\end{itemize}
+
+Log file được mở ở mode \texttt{"a"} (append) khi finetune hoặc resume, đảm bảo không mất training history từ các phase trước. Mode \texttt{"w"} (overwrite) chỉ dùng khi fresh training.
+
 \subsection{Double DQN Target}
 
 Bellman target cho tất cả $N$ agents trong batch:
@@ -338,9 +368,27 @@ Cả waiting time và pressure đều được normalize về $[0, 1]$ \textit{t
 \end{itemize}
 Không normalize, pressure (đơn vị: xe) và waiting time (đơn vị: giây) sẽ có magnitude rất khác, khiến $\alpha, \beta$ không còn ý nghĩa 70--30.
 
+\textbf{Ví dụ định lượng}: xét một ngã tư có $\bar{w} = 80$s (waiting time trung bình) và $p = 3.2$ (pressure):
+
+\textit{Không normalize} --- áp dụng trực tiếp $\alpha, \beta$ lên raw values:
+\begin{equation*}
+    r = -\left(0.7 \times 80 + 0.3 \times 3.2\right) = -(56.0 + 0.96) = -56.96
+\end{equation*}
+Thành phần waiting time đóng góp $56.0$, pressure đóng góp $0.96$ --- tỉ lệ thực tế là $\mathbf{98{:}2}$ thay vì 70{:}30 như thiết kế. Pressure gần như bị \textit{triệt tiêu hoàn toàn}.
+
+\textit{Có normalize} ($W_{\max}=120$, $P_{\max}=5$):
+\begin{align*}
+    \hat{w} &= 80 / 120 = 0.667 \\
+    \hat{p} &= 3.2 / 5 = 0.640 \\
+    r &= -\left(0.7 \times 0.667 + 0.3 \times 0.640\right) \times 5 = -(0.467 + 0.192) \times 5 = -3.29
+\end{align*}
+Thành phần waiting time đóng góp $0.467 \times 5 = 2.33$, pressure đóng góp $0.192 \times 5 = 0.96$ --- tỉ lệ thực tế là $\mathbf{71{:}29}$, gần đúng với $\alpha{:}\beta = 70{:}30$.
+
+\textbf{Kết luận}: normalize đảm bảo $\alpha, \beta$ \textit{thực sự} là tỉ lệ đóng góp giữa hai thành phần reward, không chỉ là hệ số nhân vô nghĩa trên hai đại lượng khác đơn vị.
+
 \subsection{Teleport Penalty Capping}
 
-Teleport penalty ban đầu unbounded, có thể gấp 3 lần base reward khi gridlock. Chúng tôi cap tại 2.5 ($= 50\%$ base reward range) để tránh gradient spike tạm thời.
+Teleport penalty ban đầu unbounded, có thể gấp 3 lần base reward khi gridlock. Giá trị được cap tại 2.5 ($= 50\%$ base reward range) để tránh gradient spike tạm thời.
 
 \subsection{Dynamic Lane Detection}
 
@@ -493,7 +541,7 @@ $\Delta$ Reward & [TODO] & [TODO] & [TODO] \\
 % ══════════════════════════════════════════════════════════════════════════════
 \section{Kết luận}
 
-Bài báo trình bày hệ thống điều khiển đèn giao thông thông minh GAT-MARL, kết hợp Graph Attention Network với Multi-Agent Deep Q-Learning trên mạng lưới giao thông thực tế Mỹ Đình (8 ngã tư). Các đóng góp kỹ thuật bao gồm: reward function hybrid với normalization, parallel training với fixed-role epsilon workers, dynamic lane detection, và obstacle injection cho robustness.
+Báo cáo trình bày toàn bộ quá trình xây dựng hệ thống điều khiển đèn giao thông thông minh GAT-MARL, kết hợp Graph Attention Network với Multi-Agent Deep Q-Learning trên mạng lưới giao thông thực tế Mỹ Đình (8 ngã tư). Các điểm nổi bật kỹ thuật bao gồm: reward function hybrid với normalization, parallel training với fixed-role epsilon workers, dynamic lane detection, và obstacle injection cho robustness.
 
 Hướng phát triển tiếp theo: (1) mở rộng lên mạng lưới lớn hơn với nhiều topology, (2) bổ sung prioritized experience replay, (3) thử nghiệm action space đa phase, (4) tích hợp dữ liệu giao thông thực từ camera.
 

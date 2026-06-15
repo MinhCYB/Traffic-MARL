@@ -34,7 +34,7 @@ class IDQNWorker(WorkerBase):
             epsilon     = EPSILON_MIN,  # bắt đầu ở epsilon thấp cho demo
         )
 
-        ckpt = FINAL_DIR / f"idqn_mydinh_{TOPOLOGY}_best.pt"
+        ckpt = FINAL_DIR / f"idqn_{TOPOLOGY}_best.pt"
         if ckpt.exists():
             agent.load(str(ckpt))
             print(f"[idqn] Loaded checkpoint: {ckpt}")

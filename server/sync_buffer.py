@@ -50,8 +50,11 @@ class SyncBuffer:
         async with self._lock:
             result = dict(self._data)
             # Reset data cho round tiếp theo, GIỮ LẠI _last_seen để track active
-            self._data  = {}
-            self._event = asyncio.Event()
+            # Dùng .clear() thay vì tạo object mới để tránh race condition:
+            # nếu tạo Event() mới, push() đang chờ lock sẽ .set() object mới
+            # trong khi broadcast_loop đang await object cũ → miss notify mãi mãi.
+            self._data = {}
+            self._event.clear()
 
         return result
 

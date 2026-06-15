@@ -176,7 +176,7 @@ class GATMARLNet(nn.Module):
     def get_attention_matrix(
         self,
         edge_index: torch.Tensor,
-        n_nodes: int = 4,
+        n_nodes: int = 8,   # default mydinh — luôn truyền tường minh từ agent
     ) -> torch.Tensor:
         """
         Convert attention weights sang dạng matrix (N, N) để dễ visualize.

@@ -51,7 +51,26 @@ function calcETA(rows, total) {
 
 // ── MiniChart ─────────────────────────────────────────────────────────────────
 function MiniChart({ data, metricKey, label, color, accidentEps }) {
-  const smoothed = smoothData(data, metricKey);
+  // LR là monotone curve (warmup → cosine decay) — không cần smooth, smooth sẽ làm sai shape
+  const smoothed = metricKey === "learning_rate" ? data : smoothData(data, metricKey);
+
+  // Auto-scale Y domain với padding 10%, tránh bị bám sàn khi giá trị nhỏ
+  const vals = smoothed.map(d => d[metricKey]).filter(v => v != null && isFinite(v));
+  const isLR = metricKey === "learning_rate";
+  let yDomain, yTickFormatter;
+  if (vals.length > 0) {
+    const lo = Math.min(...vals);
+    const hi = Math.max(...vals);
+    const pad = (hi - lo) * 0.1 || Math.abs(hi) * 0.1 || 1e-7;
+    yDomain = [lo - pad, hi + pad];
+  } else {
+    yDomain = ["auto", "auto"];
+  }
+  if (isLR) {
+    // Hiện dạng 1.0e-4 cho dễ đọc
+    yTickFormatter = v => v === 0 ? "0" : v.toExponential(1);
+  }
+
   return (
     <div className="mini-chart-card">
       <div className="mini-chart-title">{label}</div>
@@ -59,10 +78,17 @@ function MiniChart({ data, metricKey, label, color, accidentEps }) {
         <LineChart data={smoothed} margin={{ top: 4, right: 8, bottom: 4, left: 0 }}>
           <CartesianGrid strokeDasharray="3 3" stroke="var(--border)" />
           <XAxis dataKey="episode" stroke="var(--muted)" tick={{ fontSize: 10, fill: "var(--muted)", fontFamily: "var(--font-ui)" }} />
-          <YAxis stroke="var(--muted)" tick={{ fontSize: 10, fill: "var(--muted)", fontFamily: "var(--font-ui)" }} width={42} />
+          <YAxis
+            stroke="var(--muted)"
+            tick={{ fontSize: 10, fill: "var(--muted)", fontFamily: "var(--font-ui)" }}
+            width={isLR ? 58 : 42}
+            domain={yDomain}
+            tickFormatter={yTickFormatter}
+          />
           <Tooltip
             contentStyle={{ background: "var(--surface)", border: "1px solid var(--border2)", borderRadius: 6, fontSize: 11, color: "var(--text)", fontFamily: "var(--font-ui)" }}
             labelStyle={{ color: "var(--muted)" }}
+            formatter={isLR ? (v) => [v.toExponential(3), label] : undefined}
           />
           {(accidentEps || []).map(ep => (
             <ReferenceLine key={ep} x={ep} stroke="#f97316" strokeDasharray="3 3" strokeWidth={1} />

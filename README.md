@@ -18,7 +18,7 @@
 
 ## Tổng quan
 
-Đèn giao thông truyền thống hoạt động theo chu kỳ cố định, không phản ứng với lưu lượng thực tế. Dự án này giải quyết 3 điểm yếu cốt lõi:
+Hệ thống đèn giao thông truyền thống hoạt động theo chu kỳ cố định, không phản ứng với lưu lượng thực tế. Dự án này xây dựng hệ thống **adaptive traffic signal control** sử dụng Deep RL, giải quyết 3 điểm yếu cốt lõi:
 
 | Vấn đề | Giải pháp |
 |--------|-----------|
@@ -44,22 +44,34 @@ obs_i (queue, density, phase, time_since_change)
 Q(s, keep) · Q(s, switch) → argmax → Action
 ```
 
-**Reward:** Hybrid Waiting Time + Weighted Pressure
+### Reward function
+
+Hybrid **Waiting Time (70%) + Weighted Pressure (30%)**, normalize về [0, 1] trước khi scale:
 
 ```
-reward_i = -(α × wait_norm_i + β × pressure_i)
+reward_i = -(α × ŵ_i + β × p̂_i) × REWARD_SCALE
 
-  wait_norm_i = mean_waiting_time_i / 120s   ← normalize về [0,1], clip tại 2 phút
-  pressure_i  = |Σ(queue_in × w_e) - Σ(queue_out × w_e)| / N_lanes
-
-  α = 0.7  → waiting time là primary signal (sát tiêu chí HCM / SCOOT)
+  ŵ_i = min(avg_wait_i, 120) / 120     ← normalize [0,1], clip tại 2 phút
+  p̂_i = min(pressure_i, 5.0) / 5.0    ← normalize [0,1], clip tại 5.0
+  
+  α = 0.7  → waiting time là primary signal (sát tiêu chí HCM 7th Edition)
   β = 0.3  → pressure làm regularizer, tránh spillback
 ```
 
-Lý do chọn hybrid thay vì pure pressure:
-- **Waiting time** đo trực tiếp trải nghiệm người dùng — tiêu chí số 1 theo HCM 7th Edition và hệ thống SCOOT/SCATS thực tế
-- **Pressure** giữ vai trò regularizer: tránh agent "hy sinh" một hướng để tối ưu waiting time cục bộ, đồng thời ổn định training khi xe còn thưa (đầu episode)
-- Arterial edges weight 2.0, secondary 1.0
+### Parallel training (Ape-X style)
+
+```
+Workers (CPU, SUMO)         Learner (GPU)
+┌──────────────┐            ┌──────────────┐
+│ W0  ε = 1.00 │──┐         │              │
+│ W1  ε = 0.67 │──┤ Queue   │  Drain →     │
+│ W2  ε = 0.33 │──┼────────→│  Buffer →    │
+│ W3  ε = 0.10 │──┘         │  Backprop    │
+│              │←───────────│  Push weights │
+└──────────────┘ pull/80    └──────────────┘
+```
+
+<!-- [TODO: screenshot dashboard Live Demo — 3 panels hiển thị Fixed / IDQN / GAT-MARL side-by-side, kèm bản đồ ngã tư, metrics panel, và attention arrows] -->
 
 ---
 
@@ -68,7 +80,7 @@ Lý do chọn hybrid thay vì pure pressure:
 ```
 Smart-Traffic-MARL/
 ├── simulation/                  # SUMO map files
-│   ├── 2x2/                     # Map synthetic 4 ngã tư (baseline/train nhanh)
+│   ├── 2x2/                     # Map synthetic 4 ngã tư (train nhanh)
 │   └── mydinh/                  # Map thực tế Mỹ Đình 8 ngã tư
 │       ├── net/                 # nod.xml, edg.xml, typ.xml → gen net.xml
 │       ├── routes/              # gen_routes.py → peak + night
@@ -76,10 +88,10 @@ Smart-Traffic-MARL/
 │       └── mydinh.sumocfg
 │
 ├── environment/                 # RL Environment layer
-│   ├── traffic_env.py           # SUMO wrapper qua TraCI (batch subscription)
-│   ├── state_builder.py         # Build state vector, STATE_DIM tự tính theo map
+│   ├── traffic_env.py           # SUMO wrapper (TraCI batch subscription)
+│   ├── state_builder.py         # Build state vector, STATE_DIM tự tính
 │   ├── reward.py                # Hybrid Waiting Time + Weighted Pressure
-│   └── maps/                   # Topology data từng map
+│   └── maps/                    # Topology data từng map
 │       ├── __init__.py          # Auto-load theo config.TOPOLOGY
 │       ├── map_2x2.py
 │       └── map_mydinh.py
@@ -98,8 +110,8 @@ Smart-Traffic-MARL/
 │   ├── train.py                 # Single-process training
 │   ├── train_parallel.py        # Parallel rollout — Ape-X style
 │   ├── replay_buffer.py         # Pre-allocated numpy circular buffer
-│   ├── scheduler.py
-│   └── config.py                # Tất cả hyperparams + TOPOLOGY
+│   ├── scheduler.py             # WarmupScheduler (linear → cosine)
+│   └── config.py                # Hyperparams + TOPOLOGY
 │
 ├── workers/                     # 3 process song song cho Live Demo
 │   ├── worker_base.py
@@ -107,14 +119,14 @@ Smart-Traffic-MARL/
 │   ├── worker_idqn.py
 │   └── worker_fixed.py
 │
-├── server/                      # FastAPI — sync + broadcast WebSocket
+├── server/                      # FastAPI server — sync + WebSocket
 │   ├── main.py
 │   ├── sync_buffer.py
 │   └── schemas.py
 │
 ├── dashboard/                   # React + Vite web dashboard
 │   └── src/
-│       ├── components/          # IntersectionGrid, AttentionArrows, MetricsPanel
+│       ├── components/          # IntersectionGrid, AttentionArrows...
 │       ├── hooks/               # useWebSocket
 │       └── pages/               # Slides, LiveDemo, Results
 │
@@ -123,6 +135,9 @@ Smart-Traffic-MARL/
 │   ├── merge_logs.py            # Merge CSV logs → JSON cho dashboard
 │   ├── run_training.sh
 │   └── run_demo.sh
+│
+├── docs/
+│   └── report.tex               # Báo cáo LaTeX IEEE two-column
 │
 ├── checkpoints/                 # Saved model weights (.pt)
 ├── logs/                        # Training CSV logs
@@ -136,11 +151,12 @@ Smart-Traffic-MARL/
 
 ### Yêu cầu
 
-- Python 3.10+
-- [SUMO](https://sumo.dlr.de/docs/Installing/index.html) >= 1.18
-- Node.js >= 18 (cho dashboard)
+- **Python** 3.10+
+- **SUMO** ≥ 1.18 — [Hướng dẫn cài đặt](https://sumo.dlr.de/docs/Installing/index.html)
+- **Node.js** ≥ 18 (cho dashboard)
+- **GPU** có CUDA (khuyến nghị, không bắt buộc)
 
-### Backend
+### 1. Clone & tạo môi trường
 
 ```bash
 git clone https://github.com/MinhCYB/Traffic-MARL.git
@@ -153,21 +169,35 @@ venv\Scripts\activate        # Windows
 pip install -r requirements.txt
 ```
 
-### Dashboard
+### 2. Cài dashboard
 
 ```bash
 cd dashboard
 npm install
+cd ..
 ```
 
-### SUMO_HOME
+### 3. Thiết lập SUMO_HOME
 
 ```bash
-# Windows
+# Windows (cmd)
 set SUMO_HOME=C:\path\to\sumo
+
+# Windows (PowerShell)
+$env:SUMO_HOME = "C:\path\to\sumo"
 
 # Linux/Mac
 export SUMO_HOME=/path/to/sumo
+```
+
+### 4. Build map (chạy 1 lần)
+
+```bash
+python scripts/build_map.py mydinh
+python scripts/build_map.py 2x2
+
+# Interactive — liệt kê map có sẵn
+python scripts/build_map.py
 ```
 
 ---
@@ -181,50 +211,13 @@ TOPOLOGY = "mydinh"   # map thực tế Mỹ Đình 8 ngã tư (recommended)
 TOPOLOGY = "2x2"      # map synthetic 4 ngã tư (train nhanh / baseline)
 ```
 
-`STATE_DIM` sẽ tự tính lại theo map, không cần đổi gì thêm.
-
----
-
-## Build map (chạy 1 lần)
-
-```bash
-python scripts/build_map.py mydinh
-python scripts/build_map.py 2x2
-
-# Interactive — liệt kê map có sẵn để chọn
-python scripts/build_map.py
-```
-
-Script tự chạy `netconvert` (gen `net.xml`) và `gen_routes.py` (gen `routes_peak.rou.xml` + `routes_night.rou.xml`).
-
-> **Lưu ý:** Sau khi đổi `SIM_END` trong `config.py`, cần chạy lại `gen_routes.py` để cập nhật `end` và `vehsPerHour` trong file route XML.
-
----
-
-## Hyperparameters
-
-| Tham số | Giá trị | Ghi chú |
-|---------|---------|---------|
-| `LR` | 3e-4 | Learning rate |
-| `GAMMA` | 0.99 | Discount factor |
-| `EPSILON_DECAY` | 0.993 | Nhân mỗi episode |
-| `BATCH_SIZE` | 32 | |
-| `REPLAY_BUFFER_SIZE` | 50 000 | |
-| `TARGET_UPDATE_FREQ` | 100 | Steps |
-| `SYNC_EVERY` | 50 | Sync weights worker↔learner |
-| `SIM_END` | **1800** | Giây — 1 episode = 30 phút |
-| `NUM_EPISODES` | 500 | Per worker |
-| `NUM_WORKERS` | 2 | Song song (sweet-spot RTX 3050 Ti) |
-| `OBSTACLE_PROB` | 0.4 | Xác suất có vật cản mỗi episode |
-| `OBSTACLE_MAX_COUNT` | 3 | Tối đa vật cản đồng thời |
-| `OBSTACLE_DURATION_MIN` | 300 | Giây — tối thiểu mỗi vật cản |
-| `OBSTACLE_DURATION_MAX` | None | None = xuyên suốt episode |
+`STATE_DIM` tự tính theo map — không cần đổi gì khác.
 
 ---
 
 ## Training
 
-### 1. Fresh train (recommended)
+### Fresh train (recommended)
 
 ```bash
 # Parallel — recommended cho gat_marl / idqn
@@ -233,31 +226,23 @@ python -m training.train_parallel --model idqn    --num-workers 2
 
 # Single-process (debug / fixed_time baseline)
 python -m training.train --model gat_marl
-python -m training.train --model fixed_time   # fixed_time chỉ dùng single-process
+python -m training.train --model fixed_time
 ```
 
-> `--episodes` mặc định = `NUM_EPISODES` trong config (500). Với parallel, đây là số episodes **mỗi worker** — tổng thực tế = episodes × num-workers.
-
-### 2. Override obstacle params
-
-Obstacle đã bật mặc định theo config (`OBSTACLE_PROB=0.4`). Có thể override qua CLI:
+### Override obstacle
 
 ```bash
 python -m training.train_parallel --model gat_marl --num-workers 2 \
     --obstacle-prob 0.5 \
     --obstacle-max-count 2 \
     --obstacle-duration-min 200 \
-    --obstacle-duration-max 600    # None nếu muốn xuyên suốt episode
+    --obstacle-duration-max 600
 ```
 
-> **Backward compat:** `--accident-prob` và `--accident-duration` vẫn hoạt động, tự map sang obstacle params.
-
-### 3. Resume / Finetune
-
-> ⚠️ Chỉ nên resume khi hyperparams và map **không đổi**. Nếu đã thay `SIM_END`, `reward function`, hoặc chuyển map → **train fresh** để tránh Q-value distribution shift.
+### Resume / Finetune
 
 ```bash
-# Resume (tiếp tục train, log ghi append)
+# Resume — tiếp tục train, log append
 python -m training.train_parallel --model gat_marl --num-workers 2 \
     --resume checkpoints/final/gat_marl_mydinh_best.pt
 
@@ -268,10 +253,9 @@ python -m training.train_parallel --model gat_marl --num-workers 2 \
 
 | Tình huống | Nên làm |
 |-----------|---------|
-| Cùng map, cùng config, tiếp tục train | Resume |
-| Chuyển từ `2x2` → `mydinh` | Finetune |
+| Cùng map, cùng config, tiếp tục train | `--resume` |
+| Chuyển từ `2x2` → `mydinh` | `--finetune` |
 | Đổi `SIM_END`, reward, hoặc state dim | Train fresh |
-| Map mới có `NUM_ACTIONS` khác | Train fresh |
 
 ### Workflow gợi ý
 
@@ -290,18 +274,27 @@ python -m training.train_parallel --model gat_marl --num-workers 2 \
    └─ python -m training.train --model fixed_time
 ```
 
-### Vật cản (obstacle)
+---
 
-Mô phỏng các tình huống thực tế: công trình, xe hỏng, sửa đường... Khác với "tai nạn" đơn lẻ, obstacle có thể:
-- Xuất hiện **1–3 cái đồng thời** trong 1 episode
-- Kéo dài **từ 300s đến xuyên suốt episode** (tuỳ config)
-- Inject vào random edge, clear tự động (hoặc kéo đến hết episode nếu `OBSTACLE_DURATION_MAX=None`)
+## Hyperparameters
 
-Log CSV ghi thêm 3 cột: `had_obstacle` (0/1), `obstacle_edges` (danh sách edge), `obstacle_count` (số lượng).
+| Tham số | Giá trị | Ghi chú |
+|---------|---------|---------|
+| `LR` | 1e-4 | Learning rate (Adam) |
+| `GAMMA` | 0.95 | Discount factor |
+| `BATCH_SIZE` | 64 | |
+| `REPLAY_BUFFER_SIZE` | 50,000 | Circular, pre-allocated numpy |
+| `TARGET_UPDATE_FREQ` | 400 | Gradient updates |
+| `SYNC_EVERY` | 50 | Sync weights worker → learner |
+| `REWARD_SCALE` | 5.0 | Scale reward signal |
+| `GRAD_CLIP` | 10.0 | Max gradient norm |
+| `SIM_END` | 1800 | Giây — 1 episode = 30 phút |
+| `OBSTACLE_PROB` | 0.4 | Xác suất vật cản mỗi episode |
+| `OBSTACLE_MAX_COUNT` | 3 | Tối đa vật cản đồng thời |
 
 ---
 
-## Xem kết quả (dashboard Results tab)
+## Xem kết quả
 
 Sau khi train xong cả 3 models:
 
@@ -309,13 +302,15 @@ Sau khi train xong cả 3 models:
 python scripts/merge_logs.py
 ```
 
-Script đọc `logs/<topology>/gat_marl/training_log.csv`, `idqn/training_log.csv`, `fixed_time/training_log.csv` → tạo `logs/merged.json` cho dashboard hiển thị chart so sánh và bảng summary.
+Đọc `logs/<topology>/gat_marl/training_log.csv`, `idqn/...`, `fixed_time/...` → tạo `logs/merged.json` cho dashboard.
+
+<!-- [TODO: screenshot trang Results — learning curves, bảng so sánh metrics, attention heatmap] -->
 
 ---
 
 ## Live Demo
 
-Mở 5 terminal, chạy theo thứ tự:
+Mở **5 terminal**, chạy theo thứ tự:
 
 ```bash
 # Terminal 1 — FastAPI server
@@ -334,42 +329,49 @@ python -m workers.worker_fixed
 cd dashboard && npm run dev
 ```
 
-Truy cập `http://localhost:5173` → tab **Live Demo**.
+Truy cập **http://localhost:5173** → tab **Live Demo**.
 
-Thêm `--gui` để mở cửa sổ SUMO trực quan (khuyến nghị chỉ mở cho 1 worker):
+Thêm `--gui` để mở cửa sổ SUMO trực quan:
 
 ```bash
 python -m workers.worker_gat --gui
 ```
 
+<!-- [TODO: screenshot Live Demo với 3 panels song song, xe chạy trên bản đồ, attention arrows] -->
+
 ---
 
 ## Thêm map mới
 
-Tạo đúng structure sau, chạy `build_map.py` là xong:
+1. Tạo structure trong `simulation/<map_name>/`:
+   ```
+   simulation/<map_name>/
+       net/<map_name>.nod.xml    ← bắt buộc
+       net/<map_name>.edg.xml    ← bắt buộc
+       net/<map_name>.typ.xml    ← optional
+       routes/gen_routes.py      ← optional
+       <map_name>.sumocfg
+   ```
 
-```
-simulation/<map_name>/
-    net/<map_name>.nod.xml    ← bắt buộc
-    net/<map_name>.edg.xml    ← bắt buộc
-    net/<map_name>.typ.xml    ← optional
-    routes/gen_routes.py      ← optional
-    <map_name>.sumocfg
-```
+2. Thêm `environment/maps/map_<map_name>.py` với:
+   - `INTERSECTION_IDS`
+   - `INCOMING_EDGES`, `OUTGOING_EDGES`
+   - `ADJACENCY_MATRIX`
+   - `EDGE_WEIGHTS` (optional, mặc định 1.0)
 
-Thêm `environment/maps/map_<map_name>.py` với `INTERSECTION_IDS`, `INCOMING_EDGES`, `OUTGOING_EDGES`, `ADJACENCY_MATRIX`. Đăng ký trong `environment/maps/__init__.py`.
+3. Đăng ký trong `environment/maps/__init__.py`.
+
+4. Chạy `python scripts/build_map.py <map_name>`.
 
 ---
 
-## Tham khảo
+## Tech Stack
 
-| Paper | Liên quan |
-|-------|-----------|
-| [PressLight — Wei et al., KDD 2019](https://faculty.ist.psu.edu/jessieli/Publications/2019-KDD-presslight.pdf) | Weighted pressure làm regularizer (β=0.3) |
-| [AttentionLight — Shao et al., 2023](https://arxiv.org/abs/2307.05170) | Waiting time làm primary reward signal (α=0.7) |
-| [CoLight — Wei et al., CIKM 2019](https://arxiv.org/abs/1905.05717) | GAT cho traffic signal control |
-| [MPLight — Chen et al., AAAI 2020](https://ojs.aaai.org/index.php/AAAI/article/view/5744) | Parameter sharing |
-| [GAT — Veličković et al., ICLR 2018](https://arxiv.org/abs/1710.10903) | Graph Attention Networks |
-| [Ape-X — Horgan et al., ICLR 2018](https://arxiv.org/abs/1803.00933) | Distributed prioritized experience replay |
-
-**Tools:** [PyTorch Geometric](https://pytorch-geometric.readthedocs.io) · [SUMO](https://sumo.dlr.de/docs) · [TraCI](https://sumo.dlr.de/docs/TraCI.html)
+| Component | Công nghệ |
+|-----------|-----------|
+| RL Framework | PyTorch ≥ 2.3 |
+| Graph Neural Network | PyTorch Geometric ≥ 2.5 |
+| Traffic Simulator | SUMO ≥ 1.18 (TraCI) |
+| API Server | FastAPI + Uvicorn |
+| Dashboard | React + Vite |
+| Data format | CSV logs → JSON |

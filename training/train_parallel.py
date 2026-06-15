@@ -316,13 +316,20 @@ def run_learner(
                           n_agents=len(INTERSECTION_IDS))
 
     if finetune:
-        agent.load(finetune)
+        agent.load(finetune, finetune=True)
         print(f"[Learner] Finetune ← {finetune}")
         if freeze_gat_episodes > 0 and hasattr(agent, "freeze_gat"):
             agent.freeze_gat()
     elif resume:
         agent.load(resume)
         print(f"[Learner] Resume ← {resume}")
+
+    # Reset LR về config LR trước khi tạo scheduler.
+    # Khi load checkpoint, optimizer.state_dict() restore LR cũ — có thể ≈ 0
+    # nếu cosine decay đã chạy hết. WarmupScheduler capture _base_lr lúc khởi tạo
+    # → nếu không reset thì LR sẽ bị kẹt gần 0 suốt quá trình training.
+    for pg in agent.optimizer.param_groups:
+        pg["lr"] = LR
 
     # Warmup 10% episodes rồi cosine decay LR về 1e-5
     total_episodes = episodes_per_worker * num_workers
@@ -331,7 +338,7 @@ def run_learner(
         warmup_episodes = max(1, total_episodes // 10),
         total_episodes  = total_episodes,
     )
-    print(f"[Learner] LR scheduler: warmup {total_episodes//10} ep → cosine decay")
+    print(f"[Learner] LR scheduler: warmup {total_episodes//10} ep → cosine decay → base_lr={LR}")
 
     ckpt_dir = CHECKPOINT_DIR / model_name
     ckpt_dir.mkdir(parents=True, exist_ok=True)

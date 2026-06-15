@@ -261,6 +261,12 @@ def train(
                 actions = agent.select_actions(obs)
                 next_obs, rewards, done, info = env.step(actions)
 
+                # GAT-MARL: shared reward để khuyến khích cooperative behavior
+                # Nhất quán với train_parallel.py
+                if model_name == "gat_marl":
+                    shared_r = sum(rewards.values()) / len(rewards)
+                    rewards  = {nid: shared_r for nid in rewards}
+
                 if model_name != "fixed_time":
                     buffer.push(
                         states=obs["node_features"],

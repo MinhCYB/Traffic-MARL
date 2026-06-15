@@ -21,7 +21,7 @@ SIM_END             = 1800      # giây — 1 episode = 30 phút (đổi từ 36
 OBSTACLE_PROB         = 0.4    # xác suất có vật cản trong episode
 OBSTACLE_MAX_COUNT    = 3      # tối đa 3 vật cản đồng thời
 OBSTACLE_DURATION_MIN = 300    # giây — tối thiểu
-OBSTACLE_DURATION_MAX = None   # None = xuyên suốt episode
+OBSTACLE_DURATION_MAX = 600   # None = xuyên suốt episode
 SEED                = 42
 
 # ── Checkpoint & log dirs ─────────────────────────────────────────────────────
@@ -60,7 +60,7 @@ GRAD_CLIP           = 10.0
 # ── Epsilon-greedy ────────────────────────────────────────────────────────────
 EPSILON_START       = 1.0
 EPSILON_MIN         = 0.05
-EPSILON_DECAY       = 0.993   # nhân mỗi episode
+EPSILON_DECAY       = 0.996   # train.py solo only — parallel dùng fixed-role epsilon
 
 # ── TraCI ports (1 port per process) ──────────────────────────────────────────
 PORT_GAT            = 8813

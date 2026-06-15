@@ -49,6 +49,7 @@ from training.config import (
     OBSTACLE_PROB, OBSTACLE_MAX_COUNT,
     OBSTACLE_DURATION_MIN, OBSTACLE_DURATION_MAX,
 )
+from training.scheduler import WarmupScheduler
 from training.replay_buffer import ReplayBuffer
 from environment.state_builder import INTERSECTION_IDS, INCOMING_EDGES
 
@@ -317,6 +318,15 @@ def run_learner(
         agent.load(resume)
         print(f"[Learner] Resume ← {resume}")
 
+    # Warmup 10% episodes rồi cosine decay LR về 1e-5
+    total_episodes = episodes_per_worker * num_workers
+    lr_scheduler   = WarmupScheduler(
+        agent.optimizer,
+        warmup_episodes = max(1, total_episodes // 10),
+        total_episodes  = total_episodes,
+    )
+    print(f"[Learner] LR scheduler: warmup {total_episodes//10} ep → cosine decay")
+
     ckpt_dir = CHECKPOINT_DIR / model_name
     ckpt_dir.mkdir(parents=True, exist_ok=True)
 
@@ -431,6 +441,7 @@ def run_learner(
 
                 logged_episodes += 1
                 ep_reward = summary["global_reward"]
+                lr_scheduler.step()   # warmup → cosine decay LR
 
                 row = {
                     "episode":          logged_episodes,       # global episode count

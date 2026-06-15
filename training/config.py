@@ -46,15 +46,15 @@ DROPOUT             = 0.1
 
 # ── Training ──────────────────────────────────────────────────────────────────
 NUM_EPISODES        = 500
-BATCH_SIZE          = 32
+BATCH_SIZE          = 64       # tăng từ 32 → gradient ổn hơn với GAT 4 nodes
 REPLAY_BUFFER_SIZE  = 50_000
 MIN_REPLAY_SIZE     = 1_000   # bắt đầu update sau khi có đủ experience
-TARGET_UPDATE_FREQ  = 100     # steps
+TARGET_UPDATE_FREQ  = 400      # gradient updates → 400/4 = 100 sim steps thực tế
 SAVE_FREQ           = 50      # episodes
 
 # ── Optimizer ─────────────────────────────────────────────────────────────────
-LR                  = 3e-4
-GAMMA               = 0.99
+LR                  = 1e-4     # giảm từ 3e-4 → ổn định hơn với Q scale lớn
+GAMMA               = 0.95     # giảm từ 0.99 → Q range [-200, 0] thay vì [-1000, 0]
 GRAD_CLIP           = 10.0
 
 # ── Epsilon-greedy ────────────────────────────────────────────────────────────

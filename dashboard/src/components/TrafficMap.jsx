@@ -349,18 +349,25 @@ function AccidentMarkers({ accidentEdges, EDGES, NODE, SRC }) {
 function AttentionArrows({ attn, NODE }) {
   if (!attn || !NODE) return null;
   const IDS = Object.keys(NODE);
+  const n = IDS.length;
+  // Threshold động theo số nodes:
+  // Softmax trên n neighbors → weight trung bình = 1/n
+  // Hiện "đáng chú ý" khi weight > 1.5× trung bình
+  const threshold = Math.max(0.08, 1.5 / n);
   const arrows = [];
   IDS.forEach((dst, di) => IDS.forEach((src, si) => {
     if (src === dst) return;
     const w = attn[di]?.[si] ?? 0;
-    if (w < 0.4) return;
+    if (w < threshold) return;
     const f = NODE[src], t = NODE[dst];
     if (!f || !t) return;
+    // Normalize opacity/strokeWidth theo threshold để visual scale đẹp
+    const norm = Math.min(1, (w - threshold) / (1 - threshold));
     arrows.push(
       <line key={`${src}-${dst}`}
         x1={f.x} y1={f.y} x2={t.x} y2={t.y}
-        stroke="#534ab7" strokeWidth={0.5+w*2}
-        strokeDasharray="4 3" opacity={0.2+w*0.5}
+        stroke="#534ab7" strokeWidth={0.5+norm*2.5}
+        strokeDasharray="4 3" opacity={0.25+norm*0.6}
         markerEnd="url(#attn-a)"/>
     );
   }));

@@ -32,6 +32,7 @@ from environment.state_builder import (
     get_incoming_queues,
     get_outgoing_queues,
 )
+from environment.maps import get_edge_lanes
 from environment.reward import compute_reward, compute_global_reward, REWARD_SCALE
 from training.config import SIM_END as _CFG_SIM_END
 
@@ -102,6 +103,8 @@ class TrafficEnv:
 
         self._connected = False
         self._accident_edges: dict[str, str] = {}  # edge_id -> block_mode
+        self._original_lane_speeds: dict[str, float] = {}  # lane_id -> original maxSpeed
+        self._tmp_route_file: str | None = None  # temp route file to cleanup
 
     def reset(self, route_type: str | None = None, volume_scale: float = 1.0) -> dict:
         """
@@ -118,6 +121,15 @@ class TrafficEnv:
             traci.close()
             self._connected = False
 
+        # Cleanup temp route file từ episode trước
+        if self._tmp_route_file:
+            try:
+                import os
+                os.unlink(self._tmp_route_file)
+            except OSError:
+                pass
+            self._tmp_route_file = None
+
         route_type = route_type or self._sample_route()
         route_files = _get_route_files(self.topology)
         base_route  = str(route_files[route_type])
@@ -125,6 +137,7 @@ class TrafficEnv:
         # Scale volume nếu cần
         if volume_scale != 1.0:
             route_file = self._scale_route_file(base_route, volume_scale)
+            self._tmp_route_file = route_file  # track để cleanup sau
         else:
             route_file = base_route
 
@@ -152,6 +165,7 @@ class TrafficEnv:
         self._in_yellow = {nid: False for nid in INTERSECTION_IDS}
         self._green_time = {nid: 0.0 for nid in INTERSECTION_IDS}
         self._accident_edges = {}
+        self._original_lane_speeds = {}
 
         # Set initial phase
         for nid in INTERSECTION_IDS:
@@ -240,8 +254,9 @@ class TrafficEnv:
         pressures = {}
         # Phạt teleport: chia đều cho tất cả agents — đây là lỗi chung của cả mạng
         # Mỗi xe bị teleport = penalty 0.5 (half max per-step reward), chia đều cho N agents
+        # Cap ở 2.5 (50% base reward range) để tránh dominate khi gridlock tạm thời
         n_agents = len(INTERSECTION_IDS)
-        teleport_penalty = (0.5 * teleport_count) / n_agents * REWARD_SCALE
+        teleport_penalty = min((0.5 * teleport_count) / n_agents * REWARD_SCALE, 2.5)
         for nid in INTERSECTION_IDS:
             inc = get_incoming_queues(nid, flat_queue)
             out = get_outgoing_queues(nid, flat_queue)
@@ -259,6 +274,14 @@ class TrafficEnv:
         if self._connected:
             traci.close()
             self._connected = False
+        # Cleanup temp route file
+        if self._tmp_route_file:
+            try:
+                import os
+                os.unlink(self._tmp_route_file)
+            except OSError:
+                pass
+            self._tmp_route_file = None
 
     def inject_accident(self, edge_id: str, block_mode: str = "all"):
         """
@@ -292,6 +315,9 @@ class TrafficEnv:
         for lane_idx in lane_indices:
             lane_id = f"{edge_id}_{lane_idx}"
             try:
+                # Cache original maxSpeed trước khi modify
+                if lane_id not in self._original_lane_speeds:
+                    self._original_lane_speeds[lane_id] = traci.lane.getMaxSpeed(lane_id)
                 if block_mode == "all":
                     # Disallow toàn bộ vehicle class → xe không thể vào lane
                     traci.lane.setDisallowed(lane_id, _ALL_VCLASS)
@@ -316,7 +342,9 @@ class TrafficEnv:
                 try:
                     if block_mode == "all":
                         traci.lane.setAllowed(lane_id, [])  # [] = allow all vclass
-                    traci.lane.setMaxSpeed(lane_id, 13.89)
+                    # Restore original maxSpeed (không hardcode 13.89 — residential/minor roads có speed khác)
+                    orig_speed = self._original_lane_speeds.pop(lane_id, 13.89)
+                    traci.lane.setMaxSpeed(lane_id, orig_speed)
                 except Exception:
                     pass
         if edge_id is None:
@@ -376,7 +404,8 @@ class TrafficEnv:
         self._det_ids: list[str] = []
         for nid in INTERSECTION_IDS:
             for edge in INCOMING_EDGES[nid]:
-                for lane_idx in range(NUM_LANES):
+                n_lanes = get_edge_lanes(edge)
+                for lane_idx in range(n_lanes):
                     det_id = f"e2_{edge}_{lane_idx}"
                     try:
                         traci.lanearea.subscribe(det_id, [
@@ -409,7 +438,8 @@ class TrafficEnv:
             for edge in INCOMING_EDGES[nid]:
                 queues    = []
                 densities = []
-                for lane_idx in range(NUM_LANES):
+                n_lanes = get_edge_lanes(edge)
+                for lane_idx in range(n_lanes):
                     det_id = f"e2_{edge}_{lane_idx}"
                     vals   = sub_results.get(det_id)
                     if vals:

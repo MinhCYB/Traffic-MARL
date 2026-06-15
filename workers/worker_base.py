@@ -19,7 +19,7 @@ from training.config import (
     MIN_GREEN_TIME, YELLOW_TIME,
 )
 from environment.traffic_env import TrafficEnv
-from environment.state_builder import INTERSECTION_IDS, EDGE_INDEX
+from environment.state_builder import INTERSECTION_IDS, EDGE_INDEX, MAX_LANES_TOTAL
 
 import os, sys
 
@@ -136,9 +136,9 @@ class WorkerBase(ABC):
         intersections = []
         for nid in INTERSECTION_IDS:
             s = states[nid]
-            # State layout: density(8) + queue(8) + phase(4) + time(1)
-            queue_per_lane   = s[8:16].tolist()
-            density_per_lane = s[0:8].tolist()
+            # State layout: density(MAX_LANES_TOTAL) + queue(MAX_LANES_TOTAL) + phase(4) + time(1)
+            queue_per_lane   = s[MAX_LANES_TOTAL : 2 * MAX_LANES_TOTAL].tolist()
+            density_per_lane = s[0 : MAX_LANES_TOTAL].tolist()
 
             # Lấy phase thực tế từ env (bao gồm cả yellow=1,3) thay vì argmax state vector
             current_phases = info.get("current_phases", {})

@@ -175,6 +175,7 @@ def rollout_worker(
 
         ep_reward    = 0.0
         ep_steps     = 0
+        ep_throughput = 0     # cumulative throughput (arrived) toàn episode
         last_info    = {}
 
         # ── Lập lịch vật cản cho episode này ────────────────────────────────
@@ -231,6 +232,7 @@ def rollout_worker(
                 pass
 
             ep_reward += sum(rewards.values())   # hybrid reward (wait+pressure) — consistent với training signal
+            ep_throughput += info.get("throughput", 0)  # cộng dồn xe đã arrived
             ep_steps  += 1
             last_info  = info
             obs        = next_obs
@@ -252,7 +254,7 @@ def rollout_worker(
             "global_reward":    round(ep_reward, 4),
             "avg_speed":        round(last_info.get("avg_speed", 0.0), 2),
             "avg_waiting_time": round(last_info.get("avg_waiting_time", 0.0), 2),
-            "throughput":       last_info.get("throughput", 0),
+            "throughput":       ep_throughput,   # cumulative toàn episode (không phải instantaneous bước cuối)
             "epsilon":          round(getattr(agent, "epsilon", 0.0), 4),
             "duration_s":       round(duration, 1),
             "had_obstacle":     int(len(obstacles) > 0),
@@ -439,12 +441,17 @@ def run_learner(
                     except Exception: pass
 
             # ── 6. Drain stats_queue → log CSV ────────────────────────────
+            # Drain tất cả summaries trước, step LR từng cái sau — tránh LR nhảy
+            # N bước cùng lúc khi stats_queue tích nhiều episodes (GPU throttle)
+            drained_summaries = []
             while True:
                 try:
                     summary = stats_queue.get_nowait()
+                    drained_summaries.append(summary)
                 except Exception:
                     break
 
+            for summary in drained_summaries:
                 logged_episodes += 1
                 ep_reward = summary["global_reward"]
                 lr_scheduler.step()   # warmup → cosine decay LR
@@ -504,7 +511,7 @@ def run_learner(
                     agent.save(str(FINAL_DIR / f"{model_name}_{TOPOLOGY}_best.pt"))
 
             # ── 7. Periodic checkpoint theo updates ───────────────────────
-            if total_updates % (SAVE_FREQ * steps_per_ep) == 0:
+            if total_updates > 0 and total_updates % (SAVE_FREQ * steps_per_ep) == 0:
                 ckpt = ckpt_dir / f"{model_name}_upd{total_updates}.pt"
                 agent.save(str(ckpt))
                 print(f"[Learner] Checkpoint → {ckpt.name}")

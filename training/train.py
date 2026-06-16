@@ -1,25 +1,20 @@
 """
-train.py — Main training loop (optimized)
+train.py — Main training loop (optimized & synchronized with train_parallel.py)
 
-Cải tiến so với v1:
+Cải tiến:
 - UPDATES_PER_STEP: update nhiều lần/step để GPU không idle khi SUMO chạy
-- Prefetch buffer check tránh gọi is_ready() mỗi step
-- ReplayBuffer pre-allocated nhanh hơn
-
-Thêm (finetune accident):
-- --accident-prob  : xác suất sinh tai nạn mỗi episode (default 0.0)
-- --accident-duration: thời gian kéo dài sự cố tính bằng giây (default 300)
-- Log ghi mode "a" (append) khi resume/finetune, "w" (overwrite) khi fresh train
+- Đã đồng bộ logic tính throughput, reward và log CSV với train_parallel.py
+- Sử dụng hệ thống obstacle (vật cản) thay thế cho accident cũ.
 
 Chạy:
     python -m training.train --model gat_marl
     python -m training.train --model idqn
     python -m training.train --model fixed_time
 
-    # Finetune với tai nạn:
+    # Finetune với vật cản:
     python -m training.train --model gat_marl \
         --finetune checkpoints/final/gat_marl_mydinh_best.pt \
-        --accident-prob 0.3 --accident-duration 300
+        --obstacle-prob 0.3 --obstacle-max-count 2
 """
 
 import argparse
@@ -37,19 +32,18 @@ from training.config import (
     EPSILON_START, EPSILON_MIN, EPSILON_DECAY,
     LR, GAMMA, TARGET_UPDATE_FREQ,
     STATE_DIM, HIDDEN_DIM, NUM_HEADS, NUM_ACTIONS, DROPOUT,
-    TOPOLOGY, DELTA_TIME,
+    TOPOLOGY, DELTA_TIME, SIM_END,
+    OBSTACLE_PROB, OBSTACLE_MAX_COUNT,
+    OBSTACLE_DURATION_MIN, OBSTACLE_DURATION_MAX,
 )
 from training.replay_buffer import ReplayBuffer
 from environment.traffic_env import TrafficEnv
 from environment.state_builder import build_node_features, INTERSECTION_IDS, INCOMING_EDGES
 
 # ── Tuning knobs ──────────────────────────────────────────────────────────────
-# Số lần update GPU mỗi simulation step.
-# GPU RTX 3050 Ti nhỏ → 4-6 là sweet-spot; tăng nếu GPU vẫn idle
 UPDATES_PER_STEP = 4
 
-# ── Danh sách tất cả edge có thể xảy ra tai nạn ──────────────────────────────
-# Flatten INCOMING_EDGES → list các edge_id duy nhất để random chọn
+# ── Danh sách tất cả edge có thể xảy ra tai nạn/vật cản ──────────────────────
 _ALL_ACCIDENT_EDGES: list[str] = list(
     {edge for edges in INCOMING_EDGES.values() for edge in edges}
 )
@@ -93,33 +87,34 @@ def get_port(model_name: str) -> int:
     }[model_name]
 
 
-def _schedule_accident(
-    accident_prob: float,
-    accident_duration: int,
-    delta_time: int,
-) -> tuple[int | None, int | None, str | None]:
-    """
-    Quyết định có sinh tai nạn cho episode này không.
+def _schedule_obstacles(
+    obstacle_prob: float,
+    max_count:     int,
+    duration_min:  int,
+    duration_max:  int | None,
+    sim_end:       int,
+    delta_time:    int,
+) -> list[tuple[int, int, str]]:
+    if not _ALL_ACCIDENT_EDGES or random.random() >= obstacle_prob:
+        return []
 
-    Returns:
-        (inject_step, clear_step, edge_id) nếu có tai nạn,
-        (None, None, None) nếu không có.
+    count = random.randint(1, min(max_count, len(_ALL_ACCIDENT_EDGES)))
+    edges = random.sample(_ALL_ACCIDENT_EDGES, count)
 
-    inject_step / clear_step tính theo đơn vị step (1 step = delta_time giây).
-    """
-    if not _ALL_ACCIDENT_EDGES or random.random() >= accident_prob:
-        return None, None, None
-
-    # Thời điểm bắt đầu: 60s → 600s kể từ đầu episode (tính ra step)
     start_step_min = max(1, 60 // delta_time)
     start_step_max = max(start_step_min + 1, 600 // delta_time)
-    inject_step = random.randint(start_step_min, start_step_max)
 
-    duration_steps = max(1, accident_duration // delta_time)
-    clear_step = inject_step + duration_steps
+    obstacles = []
+    for edge in edges:
+        inject_step = random.randint(start_step_min, start_step_max)
+        if duration_max is None:
+            clear_step = sim_end // delta_time + 1
+        else:
+            dur = random.randint(duration_min, duration_max)
+            clear_step = inject_step + max(1, dur // delta_time)
+        obstacles.append((inject_step, clear_step, edge))
 
-    edge_id = random.choice(_ALL_ACCIDENT_EDGES)
-    return inject_step, clear_step, edge_id
+    return obstacles
 
 
 def train(
@@ -131,8 +126,10 @@ def train(
     episodes: int | None = None,
     delta_time: int | None = None,
     updates_per_step: int = UPDATES_PER_STEP,
-    accident_prob: float = 0.0,
-    accident_duration: int = 300,
+    obstacle_prob: float = 0.0,
+    obstacle_max_count: int = 3,
+    obstacle_duration_min: int = 300,
+    obstacle_duration_max: int | None = None,
 ):
 
     num_episodes = episodes or NUM_EPISODES
@@ -150,9 +147,10 @@ def train(
     print(f"  Episodes: {num_episodes}")
     print(f"  Delta T : {dt}s/step")
     print(f"  Updates/step: {updates_per_step}")
-    if accident_prob > 0.0:
-        print(f"  Accident prob    : {accident_prob:.0%}")
-        print(f"  Accident duration: {accident_duration}s")
+    if obstacle_prob > 0.0:
+        print(f"  Obstacle prob    : {obstacle_prob:.0%}")
+        print(f"  Obstacle max     : {obstacle_max_count}")
+        print(f"  Obstacle dur     : {obstacle_duration_min}s – {'∞' if obstacle_duration_max is None else str(obstacle_duration_max)+'s'}")
     if finetune:
         print(f"  Finetune: {finetune}")
         print(f"  Freeze GAT: {freeze_gat_epochs} episodes")
@@ -163,21 +161,22 @@ def train(
     port   = get_port(model_name)
     env    = TrafficEnv(port=port, topology=TOPOLOGY, use_gui=False, seed=SEED, delta_time=dt)
 
-    # ── Per-model dirs ────────────────────────────────────────────────────────
     ckpt_dir = CHECKPOINT_DIR / model_name
     log_dir  = LOG_DIR / model_name
     ckpt_dir.mkdir(parents=True, exist_ok=True)
     log_dir.mkdir(parents=True, exist_ok=True)
 
     log_path = log_dir / "training_log.csv"
+    
+    # ── ĐỒNG BỘ HEADER VỚI TRAIN_PARALLEL ──
     fieldnames = [
-        "episode", "total_steps", "global_reward",
+        "episode", "worker_id", "total_steps", "global_reward",
         "avg_speed", "avg_waiting_time", "throughput",
         "loss", "epsilon", "duration_s",
-        "had_accident", "accident_edge",          # ← cột mới để track sự cố
+        "had_obstacle", "obstacle_edges", "obstacle_count",
+        "vehicles_teleported", "learning_rate"
     ]
 
-    # ── Load checkpoint ───────────────────────────────────────────────────────
     start_episode = 0
 
     if finetune:
@@ -195,24 +194,21 @@ def train(
         except Exception:
             pass
 
-    # ── Chọn file mode: "a" khi resume/finetune để không mất data cũ ─────────
     log_file_mode = "a" if (resume or finetune) else "w"
 
     with open(log_path, log_file_mode, newline="") as f:
         writer = csv.DictWriter(f, fieldnames=fieldnames)
 
-        # Chỉ ghi header khi tạo file mới
-        if log_file_mode == "w":
+        if log_file_mode == "w" or f.tell() == 0:
             writer.writeheader()
 
         total_steps  = 0
         best_reward  = float("-inf")
-        ready        = False  # cache buffer readiness — tránh check mỗi step
+        ready        = False
 
         for episode in range(start_episode, num_episodes):
             t_start = time.time()
 
-            # Unfreeze GAT sau freeze_gat_epochs
             if (
                 finetune
                 and freeze_gat_epochs > 0
@@ -224,45 +220,42 @@ def train(
 
             obs = env.reset()
 
-            # ── Lập lịch tai nạn cho episode này ─────────────────────────────
-            inject_step, clear_step, acc_edge = _schedule_accident(
-                accident_prob, accident_duration, dt
+            # ── Lập lịch vật cản (ĐỒNG BỘ) ──
+            obstacles = _schedule_obstacles(
+                obstacle_prob, obstacle_max_count,
+                obstacle_duration_min, obstacle_duration_max,
+                SIM_END, dt
             )
-            had_accident   = False
-            accident_active = False
+            active_obstacles = set()
 
-            if inject_step is not None:
-                print(
-                    f"  [Ep {episode}] Tai nạn → edge={acc_edge} "
-                    f"@ step {inject_step} → clear @ step {clear_step}"
-                )
+            if obstacles:
+                edges_str = ", ".join(e for _, _, e in obstacles)
+                print(f"  [Ep {episode}] Vật cản ({len(obstacles)}) → edges: {edges_str}")
 
             episode_reward  = 0.0
             episode_loss    = 0.0
+            ep_throughput   = 0     # THÊM MỚI: Cộng dồn xe qua nút
             loss_count      = 0
             done            = False
-            ep_step         = 0   # bước trong episode hiện tại
+            ep_step         = 0
+            last_info       = {}
 
             if hasattr(agent, "reset"):
                 agent.reset()
 
             while not done:
-                # ── Inject tai nạn ────────────────────────────────────────────
-                if inject_step is not None and ep_step == inject_step and not accident_active:
-                    env.inject_accident(acc_edge)
-                    accident_active = True
-                    had_accident    = True
-
-                # ── Clear tai nạn ─────────────────────────────────────────────
-                if accident_active and ep_step == clear_step:
-                    env.clear_accident(acc_edge)
-                    accident_active = False
+                # ── Inject/Clear vật cản ──
+                for (inj, clr, edge) in obstacles:
+                    if ep_step == inj and edge not in active_obstacles:
+                        env.inject_accident(edge)
+                        active_obstacles.add(edge)
+                    if ep_step == clr and edge in active_obstacles:
+                        env.clear_accident(edge)
+                        active_obstacles.discard(edge)
 
                 actions = agent.select_actions(obs)
                 next_obs, rewards, done, info = env.step(actions)
 
-                # GAT-MARL: shared reward để khuyến khích cooperative behavior
-                # Nhất quán với train_parallel.py
                 if model_name == "gat_marl":
                     shared_r = sum(rewards.values()) / len(rewards)
                     rewards  = {nid: shared_r for nid in rewards}
@@ -276,45 +269,59 @@ def train(
                         done=done,
                     )
 
-                    # Cache readiness — chỉ flip 1 lần, không check mỗi step
                     if not ready and buffer.is_ready(MIN_REPLAY_SIZE):
                         ready = True
 
                     if ready:
-                        # Multiple gradient updates per sim step
-                        # → GPU bận trong khi SUMO chạy step tiếp theo
                         for _ in range(updates_per_step):
                             batch   = buffer.sample(BATCH_SIZE)
                             metrics = agent.update(batch)
                             episode_loss += metrics.get("loss", 0.0)
                             loss_count   += 1
 
-                episode_reward += info["global_reward"]
+                # ── Sửa lỗi cộng dồn reward & throughput ──
+                episode_reward += sum(rewards.values())
+                ep_throughput  += info.get("throughput", 0)
+                
                 obs = next_obs
+                last_info = info
                 total_steps += 1
                 ep_step     += 1
 
-            # ── Đảm bảo clear tai nạn nếu episode kết thúc sớm ───────────────
-            if accident_active:
-                env.clear_accident(acc_edge)
+            # ── Cleanup vật cản ──
+            for edge in list(active_obstacles):
+                try:
+                    env.clear_accident(edge)
+                except Exception:
+                    pass
+            active_obstacles.clear()
 
-            # ── End of episode ────────────────────────────────────────────────
+            # ── End of episode ──
             duration = time.time() - t_start
             avg_loss = episode_loss / loss_count if loss_count > 0 else 0.0
             epsilon  = getattr(agent, "epsilon", 0.0)
+            
+            # Khớp learning_rate logic
+            current_lr = 0.0
+            if model_name != "fixed_time" and hasattr(agent, "optimizer"):
+                current_lr = agent.optimizer.param_groups[0]["lr"]
 
             log_row = {
                 "episode":          episode,
+                "worker_id":        0,  # single worker
                 "total_steps":      total_steps,
                 "global_reward":    round(episode_reward, 4),
-                "avg_speed":        round(info["avg_speed"], 2),
-                "avg_waiting_time": round(info["avg_waiting_time"], 2),
-                "throughput":       info["throughput"],
+                "avg_speed":        round(last_info.get("avg_speed", 0.0), 2),
+                "avg_waiting_time": round(last_info.get("avg_waiting_time", 0.0), 2),
+                "throughput":       ep_throughput,  # Đã sửa lỗi 7.44!
                 "loss":             round(avg_loss, 6),
                 "epsilon":          round(epsilon, 4),
                 "duration_s":       round(duration, 1),
-                "had_accident":     int(had_accident),
-                "accident_edge":    acc_edge or "",
+                "had_obstacle":     int(len(obstacles) > 0),
+                "obstacle_edges":   ",".join(e for _, _, e in obstacles) if obstacles else "",
+                "obstacle_count":   len(obstacles),
+                "vehicles_teleported": last_info.get("vehicles_teleported", 0),
+                "learning_rate":    round(current_lr, 7),
             }
             writer.writerow(log_row)
             f.flush()
@@ -327,12 +334,13 @@ def train(
                     if eta_s >= 3600
                     else f"{int(eta_s // 60)}m {int(eta_s % 60)}s"
                 )
-                acc_flag = f" | 🚨 ACC({acc_edge})" if had_accident else ""
+                acc_flag = f" | 🚧 OBS×{len(obstacles)}({log_row['obstacle_edges']})" if obstacles else ""
                 print(
                     f"Ep {episode:4d}/{num_episodes} | "
                     f"Reward: {episode_reward:8.2f} | "
-                    f"Speed: {info['avg_speed']:5.1f} km/h | "
-                    f"Wait: {info['avg_waiting_time']:5.1f}s | "
+                    f"Speed: {last_info.get('avg_speed', 0):5.1f} km/h | "
+                    f"Wait: {last_info.get('avg_waiting_time', 0):5.1f}s | "
+                    f"Throughput: {ep_throughput} | "
                     f"Loss: {avg_loss:.5f} | "
                     f"ε: {epsilon:.3f} | "
                     f"{duration:.1f}s/ep | "
@@ -340,19 +348,16 @@ def train(
                     f"{acc_flag}"
                 )
 
-            # ── Periodic checkpoint ───────────────────────────────────────────
             if model_name != "fixed_time" and (episode + 1) % SAVE_FREQ == 0:
                 ckpt_path = ckpt_dir / f"{model_name}_ep{episode+1}.pt"
                 agent.save(str(ckpt_path))
                 print(f"  ✓ Checkpoint: {ckpt_path.relative_to(ckpt_dir.parent.parent)}")
 
-            # ── Best checkpoint → final/ ──────────────────────────────────────
             if model_name != "fixed_time" and episode_reward > best_reward:
                 best_reward = episode_reward
                 best_path   = FINAL_DIR / f"{model_name}_{TOPOLOGY}_best.pt"
                 agent.save(str(best_path))
 
-    # ── Final checkpoint ──────────────────────────────────────────────────────
     if model_name != "fixed_time":
         final_path = FINAL_DIR / f"{model_name}_{TOPOLOGY}_final.pt"
         agent.save(str(final_path))
@@ -398,19 +403,27 @@ if __name__ == "__main__":
         "--updates-per-step", type=int, default=UPDATES_PER_STEP,
         help=f"Số lần update GPU mỗi sim step (default: {UPDATES_PER_STEP})",
     )
-    # ── Accident args ─────────────────────────────────────────────────────────
+    
+    # ── ĐỒNG BỘ ARGPARSE VỚI TRAIN_PARALLEL ──
     parser.add_argument(
-        "--accident-prob", type=float, default=0.0,
-        help=(
-            "Xác suất xảy ra tai nạn trong 1 episode (0.0–1.0). "
-            "Mặc định 0.0 — không ảnh hưởng fresh train."
-        ),
+        "--obstacle-prob", type=float, default=0.0,
+        help="Xác suất có vật cản trong 1 episode (0.0–1.0). Default: 0.0",
     )
     parser.add_argument(
-        "--accident-duration", type=int, default=300,
-        help="Thời gian kéo dài sự cố tính bằng giây (default: 300s)",
+        "--obstacle-max-count", type=int, default=3,
+        help="Tối đa bao nhiêu vật cản đồng thời. Default: 3",
     )
+    parser.add_argument(
+        "--obstacle-duration-min", type=int, default=300,
+        help="Thời gian tối thiểu mỗi vật cản (giây). Default: 300",
+    )
+    parser.add_argument(
+        "--obstacle-duration-max", type=int, default=None,
+        help="Thời gian tối đa mỗi vật cản (giây). None = xuyên suốt. Default: None",
+    )
+
     args = parser.parse_args()
+    
     train(
         args.model, args.device,
         resume=args.resume,
@@ -419,6 +432,8 @@ if __name__ == "__main__":
         episodes=args.episodes,
         delta_time=args.delta_time,
         updates_per_step=args.updates_per_step,
-        accident_prob=args.accident_prob,
-        accident_duration=args.accident_duration,
+        obstacle_prob=args.obstacle_prob,
+        obstacle_max_count=args.obstacle_max_count,
+        obstacle_duration_min=args.obstacle_duration_min,
+        obstacle_duration_max=args.obstacle_duration_max,
     )

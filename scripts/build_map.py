@@ -104,7 +104,7 @@ def run_netconvert(map_name: str, map_dir: Path):
         f"--node-files=net/{map_name}.nod.xml",
         f"--edge-files=net/{map_name}.edg.xml",
         f"--output-file=net/{map_name}.net.xml",
-        "--tls.default-type=actuated",
+        "--tls.default-type=static",
         "--tls.cycle.time=90",
         "--no-turnarounds=true",
         "--junctions.corner-detail=5",

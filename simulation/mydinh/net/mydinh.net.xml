@@ -1,6 +1,6 @@
 <?xml version="1.0" encoding="UTF-8"?>
 
-<!-- generated on 2026-06-15T03:22:57.776338+07:00 by Eclipse SUMO netconvert 1.27.0
+<!-- generated on 2026-06-16T14:44:41.029477+07:00 by Eclipse SUMO netconvert 1.27.0
 <netconvertConfiguration xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:noNamespaceSchemaLocation="http://sumo.dlr.de/xsd/netconvertConfiguration.xsd">
 
     <input>
@@ -15,7 +15,7 @@
 
     <tls_building>
         <tls.cycle.time value="90"/>
-        <tls.default-type value="actuated"/>
+        <tls.default-type value="static"/>
     </tls_building>
 
     <junctions>
@@ -758,60 +758,60 @@
         <lane id="SRC_THD_N08_1" index="1" allow="passenger bus motorcycle" speed="13.89" length="286.40" shape="600.00,298.40 886.40,298.40"/>
     </edge>
 
-    <tlLogic id="N01" type="actuated" programID="0" offset="0">
-        <phase duration="35" state="rrrrGGGgrrrrGGGGg" minDur="8" maxDur="50"/>
+    <tlLogic id="N01" type="static" programID="0" offset="0">
+        <phase duration="35" state="rrrrGGGgrrrrGGGGg"/>
         <phase duration="5"  state="rrrryyygrrrryyyyg"/>
-        <phase duration="6"  state="rrrrrrrGrrrrrrrrG" minDur="8" maxDur="50"/>
+        <phase duration="6"  state="rrrrrrrGrrrrrrrrG"/>
         <phase duration="5"  state="rrrrrrryrrrrrrrry"/>
-        <phase duration="34" state="GGGgrrrrGGGgrrrrr" minDur="8" maxDur="50"/>
+        <phase duration="34" state="GGGgrrrrGGGgrrrrr"/>
         <phase duration="5"  state="yyyyrrrryyyyrrrrr"/>
     </tlLogic>
-    <tlLogic id="N02" type="actuated" programID="0" offset="0">
-        <phase duration="35" state="rrrrrGGGGgrrrrGGGGg" minDur="7" maxDur="50"/>
+    <tlLogic id="N02" type="static" programID="0" offset="0">
+        <phase duration="35" state="rrrrrGGGGgrrrrGGGGg"/>
         <phase duration="5"  state="rrrrryyyyyrrrryyyyy"/>
-        <phase duration="34" state="GGGGgrrrrrGGGgrrrrr" minDur="8" maxDur="50"/>
+        <phase duration="34" state="GGGGgrrrrrGGGgrrrrr"/>
         <phase duration="5"  state="yyyygrrrrryyygrrrrr"/>
-        <phase duration="6"  state="rrrrGrrrrrrrrGrrrrr" minDur="8" maxDur="50"/>
+        <phase duration="6"  state="rrrrGrrrrrrrrGrrrrr"/>
         <phase duration="5"  state="rrrryrrrrrrrryrrrrr"/>
     </tlLogic>
-    <tlLogic id="N03" type="actuated" programID="0" offset="0">
-        <phase duration="29" state="GGGGgrrrrrGGGgrrrr" minDur="8" maxDur="50"/>
+    <tlLogic id="N03" type="static" programID="0" offset="0">
+        <phase duration="29" state="GGGGgrrrrrGGGgrrrr"/>
         <phase duration="5"  state="yyyygrrrrryyygrrrr"/>
-        <phase duration="6"  state="rrrrGrrrrrrrrGrrrr" minDur="8" maxDur="50"/>
+        <phase duration="6"  state="rrrrGrrrrrrrrGrrrr"/>
         <phase duration="5"  state="rrrryrrrrrrrryrrrr"/>
-        <phase duration="29" state="rrrrrGGGGgrrrrGGGg" minDur="8" maxDur="50"/>
+        <phase duration="29" state="rrrrrGGGGgrrrrGGGg"/>
         <phase duration="5"  state="rrrrryyyygrrrryyyg"/>
-        <phase duration="6"  state="rrrrrrrrrGrrrrrrrG" minDur="8" maxDur="50"/>
+        <phase duration="6"  state="rrrrrrrrrGrrrrrrrG"/>
         <phase duration="5"  state="rrrrrrrrryrrrrrrry"/>
     </tlLogic>
-    <tlLogic id="N04" type="actuated" programID="0" offset="0">
-        <phase duration="40" state="GGGgrrrrGGGgrrrr" minDur="5" maxDur="50"/>
+    <tlLogic id="N04" type="static" programID="0" offset="0">
+        <phase duration="40" state="GGGgrrrrGGGgrrrr"/>
         <phase duration="5"  state="yyyyrrrryyyyrrrr"/>
-        <phase duration="40" state="rrrrGGGgrrrrGGGg" minDur="8" maxDur="50"/>
+        <phase duration="40" state="rrrrGGGgrrrrGGGg"/>
         <phase duration="5"  state="rrrryyyyrrrryyyy"/>
     </tlLogic>
-    <tlLogic id="N05" type="actuated" programID="0" offset="0">
-        <phase duration="41" state="GGGGgrrrrGGGGgrrrr" minDur="7" maxDur="50"/>
+    <tlLogic id="N05" type="static" programID="0" offset="0">
+        <phase duration="41" state="GGGGgrrrrGGGGgrrrr"/>
         <phase duration="4"  state="yyyyyrrrryyyyyrrrr"/>
-        <phase duration="41" state="rrrrrGGGgrrrrrGGGg" minDur="5" maxDur="50"/>
+        <phase duration="41" state="rrrrrGGGgrrrrrGGGg"/>
         <phase duration="4"  state="rrrrryyyyrrrrryyyy"/>
     </tlLogic>
-    <tlLogic id="N06" type="actuated" programID="0" offset="0">
-        <phase duration="40" state="rrrGGGGGgg" minDur="8" maxDur="50"/>
+    <tlLogic id="N06" type="static" programID="0" offset="0">
+        <phase duration="40" state="rrrGGGGGgg"/>
         <phase duration="5"  state="rrrGyyyyyy"/>
-        <phase duration="40" state="GGGGrrrrrr" minDur="7" maxDur="50"/>
+        <phase duration="40" state="GGGGrrrrrr"/>
         <phase duration="5"  state="yyyGrrrrrr"/>
     </tlLogic>
-    <tlLogic id="N07" type="actuated" programID="0" offset="0">
-        <phase duration="40" state="GGGgrrrrGGGgrrrr" minDur="8" maxDur="50"/>
+    <tlLogic id="N07" type="static" programID="0" offset="0">
+        <phase duration="40" state="GGGgrrrrGGGgrrrr"/>
         <phase duration="5"  state="yyyyrrrryyyyrrrr"/>
-        <phase duration="40" state="rrrrGGGgrrrrGGGg" minDur="8" maxDur="50"/>
+        <phase duration="40" state="rrrrGGGgrrrrGGGg"/>
         <phase duration="5"  state="rrrryyyyrrrryyyy"/>
     </tlLogic>
-    <tlLogic id="N08" type="actuated" programID="0" offset="0">
-        <phase duration="40" state="GGGGGGgrrrr" minDur="8" maxDur="50"/>
+    <tlLogic id="N08" type="static" programID="0" offset="0">
+        <phase duration="40" state="GGGGGGgrrrr"/>
         <phase duration="5"  state="Gyyyyyyrrrr"/>
-        <phase duration="40" state="GrrrrrrGGGG" minDur="5" maxDur="50"/>
+        <phase duration="40" state="GrrrrrrGGGG"/>
         <phase duration="5"  state="Grrrrrryyyy"/>
     </tlLogic>
 

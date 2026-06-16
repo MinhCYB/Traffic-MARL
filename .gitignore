@@ -22,8 +22,8 @@ conda-meta/
 checkpoints/**/*.pt
 # Final weights — push lên git (nhẹ, tiện theo dõi)
 !checkpoints/final/*.pt
-logs/*/
-logs/merged.json
+# logs/*/
+# logs/merged.json
 # Giữ lại cấu trúc folder
 !checkpoints/.gitkeep
 !logs/.gitkeep

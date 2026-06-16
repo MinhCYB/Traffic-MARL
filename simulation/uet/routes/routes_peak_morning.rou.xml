@@ -1,0 +1,78 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<routes xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+        xsi:noNamespaceSchemaLocation="http://sumo.dlr.de/xsd/routes_file.xsd">
+
+    <!-- Vehicle types -->
+    <vType id="passenger"  vClass="passenger"  length="4.5"  maxSpeed="16.67" accel="2.6" decel="4.5" sigma="0.5"/>
+    <vType id="motorcycle" vClass="motorcycle" length="2.2"  maxSpeed="16.67" accel="3.0" decel="5.0" sigma="0.6"/>
+    <vType id="bus"        vClass="bus"        length="12.0" maxSpeed="13.89" accel="1.5" decel="3.5" sigma="0.3"/>
+
+    <!-- Scenario: morning | scale x2.0 -->
+    <flow id="f0" type="passenger" from="EXT_W_N01_in" to="N06_EXT_E_N06" begin="0" end="1800" vehsPerHour="1080" departSpeed="max" departLane="best"/>    <!-- through -->
+    <flow id="f1" type="motorcycle" from="EXT_W_N01_in" to="N06_EXT_E_N06" begin="0" end="1800" vehsPerHour="630" departSpeed="max" departLane="best"/>    <!-- through -->
+    <flow id="f2" type="bus" from="EXT_W_N01_in" to="N06_EXT_E_N06" begin="0" end="1800" vehsPerHour="90" departSpeed="max" departLane="best"/>    <!-- through -->
+    <flow id="f3" type="passenger" from="EXT_E_N06_in" to="N01_EXT_W_N01" begin="0" end="1800" vehsPerHour="1080" departSpeed="max" departLane="best"/>    <!-- through -->
+    <flow id="f4" type="motorcycle" from="EXT_E_N06_in" to="N01_EXT_W_N01" begin="0" end="1800" vehsPerHour="630" departSpeed="max" departLane="best"/>    <!-- through -->
+    <flow id="f5" type="bus" from="EXT_E_N06_in" to="N01_EXT_W_N01" begin="0" end="1800" vehsPerHour="90" departSpeed="max" departLane="best"/>    <!-- through -->
+    <flow id="f6" type="passenger" from="EXT_W_N11_in" to="N15_EXT_E_N15" begin="0" end="1800" vehsPerHour="900" departSpeed="max" departLane="best"/>    <!-- through -->
+    <flow id="f7" type="motorcycle" from="EXT_W_N11_in" to="N15_EXT_E_N15" begin="0" end="1800" vehsPerHour="525" departSpeed="max" departLane="best"/>    <!-- through -->
+    <flow id="f8" type="bus" from="EXT_W_N11_in" to="N15_EXT_E_N15" begin="0" end="1800" vehsPerHour="75" departSpeed="max" departLane="best"/>    <!-- through -->
+    <flow id="f9" type="passenger" from="EXT_E_N15_in" to="N11_EXT_W_N11" begin="0" end="1800" vehsPerHour="900" departSpeed="max" departLane="best"/>    <!-- through -->
+    <flow id="f10" type="motorcycle" from="EXT_E_N15_in" to="N11_EXT_W_N11" begin="0" end="1800" vehsPerHour="525" departSpeed="max" departLane="best"/>    <!-- through -->
+    <flow id="f11" type="bus" from="EXT_E_N15_in" to="N11_EXT_W_N11" begin="0" end="1800" vehsPerHour="75" departSpeed="max" departLane="best"/>    <!-- through -->
+    <flow id="f12" type="passenger" from="EXT_W_N01_in" to="N11_EXT_S_N11" begin="0" end="1800" vehsPerHour="432" departSpeed="max" departLane="best"/>    <!-- sink -->
+    <flow id="f13" type="motorcycle" from="EXT_W_N01_in" to="N11_EXT_S_N11" begin="0" end="1800" vehsPerHour="251" departSpeed="max" departLane="best"/>    <!-- sink -->
+    <flow id="f14" type="bus" from="EXT_W_N01_in" to="N11_EXT_S_N11" begin="0" end="1800" vehsPerHour="36" departSpeed="max" departLane="best"/>    <!-- sink -->
+    <flow id="f15" type="passenger" from="EXT_S_N11_in" to="N01_EXT_W_N01" begin="0" end="1800" vehsPerHour="144" departSpeed="max" departLane="best"/>    <!-- source -->
+    <flow id="f16" type="motorcycle" from="EXT_S_N11_in" to="N01_EXT_W_N01" begin="0" end="1800" vehsPerHour="84" departSpeed="max" departLane="best"/>    <!-- source -->
+    <flow id="f17" type="bus" from="EXT_S_N11_in" to="N01_EXT_W_N01" begin="0" end="1800" vehsPerHour="12" departSpeed="max" departLane="best"/>    <!-- source -->
+    <flow id="f18" type="passenger" from="EXT_W_N01_in" to="N12_SRC_R2_BC" begin="0" end="1800" vehsPerHour="360" departSpeed="max" departLane="best"/>    <!-- sink -->
+    <flow id="f19" type="motorcycle" from="EXT_W_N01_in" to="N12_SRC_R2_BC" begin="0" end="1800" vehsPerHour="210" departSpeed="max" departLane="best"/>    <!-- sink -->
+    <flow id="f20" type="bus" from="EXT_W_N01_in" to="N12_SRC_R2_BC" begin="0" end="1800" vehsPerHour="30" departSpeed="max" departLane="best"/>    <!-- sink -->
+    <flow id="f21" type="passenger" from="EXT_W_N11_in" to="N02_SRC_R1_BC" begin="0" end="1800" vehsPerHour="120" departSpeed="max" departLane="best"/>    <!-- source -->
+    <flow id="f22" type="motorcycle" from="EXT_W_N11_in" to="N02_SRC_R1_BC" begin="0" end="1800" vehsPerHour="70" departSpeed="max" departLane="best"/>    <!-- source -->
+    <flow id="f23" type="bus" from="EXT_W_N11_in" to="N02_SRC_R1_BC" begin="0" end="1800" vehsPerHour="10" departSpeed="max" departLane="best"/>    <!-- source -->
+    <flow id="f24" type="passenger" from="EXT_N_N06_in" to="N10_EXT_E_N10" begin="0" end="1800" vehsPerHour="468" departSpeed="max" departLane="best"/>    <!-- sink -->
+    <flow id="f25" type="motorcycle" from="EXT_N_N06_in" to="N10_EXT_E_N10" begin="0" end="1800" vehsPerHour="273" departSpeed="max" departLane="best"/>    <!-- sink -->
+    <flow id="f26" type="bus" from="EXT_N_N06_in" to="N10_EXT_E_N10" begin="0" end="1800" vehsPerHour="39" departSpeed="max" departLane="best"/>    <!-- sink -->
+    <flow id="f27" type="passenger" from="EXT_E_N10_in" to="N06_EXT_N_N06" begin="0" end="1800" vehsPerHour="156" departSpeed="max" departLane="best"/>    <!-- source -->
+    <flow id="f28" type="motorcycle" from="EXT_E_N10_in" to="N06_EXT_N_N06" begin="0" end="1800" vehsPerHour="91" departSpeed="max" departLane="best"/>    <!-- source -->
+    <flow id="f29" type="bus" from="EXT_E_N10_in" to="N06_EXT_N_N06" begin="0" end="1800" vehsPerHour="13" departSpeed="max" departLane="best"/>    <!-- source -->
+    <flow id="f30" type="passenger" from="EXT_N_N03_in" to="N13_EXT_S_N13" begin="0" end="1800" vehsPerHour="252" departSpeed="max" departLane="best"/>    <!-- sink -->
+    <flow id="f31" type="motorcycle" from="EXT_N_N03_in" to="N13_EXT_S_N13" begin="0" end="1800" vehsPerHour="147" departSpeed="max" departLane="best"/>    <!-- sink -->
+    <flow id="f32" type="bus" from="EXT_N_N03_in" to="N13_EXT_S_N13" begin="0" end="1800" vehsPerHour="21" departSpeed="max" departLane="best"/>    <!-- sink -->
+    <flow id="f33" type="passenger" from="EXT_S_N13_in" to="N03_EXT_N_N03" begin="0" end="1800" vehsPerHour="84" departSpeed="max" departLane="best"/>    <!-- source -->
+    <flow id="f34" type="motorcycle" from="EXT_S_N13_in" to="N03_EXT_N_N03" begin="0" end="1800" vehsPerHour="49" departSpeed="max" departLane="best"/>    <!-- source -->
+    <flow id="f35" type="bus" from="EXT_S_N13_in" to="N03_EXT_N_N03" begin="0" end="1800" vehsPerHour="7" departSpeed="max" departLane="best"/>    <!-- source -->
+    <flow id="f36" type="passenger" from="EXT_N_N04_in" to="N14_EXT_S_N14" begin="0" end="1800" vehsPerHour="252" departSpeed="max" departLane="best"/>    <!-- sink -->
+    <flow id="f37" type="motorcycle" from="EXT_N_N04_in" to="N14_EXT_S_N14" begin="0" end="1800" vehsPerHour="147" departSpeed="max" departLane="best"/>    <!-- sink -->
+    <flow id="f38" type="bus" from="EXT_N_N04_in" to="N14_EXT_S_N14" begin="0" end="1800" vehsPerHour="21" departSpeed="max" departLane="best"/>    <!-- sink -->
+    <flow id="f39" type="passenger" from="EXT_S_N14_in" to="N04_EXT_N_N04" begin="0" end="1800" vehsPerHour="84" departSpeed="max" departLane="best"/>    <!-- source -->
+    <flow id="f40" type="motorcycle" from="EXT_S_N14_in" to="N04_EXT_N_N04" begin="0" end="1800" vehsPerHour="49" departSpeed="max" departLane="best"/>    <!-- source -->
+    <flow id="f41" type="bus" from="EXT_S_N14_in" to="N04_EXT_N_N04" begin="0" end="1800" vehsPerHour="7" departSpeed="max" departLane="best"/>    <!-- source -->
+    <flow id="f42" type="passenger" from="EXT_N_N05_in" to="N15_EXT_S_N15" begin="0" end="1800" vehsPerHour="216" departSpeed="max" departLane="best"/>    <!-- sink -->
+    <flow id="f43" type="motorcycle" from="EXT_N_N05_in" to="N15_EXT_S_N15" begin="0" end="1800" vehsPerHour="125" departSpeed="max" departLane="best"/>    <!-- sink -->
+    <flow id="f44" type="bus" from="EXT_N_N05_in" to="N15_EXT_S_N15" begin="0" end="1800" vehsPerHour="18" departSpeed="max" departLane="best"/>    <!-- sink -->
+    <flow id="f45" type="passenger" from="EXT_S_N15_in" to="N05_EXT_N_N05" begin="0" end="1800" vehsPerHour="72" departSpeed="max" departLane="best"/>    <!-- source -->
+    <flow id="f46" type="motorcycle" from="EXT_S_N15_in" to="N05_EXT_N_N05" begin="0" end="1800" vehsPerHour="42" departSpeed="max" departLane="best"/>    <!-- source -->
+    <flow id="f47" type="bus" from="EXT_S_N15_in" to="N05_EXT_N_N05" begin="0" end="1800" vehsPerHour="6" departSpeed="max" departLane="best"/>    <!-- source -->
+    <flow id="f48" type="passenger" from="EXT_W_N01_in" to="N10_EXT_E_N10" begin="0" end="1800" vehsPerHour="300" departSpeed="max" departLane="best"/>    <!-- through -->
+    <flow id="f49" type="motorcycle" from="EXT_W_N01_in" to="N10_EXT_E_N10" begin="0" end="1800" vehsPerHour="175" departSpeed="max" departLane="best"/>    <!-- through -->
+    <flow id="f50" type="bus" from="EXT_W_N01_in" to="N10_EXT_E_N10" begin="0" end="1800" vehsPerHour="25" departSpeed="max" departLane="best"/>    <!-- through -->
+    <flow id="f51" type="passenger" from="EXT_E_N10_in" to="N01_EXT_W_N01" begin="0" end="1800" vehsPerHour="300" departSpeed="max" departLane="best"/>    <!-- through -->
+    <flow id="f52" type="motorcycle" from="EXT_E_N10_in" to="N01_EXT_W_N01" begin="0" end="1800" vehsPerHour="175" departSpeed="max" departLane="best"/>    <!-- through -->
+    <flow id="f53" type="bus" from="EXT_E_N10_in" to="N01_EXT_W_N01" begin="0" end="1800" vehsPerHour="25" departSpeed="max" departLane="best"/>    <!-- through -->
+    <flow id="f54" type="passenger" from="EXT_N_N03_in" to="N07_SRC_V3S" begin="0" end="1800" vehsPerHour="288" departSpeed="max" departLane="best"/>    <!-- sink -->
+    <flow id="f55" type="motorcycle" from="EXT_N_N03_in" to="N07_SRC_V3S" begin="0" end="1800" vehsPerHour="168" departSpeed="max" departLane="best"/>    <!-- sink -->
+    <flow id="f56" type="bus" from="EXT_N_N03_in" to="N07_SRC_V3S" begin="0" end="1800" vehsPerHour="24" departSpeed="max" departLane="best"/>    <!-- sink -->
+    <flow id="f57" type="passenger" from="EXT_W_N01_in" to="N07_SRC_RM_AB" begin="0" end="1800" vehsPerHour="96" departSpeed="max" departLane="best"/>    <!-- source -->
+    <flow id="f58" type="motorcycle" from="EXT_W_N01_in" to="N07_SRC_RM_AB" begin="0" end="1800" vehsPerHour="56" departSpeed="max" departLane="best"/>    <!-- source -->
+    <flow id="f59" type="bus" from="EXT_W_N01_in" to="N07_SRC_RM_AB" begin="0" end="1800" vehsPerHour="8" departSpeed="max" departLane="best"/>    <!-- source -->
+    <flow id="f60" type="passenger" from="EXT_E_N10_in" to="N15_EXT_S_N15" begin="0" end="1800" vehsPerHour="240" departSpeed="max" departLane="best"/>    <!-- through -->
+    <flow id="f61" type="motorcycle" from="EXT_E_N10_in" to="N15_EXT_S_N15" begin="0" end="1800" vehsPerHour="140" departSpeed="max" departLane="best"/>    <!-- through -->
+    <flow id="f62" type="bus" from="EXT_E_N10_in" to="N15_EXT_S_N15" begin="0" end="1800" vehsPerHour="20" departSpeed="max" departLane="best"/>    <!-- through -->
+    <flow id="f63" type="passenger" from="EXT_S_N15_in" to="N10_EXT_E_N10" begin="0" end="1800" vehsPerHour="240" departSpeed="max" departLane="best"/>    <!-- through -->
+    <flow id="f64" type="motorcycle" from="EXT_S_N15_in" to="N10_EXT_E_N10" begin="0" end="1800" vehsPerHour="140" departSpeed="max" departLane="best"/>    <!-- through -->
+    <flow id="f65" type="bus" from="EXT_S_N15_in" to="N10_EXT_E_N10" begin="0" end="1800" vehsPerHour="20" departSpeed="max" departLane="best"/>    <!-- through -->
+
+</routes>

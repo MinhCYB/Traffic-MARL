@@ -46,11 +46,16 @@ def _get_sumo_cfg(topology: str) -> Path:
 def _get_route_files(topology: str) -> dict[str, Path]:
     base = SIM_ROOT / topology / "routes"
     return {
-        "peak":  base / "routes_peak.rou.xml",
-        "night": base / "routes_night.rou.xml",
+        "peak_morning": base / "routes_peak_morning.rou.xml",
+        "peak_evening": base / "routes_peak_evening.rou.xml",
+        "night":        base / "routes_night.rou.xml",
+        # backward compat: fallback neu map chua gen file moi
+        "peak":         base / "routes_peak.rou.xml",
     }
 
-ROUTE_WEIGHTS = {"peak": 0.7, "night": 0.3}
+# Sampling weight khi train: morning/evening 35% moi loai, dem 30%
+# "peak" weight=0 -- chi duoc pick neu la fallback duy nhat con ton tai
+ROUTE_WEIGHTS = {"peak_morning": 0.35, "peak_evening": 0.35, "night": 0.30, "peak": 0.0}
 
 # Phase definitions cho mỗi ngã tư
 # 0: NS_green, 1: NS_yellow, 2: EW_green, 3: EW_yellow
@@ -265,8 +270,7 @@ class TrafficEnv:
 
         done = self._step >= SIM_END
 
-        info = self._get_info(pressures, departed_count, arrived_count, teleport_count,
-                              wait_per_intersection=wait_per_intersection)
+        info = self._get_info(pressures, departed_count, arrived_count, teleport_count)
 
         obs = {"states": states, "node_features": node_features}
         return obs, rewards, done, info
@@ -471,8 +475,7 @@ class TrafficEnv:
         )
         return {"states": states, "node_features": build_node_features(states)}
 
-    def _get_info(self, pressures: dict[str, float], departed: int = 0, arrived: int = 0,
-                  teleported: int = 0, wait_per_intersection: dict | None = None) -> dict:
+    def _get_info(self, pressures: dict[str, float], departed: int = 0, arrived: int = 0, teleported: int = 0) -> dict:
         """Metrics cho logging — không dùng để train."""
         vehicles = traci.vehicle.getIDList()
         speeds   = [traci.vehicle.getSpeed(v) for v in vehicles] if vehicles else [0.0]
@@ -489,18 +492,12 @@ class TrafficEnv:
             "throughput":         arrived,
             "vehicles_spawned":   departed,
             "vehicles_completed": arrived,
-            "vehicles_teleported": teleported,
+            "vehicles_teleported": teleported,   # ← xe bị kẹt quá 300s, bị SUMO xóa
             "n_vehicles": len(vehicles),
             "edge_speeds":     self._read_edge_speeds(),
             "accident_edges":  dict(self._accident_edges),
             "current_phases":  dict(self._phase),
             "time_since_change": dict(self._time_since_change),
-            # Per-intersection waiting time — dùng để hiển thị đúng trên dashboard
-            "waiting_times_per_node": dict(wait_per_intersection) if wait_per_intersection
-                                      else {nid: 0.0 for nid in INTERSECTION_IDS},
-            # Per-node phase timing để dashboard tính countdown đúng
-            "in_yellow":  dict(self._in_yellow),
-            "green_time": dict(self._green_time),
         }
 
     def _read_edge_speeds(self) -> dict[str, float]:
@@ -517,16 +514,26 @@ class TrafficEnv:
         return edge_speeds
 
     def _sample_route(self) -> str:
-        """Sample route type — chỉ chọn file đang tồn tại."""
+        """Sample route type theo ROUTE_WEIGHTS, chỉ chọn file đang tồn tại.
+
+        Ưu tiên peak_morning / peak_evening nếu đã gen file mới.
+        Fallback về "peak" nếu chỉ có file cũ.
+        """
         route_files = _get_route_files(self.topology)
-        available = [k for k, v in route_files.items() if v.exists()]
+        # Chỉ lấy các key có file tồn tại VÀ weight > 0
+        available = [
+            k for k, v in route_files.items()
+            if v.exists() and ROUTE_WEIGHTS.get(k, 0.0) > 0
+        ]
+        # Fallback: nếu không có file nào match weight>0, thử "peak" cũ
+        if not available:
+            available = [k for k, v in route_files.items() if v.exists()]
         if not available:
             raise FileNotFoundError(
-                f"Không tìm thấy route file nào trong simulation/{self.topology}/routes/. "
-                f"Chạy: python scripts/build_map.py {self.topology}"
+                f"Khong tim thay route file nao trong simulation/{self.topology}/routes/. "
+                f"Chay: python simulation/{self.topology}/routes/gen_routes.py"
             )
-        weights_map = {"peak": 0.9, "night": 0.1}
-        weights = [weights_map.get(k, 0.1) for k in available]
+        weights = [ROUTE_WEIGHTS.get(k, 0.1) for k in available]
         total = sum(weights)
         weights = [w / total for w in weights]
         return random.choices(available, weights=weights, k=1)[0]

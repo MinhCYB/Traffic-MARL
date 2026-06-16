@@ -213,11 +213,13 @@ def rollout_worker(
             actions = agent.select_actions(obs)
             next_obs, rewards, done, info = env.step(actions)
 
-            # GAT-MARL: dùng shared reward để khuyến khích cooperative behavior
+            # GAT-MARL: hybrid reward = 70% individual + 30% global mean
+            # → vẫn khuyến khích cooperative behavior nhưng giữ được
+            #   signal phân biệt từng node để Q-values không collapse về nhau
             # IDQN: giữ individual reward vì không có communication
             if model_name == "gat_marl":
-                shared_r = sum(rewards.values()) / len(rewards)
-                rewards  = {nid: shared_r for nid in rewards}
+                global_r = sum(rewards.values()) / len(rewards)
+                rewards  = {nid: 0.7 * r + 0.3 * global_r for nid, r in rewards.items()}
 
             # Push transition — drop nếu queue full (không block SUMO)
             try:
@@ -483,6 +485,20 @@ def run_learner(
                 writer.writerow(row)
                 f.flush()
 
+                # Q-margin log mỗi 20 episodes — track convergence
+                # margin > 0.3: model bắt đầu có preference rõ
+                # margin > 0.5: model đáng tin, có thể dừng train
+                if logged_episodes % 20 == 0 and hasattr(agent, "online_net"):
+                    import torch as _t
+                    with _t.no_grad():
+                        _x  = _t.zeros(len(INTERSECTION_IDS), STATE_DIM, device=agent.device)
+                        _ei = agent.edge_index if hasattr(agent, "edge_index") else None
+                        if _ei is not None:
+                            _q  = agent.online_net(_x, _ei)
+                            _mg = (_q[:, 0] - _q[:, 1]).abs().mean().item()
+                            print(f"  [Q-margin] ep={logged_episodes} margin={_mg:.4f}"
+                                  f"  {'✓ converging' if _mg > 0.3 else '✗ not yet'}")
+
                 # In progress mỗi 10 episodes
                 if logged_episodes % 10 == 0:
                     wall_s  = summary["duration_s"] / num_workers
@@ -588,10 +604,10 @@ def train_parallel(
 
     log_dir = LOG_DIR / model_name
     log_dir.mkdir(parents=True, exist_ok=True)
-    log_path = log_dir / "training_log.csv"   # ← tên giống train.py → merge_logs hoạt động
+    log_path = log_dir / f"{'finetune' if finetune else 'training'}_log.csv"   # ← tên giống train.py → merge_logs hoạt động
 
     # ── Chọn file mode: "a" khi resume/finetune để không mất data cũ ─────────
-    log_file_mode = "a" if (resume or finetune) else "w"
+    log_file_mode = "a" if resume else "w"
 
     mode = "FINETUNE" if finetune else "RESUME" if resume else "FRESH"
     total_eps = episodes * num_workers

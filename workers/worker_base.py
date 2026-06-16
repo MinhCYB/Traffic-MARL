@@ -133,12 +133,7 @@ class WorkerBase(ABC):
         """Xây dựng JSON payload theo schema."""
         states = obs["states"]
 
-        in_yellow  = info.get("in_yellow",  {})
-        green_time = info.get("green_time", {})
         intersections = []
-        current_phases       = info.get("current_phases", {})
-        tsc                  = info.get("time_since_change", {})
-        waiting_times_per_node = info.get("waiting_times_per_node", {})
         for nid in INTERSECTION_IDS:
             s = states[nid]
             # State layout: density(MAX_LANES_TOTAL) + queue(MAX_LANES_TOTAL) + phase(4) + time(1)
@@ -146,28 +141,18 @@ class WorkerBase(ABC):
             density_per_lane = s[0 : MAX_LANES_TOTAL].tolist()
 
             # Lấy phase thực tế từ env (bao gồm cả yellow=1,3) thay vì argmax state vector
-            current_phase = int(current_phases.get(nid, 0))
+            current_phases = info.get("current_phases", {})
+            current_phase  = int(current_phases.get(nid, 0))
 
-            # phase_duration per-node: nếu đang yellow → YELLOW_TIME, còn lại green_time thực tế
-            # Dashboard dùng cái này để countdown: remaining = phase_duration - tsc
-            node_green_time = float(green_time.get(nid, 0))
-            node_in_yellow  = bool(in_yellow.get(nid, False))
-            if node_in_yellow:
-                node_phase_dur = YELLOW_TIME
-            else:
-                # Thời gian phase hiện tại = max(MIN_GREEN_TIME, green_time thực tế)
-                node_phase_dur = max(MIN_GREEN_TIME, node_green_time + MIN_GREEN_TIME)
-
+            tsc = info.get("time_since_change", {})
             intersections.append({
                 "id":                nid,
                 "phase":             current_phase,
                 "queue_per_lane":    queue_per_lane,
                 "density_per_lane":  density_per_lane,
-                # Per-intersection waiting time thay vì avg toàn mạng
-                "waiting_time":      round(float(waiting_times_per_node.get(nid, info.get("avg_waiting_time", 0))), 2),
+                "waiting_time":      round(float(info.get("waiting_times_per_node", {}).get(nid, 0)), 2),
                 "reward":            round(float(rewards.get(nid, 0)), 4),
                 "time_since_change": round(float(tsc.get(nid, 0)), 1),
-                "phase_duration":    node_phase_dur,
             })
 
         payload = {

@@ -141,19 +141,12 @@ MPLight~\cite{MPLight2020} mở rộng PressLight với parameter sharing, cho p
 
 Hệ thống sử dụng SUMO (Simulation of Urban Mobility)~\cite{SUMO2018} --- trình mô phỏng giao thông vi mô chuẩn công nghiệp, giao tiếp qua TraCI API.
 
-\textbf{Bản đồ Mỹ Đình}: 8 ngã tư thực tế (N01--N08), mô phỏng khu vực giao giữa Hồ Tùng Mậu, Lê Đức Thọ, Phạm Hùng, Hàm Nghi, và Trần Hữu Dực (Hình~\ref{fig:topology}).
+\textbf{Bản đồ Mỹ Đình}: 8 ngã tư thực tế (N01--N08), mô phỏng khu vực giao giữa các trục: Hồ Tùng Mậu (arterial ngang), Lê Đức Thọ và Phạm Hùng (arterial dọc), Nguyễn Cơ Thạch (secondary dọc trái), Hàm Nghi, Nguyễn Hoàng, và Trần Hữu Dực (secondary ngang) (Hình~\ref{fig:topology}).
 
-\begin{figure}[h]
+\begin{figure}[!t]
     \centering
-    % [TODO: Chèn hình topology map_mydinh.png]
-    \fbox{\parbox{0.9\linewidth}{\centering\vspace{2em}
-    \texttt{N01 -- N02 -- N03}\\
-    \texttt{~|~~~~|~~~~|}\\
-    \texttt{N04 -- N05 -- N06}\\
-    \texttt{~|~~~~|}\\
-    \texttt{N07 -- N08}
-    \vspace{2em}}}
-    \caption{Topology mạng lưới giao thông Mỹ Đình (8 ngã tư). Đường đậm: arterial 3 làn (Hồ Tùng Mậu, Lê Đức Thọ, Phạm Hùng). Đường mảnh: secondary 2 làn.}
+    \includegraphics[width=\linewidth]{map_mydinh.png}
+    \caption{Topology mạng lưới giao thông khu vực Mỹ Đình (8 ngã tư).}
     \label{fig:topology}
 \end{figure}
 
@@ -209,7 +202,7 @@ trong đó:
     p_i = \frac{\left|\sum_{e \in \mathcal{E}_i^{\text{in}}} w_e \cdot q_e - \sum_{e \in \mathcal{E}_i^{\text{out}}} w_e \cdot q_e\right|}{|\mathcal{L}_i|}
     \label{eq:pressure}
 \end{equation}
-với $w_e = 2.0$ cho arterial (Hồ Tùng Mậu, Lê Đức Thọ, Phạm Hùng), $w_e = 1.0$ cho secondary.
+với $w_e = 2.0$ cho arterial (Hồ Tùng Mậu, Lê Đức Thọ, Phạm Hùng trên map Mỹ Đình; Hồ Tùng Mậu, Xuân Phương, Phạm Hùng trên map UET), $w_e = 1.0$ cho secondary.
 
 \textbf{Teleport penalty}: khi xe kẹt quá 300s, SUMO teleport xe ra khỏi mạng. Penalty chia đều cho tất cả agents, cap tại 2.5:
 \begin{equation}
@@ -536,19 +529,12 @@ $\Delta$ Reward & [TODO] & [TODO] & [TODO] \\
 % │        training from scratch IDQN trên map UET                  │
 % └──────────────────────────────────────────────────────────────────┘
 
-Để đánh giá khả năng generalization, hệ thống được kiểm chứng trên map \textbf{UET} --- khu vực Đại học Công nghệ, Cầu Giấy (Hình~\ref{fig:uet_topology}), phức tạp hơn đáng kể với \textbf{15 ngã tư} (N01--N15) và 3 tuyến arterial song song (Xuân Thuỷ/Phạm Văn Đồng, Nguyễn Phong Sắc, và đường nội bộ row M).
+Để đánh giá khả năng generalization, hệ thống được kiểm chứng trên map \textbf{UET} --- khu vực Đại học Công nghệ, Cầu Giấy (Hình~\ref{fig:uet_topology}), phức tạp hơn đáng kể với \textbf{15 ngã tư} (N01--N15). Mạng lưới gồm 2 trục arterial ngang (Hồ Tùng Mậu -- Row 1, Trịnh Văn Bô/Trần Hữu Dực -- Row 2), 3 trục arterial dọc (Xuân Phương, Phạm Hùng, và một phần Hồ Tùng Mậu kéo dài), và các đường secondary nội bộ (Hàm Nghi, Kiều Mai, Nguyễn Văn Giáp, Nguyễn Cơ Thạch, Lê Đức Thọ).
 
 \begin{figure}[!t]
     \centering
-    \fbox{\parbox{0.9\linewidth}{\centering\vspace{1.2em}
-    \small
-    \texttt{N01-N02-N03-N04-N05-N06}\\[0.2em]
-    \texttt{~|~~~|~~~|~~~|~~~|~~~|}\\[0.2em]
-    \texttt{N11~N12~N07-N08-N09-N10}\\[0.2em]
-    \texttt{~|~~~|~~~|~~~|~~~|}\\[0.2em]
-    \texttt{N11-N12-N13-N14-N15}
-    \vspace{1.2em}}}
-    \caption{Topology mạng lưới UET (15 ngã tư). Arterial 3 làn: Xuân Thuỷ, Nguyễn Phong Sắc. Secondary 2 làn: đường nội bộ.}
+    \includegraphics[width=\linewidth]{map_uet.png}
+    \caption{Topology mạng lưới giao thông khu vực UET (15 ngã tư).}
     \label{fig:uet_topology}
 \end{figure}
 
@@ -574,7 +560,7 @@ GAT-MARL tận dụng checkpoint từ Mỹ Đình qua cơ chế \textbf{2-phase 
 % ══════════════════════════════════════════════════════════════════════════════
 \section{Thảo luận}
 
-\textbf{Ưu điểm của GAT communication}: so với IDQN, GAT-MARL cho phép mỗi agent nhận thông tin từ neighbors, giúp phối hợp pha đèn giữa các ngã tư liền kề. Điều này đặc biệt có giá trị trên các trục arterial như Hồ Tùng Mậu hay Lê Đức Thọ, nơi hiệu ứng ``green wave'' có thể cải thiện đáng kể throughput.
+\textbf{Ưu điểm của GAT communication}: so với IDQN, GAT-MARL cho phép mỗi agent nhận thông tin từ neighbors, giúp phối hợp pha đèn giữa các ngã tư liền kề. Điều này đặc biệt có giá trị trên các trục arterial như Hồ Tùng Mậu hay Phạm Hùng, nơi hiệu ứng ``green wave'' có thể cải thiện đáng kể throughput.
 
 \textbf{Parameter sharing}: toàn bộ agents dùng chung 1 bộ trọng số (encoder, GAT, Q-head). Ưu điểm: (1) giảm $N\times$ số tham số cần học, (2) transfer learning tự nhiên khi thêm/bớt ngã tư, (3) mỗi transition huấn luyện cho tất cả agents. Nhược điểm: agent không có identity riêng --- GAT layer phần nào khắc phục bằng cách differentiate qua graph topology.
 

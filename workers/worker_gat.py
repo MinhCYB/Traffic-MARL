@@ -42,12 +42,20 @@ class GATWorker(WorkerBase):
         n = len(INTERSECTION_IDS)
         attn = self.agent.get_attention_weights()
         if attn is not None:
+            # Threshold: 1.5x trung bình softmax (avg = 1/n cho neighbors)
             threshold = 1.5 / n
             comm = int(sum(
                 1 for i in range(n) for j in range(n)
                 if i != j and attn[i][j] > threshold
             ))
+            # Debug log mỗi 50 step để xác nhận attention hoạt động
+            if hasattr(self, '_step') and self._step % 50 == 0:
+                max_w = float(attn.max())
+                n_active = int((attn > threshold).sum()) - n  # trừ diagonal
+                print(f"[gat_marl] step={self._step} attn_max={max_w:.3f} "
+                      f"threshold={threshold:.3f} active_edges={n_active} comm={comm}")
             return {"attention_weights": attn.tolist(), "comm_this_step": comm}
+        print(f"[gat_marl] WARNING: attention_weights is None — model chưa forward?")
         return {"attention_weights": [[0.0] * n for _ in range(n)], "comm_this_step": 0}
 
 

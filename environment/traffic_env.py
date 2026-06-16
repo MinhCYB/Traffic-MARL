@@ -265,7 +265,8 @@ class TrafficEnv:
 
         done = self._step >= SIM_END
 
-        info = self._get_info(pressures, departed_count, arrived_count, teleport_count)
+        info = self._get_info(pressures, departed_count, arrived_count, teleport_count,
+                              wait_per_intersection=wait_per_intersection)
 
         obs = {"states": states, "node_features": node_features}
         return obs, rewards, done, info
@@ -470,7 +471,8 @@ class TrafficEnv:
         )
         return {"states": states, "node_features": build_node_features(states)}
 
-    def _get_info(self, pressures: dict[str, float], departed: int = 0, arrived: int = 0, teleported: int = 0) -> dict:
+    def _get_info(self, pressures: dict[str, float], departed: int = 0, arrived: int = 0,
+                  teleported: int = 0, wait_per_intersection: dict | None = None) -> dict:
         """Metrics cho logging — không dùng để train."""
         vehicles = traci.vehicle.getIDList()
         speeds   = [traci.vehicle.getSpeed(v) for v in vehicles] if vehicles else [0.0]
@@ -487,12 +489,18 @@ class TrafficEnv:
             "throughput":         arrived,
             "vehicles_spawned":   departed,
             "vehicles_completed": arrived,
-            "vehicles_teleported": teleported,   # ← xe bị kẹt quá 300s, bị SUMO xóa
+            "vehicles_teleported": teleported,
             "n_vehicles": len(vehicles),
             "edge_speeds":     self._read_edge_speeds(),
             "accident_edges":  dict(self._accident_edges),
             "current_phases":  dict(self._phase),
             "time_since_change": dict(self._time_since_change),
+            # Per-intersection waiting time — dùng để hiển thị đúng trên dashboard
+            "waiting_times_per_node": dict(wait_per_intersection) if wait_per_intersection
+                                      else {nid: 0.0 for nid in INTERSECTION_IDS},
+            # Per-node phase timing để dashboard tính countdown đúng
+            "in_yellow":  dict(self._in_yellow),
+            "green_time": dict(self._green_time),
         }
 
     def _read_edge_speeds(self) -> dict[str, float]:

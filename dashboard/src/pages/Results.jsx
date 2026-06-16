@@ -69,19 +69,32 @@ function MiniChart({ data, metricKey, label, color, accidentEps }) {
   if (isLR) {
     // Hiện dạng 1.0e-4 cho dễ đọc
     yTickFormatter = v => v === 0 ? "0" : v.toExponential(1);
+  } else {
+    // Format số gọn: tránh bị cắt khi YAxis width hẹp
+    yTickFormatter = v => {
+      if (!isFinite(v)) return "";
+      if (Math.abs(v) >= 1000) return (v / 1000).toFixed(1) + "k";
+      if (Math.abs(v) >= 100)  return Math.round(v).toString();
+      if (Math.abs(v) >= 1)    return parseFloat(v.toFixed(1)).toString();
+      return parseFloat(v.toFixed(3)).toString();
+    };
   }
+
+  // Tính width YAxis đủ để chứa label dài nhất
+  const sampleLabel = vals.length ? yTickFormatter(Math.min(...vals)) : "-000";
+  const yAxisWidth = isLR ? 58 : Math.max(44, sampleLabel.length * 7 + 10);
 
   return (
     <div className="mini-chart-card">
       <div className="mini-chart-title">{label}</div>
       <ResponsiveContainer width="100%" height={160}>
-        <LineChart data={smoothed} margin={{ top: 4, right: 8, bottom: 4, left: 0 }}>
+        <LineChart data={smoothed} margin={{ top: 4, right: 8, bottom: 4, left: 4 }}>
           <CartesianGrid strokeDasharray="3 3" stroke="var(--border)" />
           <XAxis dataKey="episode" stroke="var(--muted)" tick={{ fontSize: 10, fill: "var(--muted)", fontFamily: "var(--font-ui)" }} />
           <YAxis
             stroke="var(--muted)"
             tick={{ fontSize: 10, fill: "var(--muted)", fontFamily: "var(--font-ui)" }}
-            width={isLR ? 58 : 42}
+            width={yAxisWidth}
             domain={yDomain}
             tickFormatter={yTickFormatter}
           />

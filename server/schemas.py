@@ -51,6 +51,7 @@ class WorkerPayload(BaseModel):
     edge_speeds:        Optional[dict[str, float]]        = None
     accident_edges:     Optional[dict[str, str]]          = None
     attention_weights:  Optional[list[list[float]]]       = None
+    comm_this_step:     Optional[int]                     = None   # số cặp (i,j) có attn > threshold mỗi step
     event:              Optional[str]                     = None
     phase_duration:     Optional[int]                     = None
     global_reward:      Optional[float]                   = None   # top-level alias (cũng có trong metrics)

@@ -60,7 +60,9 @@ function getVehicleXY(v, NODE, SRC, EDGES, phaseLookup) {
   const STOP_RATIO = Math.min(0.97, Math.max(0, (len - SZ) / len));
   let pos = Math.max(0, Math.min(1, v.pos));
 
-  const toNodeId = typeof e.to === "string" ? e.to : null;
+  const toNodeId   = typeof e.to   === "string" ? e.to   : null;
+  const fromNodeId = typeof e.from === "string" ? e.from : null;
+
   if (toNodeId && NODE[toNodeId] && phaseLookup) {
     const nodeData = phaseLookup[toNodeId];
     if (nodeData) {
@@ -70,6 +72,13 @@ function getVehicleXY(v, NODE, SRC, EDGES, phaseLookup) {
         pos = Math.min(pos, STOP_RATIO);
       }
     }
+  }
+
+  // Outgoing edge (từ NODE ra SRC/EXT): xe mới thoát khỏi ngã tư có pos nhỏ
+  // Clamp min_pos để tránh visual artifact xe trông như đứng sát ngã tư bên kia
+  if (fromNodeId && NODE[fromNodeId]) {
+    const MIN_EXIT_POS = 0.12;
+    pos = Math.max(pos, MIN_EXIT_POS);
   }
 
   const p  = interp(from, to, pos);
@@ -184,7 +193,9 @@ function Intersections({ NODE, intersections, deltaTime, modelColor }) {
         const phase  = data?.phase ?? 0;
         const lights = PHASE_LIGHTS[phase] || PHASE_LIGHTS[0];
         const tsc    = data?.time_since_change ?? 0;
-        const dt     = deltaTime ?? 13;
+        // Dùng phase_duration per-node từ server (tính đúng cho từng ngã tư)
+        // Fallback về deltaTime (constant) nếu server chưa gửi per-node
+        const dt     = data?.phase_duration ?? deltaTime ?? 13;
 
         return (
           <g key={nid}>
@@ -350,10 +361,21 @@ function AttentionArrows({ attn, NODE }) {
   if (!attn || !NODE) return null;
   const IDS = Object.keys(NODE);
   const n = IDS.length;
-  // Threshold động theo số nodes:
-  // Softmax trên n neighbors → weight trung bình = 1/n
-  // Hiện "đáng chú ý" khi weight > 1.5× trung bình
-  const threshold = Math.max(0.08, 1.5 / n);
+
+  // Debug: log ra console mỗi khi attention data thay đổi
+  // Mở DevTools > Console để xem — xóa dòng này sau khi verify OK
+  const maxVal = attn.flat ? Math.max(...attn.flat()) : 0;
+  if (maxVal > 0) console.log(`[AttentionArrows] n=${n} maxW=${maxVal.toFixed(3)} shape=${attn.length}x${attn[0]?.length}`);
+
+  // Threshold: 2.5× softmax average — chỉ hiện các kết nối attention mạnh nhất
+  const threshold = Math.max(0.05, 2.5 / n);
+
+  // Tìm max weight để normalize tương đối (non-linear scale)
+  let maxW = threshold;
+  IDS.forEach((dst, di) => IDS.forEach((src, si) => {
+    if (src !== dst) maxW = Math.max(maxW, attn[di]?.[si] ?? 0);
+  }));
+
   const arrows = [];
   IDS.forEach((dst, di) => IDS.forEach((src, si) => {
     if (src === dst) return;
@@ -361,22 +383,44 @@ function AttentionArrows({ attn, NODE }) {
     if (w < threshold) return;
     const f = NODE[src], t = NODE[dst];
     if (!f || !t) return;
-    // Normalize opacity/strokeWidth theo threshold để visual scale đẹp
-    const norm = Math.min(1, (w - threshold) / (1 - threshold));
+
+    // Normalize theo max weight thực tế, dùng sqrt để khuếch đại visual
+    const norm = Math.sqrt(Math.min(1, (w - threshold) / Math.max(0.01, maxW - threshold)));
+
+    // Offset vuông góc để 2 chiều A→B và B→A không đè lên nhau
+    const dx = t.x - f.x, dy = t.y - f.y;
+    const len = Math.sqrt(dx*dx + dy*dy) || 1;
+    const ox = (-dy / len) * 6, oy = (dx / len) * 6;  // offset 6px
+
+    // Shorten endpoints để mũi tên không bị ngã tư che
+    const SHRINK = 12;
+    const ratio  = SHRINK / len;
+    const x1 = f.x + dx*ratio + ox, y1 = f.y + dy*ratio + oy;
+    const x2 = t.x - dx*ratio + ox, y2 = t.y - dy*ratio + oy;
+
+    // Curved arc: control point lệch về phía vuông góc
+    const mx = (x1+x2)/2 + ox*1.5, my = (y1+y2)/2 + oy*1.5;
+
     arrows.push(
-      <line key={`${src}-${dst}`}
-        x1={f.x} y1={f.y} x2={t.x} y2={t.y}
-        stroke="#534ab7" strokeWidth={0.5+norm*2.5}
-        strokeDasharray="4 3" opacity={0.25+norm*0.6}
+      <path key={`${src}-${dst}`}
+        d={`M${x1},${y1} Q${mx},${my} ${x2},${y2}`}
+        fill="none"
+        stroke="#7c3aed"
+        strokeWidth={1.5 + norm*3}
+        strokeDasharray={norm > 0.5 ? "none" : "5 3"}
+        opacity={0.55 + norm*0.4}
         markerEnd="url(#attn-a)"/>
     );
   }));
+
+  if (arrows.length === 0) return null;
+
   return (
     <g>
       <defs>
-        <marker id="attn-a" viewBox="0 0 8 8" refX="6" refY="4"
-          markerWidth="4" markerHeight="4" orient="auto">
-          <path d="M1 1L7 4L1 7" fill="none" stroke="#534ab7" strokeWidth="1.5"/>
+        <marker id="attn-a" viewBox="0 0 10 10" refX="8" refY="5"
+          markerWidth="5" markerHeight="5" orient="auto">
+          <path d="M1 1L9 5L1 9" fill="none" stroke="#7c3aed" strokeWidth="2" strokeLinecap="round"/>
         </marker>
       </defs>
       {arrows}
@@ -433,11 +477,12 @@ export function TrafficMap({ data, modelName }) {
       <svg viewBox={`0 0 ${W} ${H}`} className="traffic-map-svg">
         <rect width={W} height={H} fill="#f5f4f1" rx="8"/>
         <Roads EDGES={EDGES} NODE={NODE} SRC={SRC} edgeSpeeds={edgeSpeeds} accidentEdges={accidentEdges}/>
-        <AttentionArrows attn={modelName==="gat_marl" ? data?.attention_weights : null} NODE={NODE}/>
         <AccidentMarkers accidentEdges={accidentEdges} EDGES={EDGES} NODE={NODE} SRC={SRC}/>
         <Vehicles vehicles={data?.vehicles} color={color} NODE={NODE} SRC={SRC} EDGES={EDGES}
           phaseLookup={Object.fromEntries((data?.intersections||[]).map(i => [i.id, i]))}/>
         <Intersections NODE={NODE} intersections={data?.intersections} deltaTime={data?.phase_duration ?? 13} modelColor={color}/>
+        {/* AttentionArrows render cuối — nằm trên tất cả layers, không bị che bởi xe/ngã tư */}
+        <AttentionArrows attn={modelName==="gat_marl" ? data?.attention_weights : null} NODE={NODE}/>
         <TopologyBadge topology={topology}/>
         <SpeedLegend H={H}/>
       </svg>

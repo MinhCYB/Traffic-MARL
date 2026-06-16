@@ -150,7 +150,7 @@ class WorkerBase(ABC):
                 "phase":             current_phase,
                 "queue_per_lane":    queue_per_lane,
                 "density_per_lane":  density_per_lane,
-                "waiting_time":      round(float(info.get("avg_waiting_time", 0)), 2),
+                "waiting_time":      round(float(info.get("waiting_times_per_node", {}).get(nid, 0)), 2),
                 "reward":            round(float(rewards.get(nid, 0)), 4),
                 "time_since_change": round(float(tsc.get(nid, 0)), 1),
             })

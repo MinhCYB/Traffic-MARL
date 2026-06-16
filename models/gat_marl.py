@@ -181,15 +181,29 @@ class GATMARLNet(nn.Module):
         """
         Convert attention weights sang dạng matrix (N, N) để dễ visualize.
 
+        GATConv với add_self_loops=True tự thêm N self-loop edges vào edge_index
+        trước khi forward, nên _attention_weights có shape (E + N,) thay vì (E,).
+        Phải augment edge_index giống GATConv để index khớp.
+
         Returns:
-            attn_matrix: (N, N) — attn_matrix[i][j] = attention từ j đến i
+            attn_matrix: (N, N) — attn_matrix[i][j] = attention node j gửi cho i
+                         diagonal = self-attention (bỏ qua khi visualize comm)
         """
         attn = self.get_attention_weights()
         if attn is None:
             return torch.zeros(n_nodes, n_nodes)
 
+        # Thêm self-loops giống GATConv (thêm vào cuối)
+        self_loops = torch.arange(n_nodes, device=edge_index.device)
+        self_loop_index = torch.stack([self_loops, self_loops], dim=0)  # (2, N)
+        full_edge_index = torch.cat([edge_index, self_loop_index], dim=1)  # (2, E+N)
+
+        if attn.shape[0] != full_edge_index.shape[1]:
+            # Fallback an toàn nếu vẫn lệch (e.g. edge trùng bị dedup)
+            return torch.zeros(n_nodes, n_nodes)
+
         matrix = torch.zeros(n_nodes, n_nodes)
-        src, dst = edge_index
+        src, dst = full_edge_index
         for k in range(len(src)):
             matrix[dst[k], src[k]] = attn[k]
         return matrix

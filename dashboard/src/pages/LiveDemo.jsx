@@ -286,9 +286,11 @@ function ScoreTooltip() {
           <div>⏱ Ít chờ: <b>50%</b></div>
           <div>🚗 Xe hoàn thành: <b>30%</b></div>
           <div>⚡ Tốc độ TB: <b>20%</b></div>
+          <div style={{ color:"#e24b4a" }}>🚫 Teleport penalty: <b>−10%</b></div>
           <div style={{ marginTop:6, color:"#888780" }}>
             Tốc độ = avg toàn bộ session.<br/>
-            Mỗi tiêu chí normalize 0–100 so với model tốt nhất.
+            Mỗi tiêu chí normalize 0–1 so với model tốt/tệ nhất.<br/>
+            Max score = 100 (khi không có xe teleport).
           </div>
         </div>
       )}
@@ -297,7 +299,7 @@ function ScoreTooltip() {
 }
 
 // ── Rank Table ───────────────────────────────────────────────────────────────
-function RankTable({ history, totalWait, speedHistory }) {
+function RankTable({ history, totalWait, speedHistory, totalTeleport }) {
   if (!history.length) return null;
 
   const last = history[history.length - 1];
@@ -318,25 +320,33 @@ function RankTable({ history, totalWait, speedHistory }) {
 
   const raw = PANELS.map(p => ({
     ...p,
-    completed: last?.[`${p.key}_cum`] ?? 0,
-    wait:      totalWait[p.key]        ?? 0,
-    speed:     avgSpeed(p.key),
-    minSpd:    minSpeed(p.key),
-    maxSpd:    maxSpeed(p.key),
+    completed:  last?.[`${p.key}_cum`]    ?? 0,
+    wait:       totalWait[p.key]           ?? 0,
+    speed:      avgSpeed(p.key),
+    minSpd:     minSpeed(p.key),
+    maxSpd:     maxSpeed(p.key),
+    teleported: totalTeleport?.[p.key]    ?? 0,
   }));
 
-  const maxCompleted = Math.max(...raw.map(r => r.completed)) || 1;
-  const maxWait      = Math.max(...raw.map(r => r.wait))      || 1;
-  const maxSpd       = Math.max(...raw.map(r => r.speed))     || 1;
+  const maxCompleted  = Math.max(...raw.map(r => r.completed))  || 1;
+  const maxWait       = Math.max(...raw.map(r => r.wait))       || 1;
+  const maxSpd        = Math.max(...raw.map(r => r.speed))      || 1;
+  const maxTeleported = Math.max(...raw.map(r => r.teleported)) || 1;
 
-  const ranked = raw.map(r => ({
-    ...r,
-    score: Math.round(
-      (1 - r.wait  / maxWait)      * 50 +   // ít chờ 50%  ← tiêu chí số 1 (HCM/SCOOT)
-      (r.completed / maxCompleted) * 30 +   // throughput 30%
-      (r.speed     / maxSpd)       * 20     // tốc độ 20%  ← hệ quả, ít weight nhất
-    ),
-  })).sort((a, b) => b.score - a.score);
+  const ranked = raw.map(r => {
+    // teleport_penalty normalize 0-1 so với model tệ nhất → trừ tối đa 10 điểm
+    const teleportPenalty = r.teleported / maxTeleported;
+    return {
+      ...r,
+      teleportPenalty,
+      score: Math.round(
+        (1 - r.wait  / maxWait)      * 50 +   // ít chờ 50%
+        (r.completed / maxCompleted) * 30 +   // throughput 30%
+        (r.speed     / maxSpd)       * 20 -   // tốc độ 20%
+        teleportPenalty              * 10      // teleport penalty -10%
+      ),
+    };
+  }).sort((a, b) => b.score - a.score);
 
   const medals = ["🥇", "🥈", "🥉"];
 
@@ -354,6 +364,7 @@ function RankTable({ history, totalWait, speedHistory }) {
             <th title="Xe đã qua mạng">🚗 Xe HT</th>
             <th title="Tổng thời gian chờ tích lũy">⏱ Chờ (k s)</th>
             <th title="Tốc độ trung bình toàn session (min – max)">⚡ Tốc độ</th>
+            <th title="Tổng xe bị SUMO teleport do kẹt quá lâu">🚫 Teleport</th>
             <th>Score</th>
           </tr>
         </thead>
@@ -377,6 +388,16 @@ function RankTable({ history, totalWait, speedHistory }) {
                     </span>
                   : "—"}
               </td>
+              <td className="rank-teleport">
+                {r.teleported > 0
+                  ? <span style={{ color: "#e24b4a" }}>
+                      {r.teleported}
+                      <span style={{ fontSize:10, color:"#e24b4a88", marginLeft:3 }}>
+                        (−{Math.round(r.teleportPenalty * 10)})
+                      </span>
+                    </span>
+                  : <span style={{ color:"#1d9e75" }}>0</span>}
+              </td>
               <td className="rank-score" style={{ color: r.color }}>{r.score}</td>
             </tr>
           ))}
@@ -387,7 +408,7 @@ function RankTable({ history, totalWait, speedHistory }) {
 }
 
 // ── Realtime Charts ───────────────────────────────────────────────────────────
-function RealtimeCharts({ history, totalWait, speedHistory }) {
+function RealtimeCharts({ history, totalWait, speedHistory, totalTeleport }) {
   if (!history.length) return null;
 
   const summaryData = PANELS.map(p => ({
@@ -399,7 +420,7 @@ function RealtimeCharts({ history, totalWait, speedHistory }) {
 
   return (
     <div className="realtime-charts">
-      <RankTable history={history} totalWait={totalWait} speedHistory={speedHistory}/>
+      <RankTable history={history} totalWait={totalWait} speedHistory={speedHistory} totalTeleport={totalTeleport}/>
 
       <div className="chart-card">
         <div className="chart-card-title">
@@ -478,7 +499,7 @@ function Panel({ cfg, data, status }) {
         </div>
       </div>
       <TrafficMap data={workerData} modelName={cfg.key}/>
-      <MetricsPanel metrics={workerData?.metrics} mode={cfg.key}/>
+      <MetricsPanel metrics={workerData?.metrics} mode={cfg.key} workerData={workerData}/>
     </div>
   );
 }
@@ -488,11 +509,13 @@ export default function LiveDemo() {
   const { data, status, connected, sendCommand } = useWebSocket();
   const [visible,   setVisible]   = useState({ fixed_time:true, idqn:true, gat_marl:true });
   const [history,   setHistory]   = useState([]);
-  const [totalWait, setTotalWait] = useState(ZERO_TOTALS());
+  const [totalWait,     setTotalWait]     = useState(ZERO_TOTALS());
+  const [totalTeleport, setTotalTeleport] = useState(ZERO_TOTALS());
 
-  const lastStepRef   = useRef(0);
-  const cumulativeRef = useRef(ZERO_TOTALS());
-  const totalWaitRef  = useRef(ZERO_TOTALS());
+  const lastStepRef      = useRef(0);
+  const cumulativeRef    = useRef(ZERO_TOTALS());
+  const totalWaitRef     = useRef(ZERO_TOTALS());
+  const totalTeleportRef = useRef(ZERO_TOTALS());
 
   const [speedHistory, setSpeedHistory] = useState([]);
 
@@ -512,6 +535,8 @@ export default function LiveDemo() {
       point[`${p.key}_cum`] = cumulativeRef.current[p.key];
       const tw = data?.[p.key]?.metrics?.total_waiting_time ?? 0;
       totalWaitRef.current[p.key] = (totalWaitRef.current[p.key] ?? 0) + tw;
+      const tp = data?.[p.key]?.metrics?.vehicles_teleported ?? 0;
+      totalTeleportRef.current[p.key] = (totalTeleportRef.current[p.key] ?? 0) + tp;
     });
 
     const speedPoint = { step: anyStep };
@@ -520,16 +545,19 @@ export default function LiveDemo() {
     });
 
     setTotalWait({ ...totalWaitRef.current });
+    setTotalTeleport({ ...totalTeleportRef.current });
     setHistory(prev => [...prev, point].slice(-MAX_CHART_POINTS));
     setSpeedHistory(prev => [...prev, speedPoint].slice(-MAX_CHART_POINTS));
   }, [data]);
 
   const doReset = () => {
-    lastStepRef.current   = 0;
-    cumulativeRef.current = ZERO_TOTALS();
-    totalWaitRef.current  = ZERO_TOTALS();
+    lastStepRef.current      = 0;
+    cumulativeRef.current    = ZERO_TOTALS();
+    totalWaitRef.current     = ZERO_TOTALS();
+    totalTeleportRef.current = ZERO_TOTALS();
     setHistory([]);
     setTotalWait(ZERO_TOTALS());
+    setTotalTeleport(ZERO_TOTALS());
     setSpeedHistory([]);
   };
 
@@ -578,7 +606,7 @@ export default function LiveDemo() {
         </div>
       )}
 
-      <RealtimeCharts history={history} totalWait={totalWait} speedHistory={speedHistory}/>
+      <RealtimeCharts history={history} totalWait={totalWait} speedHistory={speedHistory} totalTeleport={totalTeleport}/>
     </div>
   );
 }

@@ -34,7 +34,7 @@ WEIGHT_DEFAULT  = 1.0
 MAX_WAIT_NORM   = 120.0  # giây — normalize waiting time về [0,1], clip tại 2 phút
 MAX_PRESSURE    = 5.0    # normalize pressure về [0,1] — queue max ~20xe / 4 lanes → ~5
 REWARD_SCALE    = 5.0    # scale reward lên để gradient đủ lớn để học
-                         # =10 kết hợp GAMMA=0.95 → Q range [-100, 0] — ổn định
+                         # =5 kết hợp GAMMA=0.95 → Q range [-50, 0] — ổn định
 
 
 def _edge_weight(edge_id: str) -> float:

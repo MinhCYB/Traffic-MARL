@@ -16,6 +16,7 @@ import torch.optim as optim
 from agents.base_agent import BaseAgent
 from models.gat_marl import GATMARLNet
 from environment.state_builder import INTERSECTION_IDS, EDGE_INDEX
+from training.config import GRAD_CLIP
 
 
 class GATAgent(BaseAgent):
@@ -167,7 +168,7 @@ class GATAgent(BaseAgent):
 
         self.optimizer.zero_grad()
         loss.backward()
-        nn.utils.clip_grad_norm_(self.online_net.parameters(), max_norm=10.0)
+        nn.utils.clip_grad_norm_(self.online_net.parameters(), max_norm=GRAD_CLIP)
         self.optimizer.step()
 
         # Epsilon decay

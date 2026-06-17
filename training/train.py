@@ -207,8 +207,8 @@ def train(
 
         if log_file_mode == "w" or f.tell() == 0:
             if finetune:
-                f.write(f"# finetune_from: {finetune}\n".encode())
-                f.write(f"# topology: {TOPOLOGY}\n".encode())
+                f.write(f"# finetune_from: {finetune}\n")
+                f.write(f"# topology: {TOPOLOGY}\n")
             writer.writeheader()
 
         total_steps  = 0

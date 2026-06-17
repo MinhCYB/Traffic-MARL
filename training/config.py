@@ -13,7 +13,7 @@ ROOT_DIR        = Path(__file__).parent.parent
 # ── Simulation ────────────────────────────────────────────────────────────────
 TOPOLOGY            = "mydinh"  # "2x2" | "mydinh" | "uet" — đổi ở đây khi scale
 DELTA_TIME          = 5         # giây — agent quyết định mỗi 5s
-MIN_GREEN_TIME      = 10        # giây — enforce ở env wrapper
+MIN_GREEN_TIME      = 20        # giây — enforce ở env wrapper
 YELLOW_TIME         = 3         # giây
 SIM_END             = 1800      # giây — 1 episode = 30 phút (đổi từ 3600)
 

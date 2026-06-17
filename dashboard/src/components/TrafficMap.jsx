@@ -126,32 +126,8 @@ function Roads({ EDGES, NODE, SRC, edgeSpeeds, accidentEdges }) {
   );
 }
 
-// ── CountdownPill — hiển thị tsc trực tiếp từ server, không dùng client tick
-function CountdownPill({ tsc, dt, px, py }) {
-  const SZ     = 9;
-  const CD_OFF = SZ + 10;
-
-  // Còn lại = dt - tsc, lấy thẳng từ server — không fake bằng client tick
-  const remaining = Math.max(0, Math.round(dt - tsc));
-  const cdColor   = remaining <= 4 ? "#534ab7" : "#888780";
-  const PW = 22; const PH = 11;
-
-  return (
-    <g>
-      <rect x={px+CD_OFF-PW/2} y={py+CD_OFF-PH/2}
-        width={PW} height={PH} rx={PH/2}
-        fill={cdColor} opacity={0.85}/>
-      <text x={px+CD_OFF} y={py+CD_OFF+0.5}
-        textAnchor="middle" dominantBaseline="central"
-        fontSize={7} fontWeight="800" fill="white">
-        {remaining}s
-      </text>
-    </g>
-  );
-}
-
-// ── Intersections: bo tròn + stop line đổi màu + countdown ──────────────────
-function Intersections({ NODE, intersections, deltaTime, modelColor }) {
+// ── Intersections: bo tròn + stop line đổi màu ───────────────────────────────
+function Intersections({ NODE, intersections, modelColor }) {
   const lookup = {};
   (intersections||[]).forEach(i => { lookup[i.id] = i; });
 
@@ -192,10 +168,6 @@ function Intersections({ NODE, intersections, deltaTime, modelColor }) {
         const data   = lookup[nid];
         const phase  = data?.phase ?? 0;
         const lights = PHASE_LIGHTS[phase] || PHASE_LIGHTS[0];
-        const tsc    = data?.time_since_change ?? 0;
-        // Dùng phase_duration per-node từ server (tính đúng cho từng ngã tư)
-        // Fallback về deltaTime (constant) nếu server chưa gửi per-node
-        const dt     = data?.phase_duration ?? deltaTime ?? 13;
 
         return (
           <g key={nid}>
@@ -221,9 +193,6 @@ function Intersections({ NODE, intersections, deltaTime, modelColor }) {
             {/* Label ngã tư */}
             <text x={pos.x} y={pos.y+1} textAnchor="middle" dominantBaseline="central"
               fontSize={6} fontWeight="700" fill="#5f5e5a">{nid}</text>
-
-            {/* Countdown pill — component riêng, tick của riêng nó */}
-            <CountdownPill tsc={tsc} dt={dt} px={pos.x} py={pos.y}/>
 
             {/* Pulse ring khi SWITCH */}
             {pulseNodes[nid] && (
@@ -463,6 +432,8 @@ function TopologyBadge({ topology }) {
 }
 
 // ── Main ──────────────────────────────────────────────────────────────────────
+import { useStreamWebSocket } from "../hooks/useStreamWebSocket.js";
+
 export function TrafficMap({ data, modelName }) {
   const topology = data?.topology || "2x2";
   const layout   = useMemo(() => getLayout(topology), [topology]);
@@ -472,16 +443,32 @@ export function TrafficMap({ data, modelName }) {
   const edgeSpeeds    = data?.edge_speeds    || {};
   const accidentEdges = data?.accident_edges || {};
 
+  // Stream 1s: vehicles + lights — merge với data 5s để giữ các field đầy đủ
+  // streamData có: vehicles, intersections[{id, phase, time_since_change}]
+  // data có: intersections đầy đủ hơn (queue, waiting_time, reward...), attention, metrics
+  const { streamData } = useStreamWebSocket();
+  const liveStream = streamData?.[modelName];
+  const liveData = liveStream ? {
+    ...data,
+    vehicles: liveStream.vehicles ?? data?.vehicles,
+    intersections: liveStream.intersections?.map(si => {
+      // Lấy phase + time_since_change từ stream (1s), giữ lại các field khác từ data 5s
+      const full = (data?.intersections || []).find(i => i.id === si.id) || {};
+      return { ...full, phase: si.phase, time_since_change: si.time_since_change };
+    }) ?? data?.intersections,
+  } : data;
+
   return (
     <div className="traffic-map-wrap">
       <svg viewBox={`0 0 ${W} ${H}`} className="traffic-map-svg">
         <rect width={W} height={H} fill="#f5f4f1" rx="8"/>
         <Roads EDGES={EDGES} NODE={NODE} SRC={SRC} edgeSpeeds={edgeSpeeds} accidentEdges={accidentEdges}/>
         <AccidentMarkers accidentEdges={accidentEdges} EDGES={EDGES} NODE={NODE} SRC={SRC}/>
-        <Vehicles vehicles={data?.vehicles} color={color} NODE={NODE} SRC={SRC} EDGES={EDGES}
-          phaseLookup={Object.fromEntries((data?.intersections||[]).map(i => [i.id, i]))}/>
-        <Intersections NODE={NODE} intersections={data?.intersections} deltaTime={data?.phase_duration ?? 13} modelColor={color}/>
+        <Vehicles vehicles={liveData?.vehicles} color={color} NODE={NODE} SRC={SRC} EDGES={EDGES}
+          phaseLookup={Object.fromEntries((liveData?.intersections||[]).map(i => [i.id, i]))}/>
+        <Intersections NODE={NODE} intersections={liveData?.intersections} modelColor={color}/>
         {/* AttentionArrows render cuối — nằm trên tất cả layers, không bị che bởi xe/ngã tư */}
+        {/* Dùng data (5s) vì attention chỉ có sau model forward */}
         <AttentionArrows attn={modelName==="gat_marl" ? data?.attention_weights : null} NODE={NODE}/>
         <TopologyBadge topology={topology}/>
         <SpeedLegend H={H}/>

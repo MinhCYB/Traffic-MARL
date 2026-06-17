@@ -64,6 +64,60 @@ _barrier_release:  dict[str, bool] = {mode: False for mode in WORKER_MODES}
 _alive_seen:       dict[str, float] = {}   # mode → timestamp lần poll gần nhất
 
 
+# ── Stream buffer — vehicle + lights mỗi 1s ──────────────────────────────────
+# Lưu snapshot mới nhất từ mỗi worker, broadcast ngay khi nhận
+_stream_clients: list[WebSocket] = []
+_stream_latest:  dict[str, dict] = {}   # mode → payload mới nhất
+
+
+@app.post("/stream")
+async def receive_stream(request: Request):
+    """
+    Worker POST substep snapshot (vehicles + lights) mỗi 1s sim-time.
+    Broadcast ngay lập tức cho tất cả /ws/stream clients — không cần barrier.
+    """
+    payload = await request.json()
+    mode = payload.get("mode")
+    if not mode:
+        return {"ok": False, "error": "missing mode"}
+
+    _stream_latest[mode] = payload
+
+    # Broadcast ngay cho tất cả stream clients
+    dead = []
+    for ws in _stream_clients:
+        try:
+            await ws.send_json({"stream": _stream_latest})
+        except Exception:
+            dead.append(ws)
+    for ws in dead:
+        _stream_clients.remove(ws)
+
+    return {"ok": True}
+
+
+@app.websocket("/ws/stream")
+async def websocket_stream(ws: WebSocket):
+    """
+    Dashboard subscribe vào đây để nhận vehicle + light data mỗi ~1s.
+    Tách biệt hoàn toàn với /ws (vẫn giữ cho metrics + attention mỗi 5s).
+    """
+    await ws.accept()
+    _stream_clients.append(ws)
+    # Gửi snapshot hiện tại ngay lúc connect để FE có data liền
+    if _stream_latest:
+        try:
+            await ws.send_json({"stream": _stream_latest})
+        except Exception:
+            pass
+    try:
+        while True:
+            await ws.receive_text()
+    except WebSocketDisconnect:
+        if ws in _stream_clients:
+            _stream_clients.remove(ws)
+
+
 # ── Worker endpoints ──────────────────────────────────────────────────────────
 
 @app.post("/data")

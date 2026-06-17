@@ -405,8 +405,8 @@ def run_learner(
         if log_file_mode == "w" or f.tell() == 0:
             # finetune_log: ghi metadata truoc CSV header de biet context
             if finetune:
-                f.write(f"# finetune_from: {finetune}\n".encode())
-                f.write(f"# topology: {TOPOLOGY}\n".encode())
+                f.write(f"# finetune_from: {finetune}\n")
+                f.write(f"# topology: {TOPOLOGY}\n")
             writer.writeheader()
 
         while not stop_event.is_set():

@@ -34,7 +34,7 @@ from environment.state_builder import (
 )
 from environment.maps import get_edge_lanes
 from environment.reward import compute_reward, compute_global_reward, REWARD_SCALE
-from training.config import SIM_END as _CFG_SIM_END
+from training.config import SIM_END as _CFG_SIM_END, MIN_GREEN_TIME, YELLOW_TIME
 
 # ── Cấu hình ─────────────────────────────────────────────────────────────────
 
@@ -62,8 +62,6 @@ ROUTE_WEIGHTS = {"peak_morning": 0.35, "peak_evening": 0.35, "night": 0.30, "pea
 YELLOW_PHASE = {0: 1, 2: 3}   # green phase → yellow phase trước khi switch
 NEXT_GREEN_PHASE = {1: 2, 3: 0}  # yellow phase → green phase tiếp theo
 
-MIN_GREEN_TIME = 10          # giây — enforce ở env, không phải model
-YELLOW_TIME    = 3           # giây — yellow phase cố định
 DELTA_TIME     = 5           # giây — agent quyết định mỗi 5s
 SIM_END        = _CFG_SIM_END  # giây — lấy từ training/config.py (hiện tại: 1800)
 
@@ -97,6 +95,10 @@ class TrafficEnv:
         self.use_gui    = use_gui
         self.seed       = seed
         self.delta_time = delta_time
+
+        # Callback được worker gán để nhận vehicle + light snapshots mỗi 1s sim-time.
+        # Signature: on_substep(phases: dict, time_since_change: dict) -> None
+        self.on_substep = None
 
         # State tracking
         self._step = 0
@@ -218,6 +220,9 @@ class TrafficEnv:
             departed_count += traci.simulation.getDepartedNumber()
             arrived_count  += traci.simulation.getArrivedNumber()
             teleport_count += traci.simulation.getStartingTeleportNumber()
+            # Hook để worker stream vehicle + lights mỗi 1s sim-time
+            if self.on_substep is not None:
+                self.on_substep(self._phase.copy(), self._time_since_change.copy())
 
         # Đọc detector data
         queue_data, density_data = self._read_detectors()

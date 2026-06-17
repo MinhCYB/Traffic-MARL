@@ -57,6 +57,52 @@ class WorkerBase(ABC):
         self._subscribed_vehicles: set[str] = set()
         self._lane_length_cache:   dict[str, float] = {}
 
+        # Đăng ký substep callback để stream vehicles + lights mỗi 1s sim-time
+        self.env.on_substep = self._on_substep
+        # Thread pool 1 worker — đảm bảo POST không block simulation loop
+        from concurrent.futures import ThreadPoolExecutor
+        self._stream_executor = ThreadPoolExecutor(max_workers=1)
+        self._stream_pending  = False   # throttle: bỏ qua nếu POST trước chưa xong
+
+    def _on_substep(self, phases: dict, time_since_change: dict):
+        """
+        Được gọi sau mỗi traci.simulationStep() (1s sim-time).
+        Stream vehicle positions + traffic light state lên /stream endpoint.
+        POST chạy trên thread riêng — không block simulation loop.
+        """
+        if self._stream_pending:
+            return  # POST trước chưa xong → bỏ qua frame này, không block
+
+        vehicles = self._read_vehicles()
+        intersections = [
+            {
+                "id":    nid,
+                "phase": int(phases.get(nid, 0)),
+                "time_since_change": round(float(time_since_change.get(nid, 0)), 1),
+            }
+            for nid in phases
+        ]
+        payload = {
+            "mode":          self.model_name,
+            "vehicles":      vehicles,
+            "intersections": intersections,
+        }
+        self._stream_pending = True
+        self._stream_executor.submit(self._post_stream_sync, payload)
+
+    def _post_stream_sync(self, payload: dict):
+        """Chạy trên background thread — POST rồi clear flag."""
+        try:
+            requests.post(
+                f"{self.base_url}/stream",
+                json=payload,
+                timeout=0.8,
+            )
+        except requests.exceptions.RequestException:
+            pass
+        finally:
+            self._stream_pending = False
+
     # ── Abstract ──────────────────────────────────────────────────────────────
 
     @abstractmethod

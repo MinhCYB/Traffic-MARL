@@ -81,11 +81,14 @@ Workers (CPU, SUMO)         Learner (GPU)
 Smart-Traffic-MARL/
 ├── simulation/                  # SUMO map files
 │   ├── 2x2/                     # Map synthetic 4 ngã tư (train nhanh)
-│   └── mydinh/                  # Map thực tế Mỹ Đình 8 ngã tư
-│       ├── net/                 # nod.xml, edg.xml, typ.xml → gen net.xml
-│       ├── routes/              # gen_routes.py → peak + night
-│       ├── detectors/           # E2 detectors mọi incoming lane
-│       └── mydinh.sumocfg
+│   ├── mydinh/                  # Map thực tế Mỹ Đình 8 ngã tư
+│   │   ├── net/                 # nod.xml, edg.xml, typ.xml → gen net.xml
+│   │   ├── gen_routes.py        # gen 3 khung giờ → routes/
+│   │   ├── routes/              # routes_peak_morning / routes_peak_evening / routes_night
+│   │   ├── detectors/           # E2 detectors mọi incoming lane
+│   │   └── mydinh.sumocfg
+│   └── uet/                     # Map thực tế ĐH Công nghệ, Cầu Giấy — 15 ngã tư
+│       └── (cùng cấu trúc với mydinh)
 │
 ├── environment/                 # RL Environment layer
 │   ├── traffic_env.py           # SUMO wrapper (TraCI batch subscription)
@@ -94,7 +97,8 @@ Smart-Traffic-MARL/
 │   └── maps/                    # Topology data từng map
 │       ├── __init__.py          # Auto-load theo config.TOPOLOGY
 │       ├── map_2x2.py
-│       └── map_mydinh.py
+│       ├── map_mydinh.py
+│       └── map_uet.py
 │
 ├── models/                      # Model definitions (PyTorch + PyG)
 │   ├── gat_marl.py              # GAT 4-head + shared Q-head
@@ -194,10 +198,20 @@ export SUMO_HOME=/path/to/sumo
 
 ```bash
 python scripts/build_map.py mydinh
+python scripts/build_map.py uet
 python scripts/build_map.py 2x2
 
 # Interactive — liệt kê map có sẵn
 python scripts/build_map.py
+```
+
+### 5. Gen routes (chạy 1 lần, trước khi train lần đầu)
+
+Mỗi map (`mydinh`, `uet`) cần gen 3 file route theo khung giờ — `routes_peak_morning.rou.xml` (cao điểm sáng 7-9h, Sink cao), `routes_peak_evening.rou.xml` (cao điểm chiều 17-19h, Source cao), `routes_night.rou.xml` (ban đêm):
+
+```bash
+cd simulation/mydinh && python gen_routes.py && cd ../..
+cd simulation/uet    && python gen_routes.py && cd ../..
 ```
 
 ---
@@ -208,6 +222,7 @@ Mở `training/config.py`, đổi dòng `TOPOLOGY`:
 
 ```python
 TOPOLOGY = "mydinh"   # map thực tế Mỹ Đình 8 ngã tư (recommended)
+TOPOLOGY = "uet"      # map thực tế ĐH Công nghệ, Cầu Giấy — 15 ngã tư
 TOPOLOGY = "2x2"      # map synthetic 4 ngã tư (train nhanh / baseline)
 ```
 
@@ -220,13 +235,15 @@ TOPOLOGY = "2x2"      # map synthetic 4 ngã tư (train nhanh / baseline)
 ### Fresh train (recommended)
 
 ```bash
-# Parallel — recommended cho gat_marl / idqn
-python -m training.train_parallel --model gat_marl --num-workers 2
-python -m training.train_parallel --model idqn    --num-workers 2
-
-# Single-process (debug / fixed_time baseline)
-python -m training.train --model gat_marl
+# Fixed-time baseline — train.py
 python -m training.train --model fixed_time
+
+# GAT-MARL và IDQN — dùng train_parallel (Ape-X style)
+python -m training.train_parallel --model gat_marl --num-workers 2
+python -m training.train_parallel --model idqn     --num-workers 2
+
+# Single-process (debug nhanh / smoke test, không dùng để train thật)
+python -m training.train --model gat_marl
 ```
 
 ### Override obstacle
@@ -246,16 +263,26 @@ python -m training.train_parallel --model gat_marl --num-workers 2 \
 python -m training.train_parallel --model gat_marl --num-workers 2 \
     --resume checkpoints/final/gat_marl_mydinh_best.pt
 
-# Finetune từ map khác (freeze GAT 20 ep đầu)
+# Finetune sang topology khác (freeze GAT 20 ep đầu)
+# Đổi TOPOLOGY = "uet" trong training/config.py trước khi chạy
 python -m training.train_parallel --model gat_marl --num-workers 2 \
-    --finetune checkpoints/final/gat_marl_2x2_best.pt
+    --finetune checkpoints/final/gat_marl_mydinh_best.pt
 ```
+
+Khi `STATE_DIM` của checkpoint khác với topology hiện tại, Local Encoder tự reset (random init) — GAT layer và Q-head vẫn được giữ lại từ checkpoint gốc.
 
 | Tình huống | Nên làm |
 |-----------|---------|
 | Cùng map, cùng config, tiếp tục train | `--resume` |
-| Chuyển từ `2x2` → `mydinh` | `--finetune` |
+| Chuyển topology (ví dụ `mydinh` → `uet`) | `--finetune` |
 | Đổi `SIM_END`, reward, hoặc state dim | Train fresh |
+
+#### Log files
+
+| File | Khi nào |
+|------|---------|
+| `logs/<topology>/<model>/training_log.csv` | Fresh train (ghi mới) và resume (append vào log cũ) |
+| `logs/<topology>/<model>/finetune_log.csv` | Mỗi lần `--finetune` ghi vào file riêng này, tách biệt khỏi `training_log.csv` |
 
 ### Workflow gợi ý
 
@@ -331,6 +358,8 @@ cd dashboard && npm run dev
 
 Truy cập **http://localhost:5173** → tab **Live Demo**.
 
+Trước khi bấm **▶ Start**, chọn **Khung giờ** ở dropdown: 🌅 Cao điểm sáng (7-9h) / 🌆 Cao điểm chiều (17-19h) / 🌙 Ban đêm — tương ứng 3 file route đã gen ở bước cài đặt.
+
 Thêm `--gui` để mở cửa sổ SUMO trực quan:
 
 ```bash
@@ -349,7 +378,7 @@ python -m workers.worker_gat --gui
        net/<map_name>.nod.xml    ← bắt buộc
        net/<map_name>.edg.xml    ← bắt buộc
        net/<map_name>.typ.xml    ← optional
-       routes/gen_routes.py      ← optional
+       gen_routes.py             ← optional, gen ra routes/*.rou.xml
        <map_name>.sumocfg
    ```
 

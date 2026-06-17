@@ -16,8 +16,9 @@ const PANELS = [
 ];
 
 const ROUTE_OPTIONS = [
-  { value: "peak",  label: "🏙️ Giờ cao điểm" },
-  { value: "night", label: "🌙 Ban đêm"       },
+  { value: "peak_morning", label: "🌅 Cao điểm sáng (7-9h)"  },
+  { value: "peak_evening", label: "🌆 Cao điểm chiều (17-19h)" },
+  { value: "night",        label: "🌙 Ban đêm"                },
 ];
 
 const VOLUME_OPTIONS = [
@@ -37,7 +38,7 @@ function StatusDot({ state }) {
 // ── Start Dropdown ────────────────────────────────────────────────────────────
 function StartDropdown({ onStart }) {
   const [open,   setOpen]   = useState(false);
-  const [route,  setRoute]  = useState("peak");
+  const [route,  setRoute]  = useState("peak_morning");
   const [volume, setVolume] = useState(1.0);
   const ref = useRef(null);
 

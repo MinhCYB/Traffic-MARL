@@ -135,8 +135,16 @@ class TrafficEnv:
                 pass
             self._tmp_route_file = None
 
-        route_type = route_type or self._sample_route()
+        route_type  = route_type or self._sample_route()
         route_files = _get_route_files(self.topology)
+
+        # Backward compat: dashboard cu gui "peak" -> map sang "peak_morning"
+        # neu file routes_peak.rou.xml khong ton tai (da gen routes moi)
+        if (route_type == "peak"
+                and not route_files["peak"].exists()
+                and route_files["peak_morning"].exists()):
+            route_type = "peak_morning"
+
         base_route  = str(route_files[route_type])
 
         # Scale volume nếu cần

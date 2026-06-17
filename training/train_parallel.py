@@ -403,6 +403,10 @@ def run_learner(
 
         # Chỉ ghi header khi tạo file mới
         if log_file_mode == "w" or f.tell() == 0:
+            # finetune_log: ghi metadata truoc CSV header de biet context
+            if finetune:
+                f.write(f"# finetune_from: {finetune}\n".encode())
+                f.write(f"# topology: {TOPOLOGY}\n".encode())
             writer.writeheader()
 
         while not stop_event.is_set():
@@ -604,10 +608,21 @@ def train_parallel(
 
     log_dir = LOG_DIR / model_name
     log_dir.mkdir(parents=True, exist_ok=True)
-    log_path = log_dir / f"{'finetune' if finetune else 'training'}_log.csv"   # ← tên giống train.py → merge_logs hoạt động
 
-    # ── Chọn file mode: "a" khi resume/finetune để không mất data cũ ─────────
-    log_file_mode = "a" if resume else "w"
+    # ── Log file strategy ─────────────────────────────────────────────────────
+    # fresh train : training_log.csv  mode="w"  (tạo mới, overwrite nếu đã có)
+    # resume      : training_log.csv  mode="a"  (append vào log cũ, giữ history)
+    # finetune    : finetune_log.csv  mode="w"  (file riêng, tạo mới mỗi lần)
+    #               → dễ track riêng từng lần finetune, không lẫn với training gốc
+    if finetune:
+        log_path      = log_dir / "finetune_log.csv"
+        log_file_mode = "w"
+    elif resume:
+        log_path      = log_dir / "training_log.csv"
+        log_file_mode = "a"
+    else:
+        log_path      = log_dir / "training_log.csv"
+        log_file_mode = "w"
 
     mode = "FINETUNE" if finetune else "RESUME" if resume else "FRESH"
     total_eps = episodes * num_workers

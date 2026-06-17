@@ -166,8 +166,14 @@ def train(
     ckpt_dir.mkdir(parents=True, exist_ok=True)
     log_dir.mkdir(parents=True, exist_ok=True)
 
-    log_path = log_dir / "training_log.csv"
-    
+    # fresh train : training_log.csv mode="w"
+    # resume      : training_log.csv mode="a"
+    # finetune    : finetune_log.csv  mode="w"
+    if finetune:
+        log_path      = log_dir / "finetune_log.csv"
+    else:
+        log_path      = log_dir / "training_log.csv"
+
     # ── ĐỒNG BỘ HEADER VỚI TRAIN_PARALLEL ──
     fieldnames = [
         "episode", "worker_id", "total_steps", "global_reward",
@@ -194,12 +200,15 @@ def train(
         except Exception:
             pass
 
-    log_file_mode = "a" if (resume or finetune) else "w"
+    log_file_mode = "a" if resume else "w"
 
     with open(log_path, log_file_mode, newline="") as f:
         writer = csv.DictWriter(f, fieldnames=fieldnames)
 
         if log_file_mode == "w" or f.tell() == 0:
+            if finetune:
+                f.write(f"# finetune_from: {finetune}\n".encode())
+                f.write(f"# topology: {TOPOLOGY}\n".encode())
             writer.writeheader()
 
         total_steps  = 0

@@ -40,7 +40,9 @@
 % ══════════════════════════════════════════════════════════════════════════════
 \begin{document}
 
-\title{GAT-MARL: Điều phối mạng lưới đèn giao thông đô thị\\bằng Multi-Agent Reinforcement Learning\\và Graph Attention Network}
+\title{\resizebox{\linewidth}{!}{GAT-MARL: Điều phối mạng lưới đèn giao thông đô thị} \\ 
+bằng Multi-Agent Reinforcement Learning \\ 
+và Graph Attention Network}
 
 \author{
 \IEEEauthorblockN{Đặng Quang Minh, Ngô Trọng Hiệp, Khổng Quang Huy}% <-this % stops a space
@@ -145,12 +147,12 @@ Hệ thống sử dụng SUMO (Simulation of Urban Mobility)~\cite{SUMO2018} ---
 
 \begin{figure}[!t]
     \centering
-    \includegraphics[width=\linewidth]{map_mydinh.png}
+    \includegraphics[width=\linewidth]{imgs/map_mydinh.png}
     \caption{Topology mạng lưới giao thông khu vực Mỹ Đình (8 ngã tư).}
     \label{fig:topology}
 \end{figure}
 
-\textbf{Cấu hình mô phỏng}: mỗi episode kéo dài 1800 giây (30 phút), decision step $\Delta t = 5$s (tổng 360 bước/episode). Mỗi episode lấy ngẫu nhiên một trong hai kịch bản lưu lượng: \texttt{peak} (70\%) hoặc \texttt{night} (30\%), phản ánh phân bố lưu lượng thực tế trong ngày.
+\textbf{Cấu hình mô phỏng}: mỗi episode kéo dài 1800 giây (30 phút), decision step $\Delta t = 5$s (tổng 360 bước/episode). Mỗi episode lấy ngẫu nhiên một trong ba kịch bản lưu lượng: \texttt{peak\_morning} (35\%), \texttt{peak\_evening} (35\%), và \texttt{night} (30\%), phản ánh phân bố lưu lượng thực tế trong ngày.
 
 \subsection{State Space}
 
@@ -179,7 +181,7 @@ Action space nhị phân cho mỗi agent: $a_i \in \{0, 1\}$
     \item $a = 1$: chuyển sang pha tiếp theo (switch) --- trigger yellow phase trước khi chuyển green.
 \end{itemize}
 
-Constraint min-green ($\geq 10$s) và yellow cố định ($3$s) được enforce ở tầng environment, không phải model --- đảm bảo tính hợp lệ mà agent không cần học.
+Constraint min-green ($\geq 20$s) và yellow cố định ($3$s) được enforce ở tầng environment, không phải model --- đảm bảo tính hợp lệ mà agent không cần học.
 
 \subsection{Reward Function}
 \label{sec:reward}
@@ -193,7 +195,7 @@ trong đó:
 \begin{itemize}[leftmargin=*]
     \item $\hat{w}_i = \min\!\left(\bar{w}_i,\, W_{\max}\right) / W_{\max}$ --- waiting time trung bình normalize, clip tại $W_{\max} = 120$s.
     \item $\hat{p}_i = \min\!\left(p_i,\, P_{\max}\right) / P_{\max}$ --- weighted pressure normalize, clip tại $P_{\max} = 5.0$.
-    \item $\alpha = 0.7,\; \beta = 0.3$ --- waiting time chiếm 70\% (primary signal, sát tiêu chí HCM~7th Edition), pressure 30\% (regularizer).
+    \item $\alpha = 0.7,\; \beta = 0.3$ --- waiting time chiếm 70\% (primary signal, sát tiêu chí HCM~7th Edition); pressure chiếm 30\% (regularizer, phản ánh mức độ mất cân bằng queue).
     \item $S = 5.0$ --- reward scale, đảm bảo gradient đủ lớn.
 \end{itemize}
 
@@ -209,7 +211,7 @@ với $w_e = 2.0$ cho arterial (Hồ Tùng Mậu, Lê Đức Thọ, Phạm Hùng
     \text{penalty} = \min\!\left(\frac{0.5 \times n_{\text{teleport}}}{N_{\text{agents}}} \times S,\; 2.5\right)
 \end{equation}
 
-\textbf{Shared reward (GAT-MARL)}: để khuyến khích cooperative behavior trong quá trình \textit{training}, reward mỗi agent GAT được thay bằng mean reward toàn mạng: $r_i^{\text{shared}} = \frac{1}{N}\sum_{j} r_j$. Cơ chế này chỉ áp dụng ở tầng \texttt{train\_parallel.py} (worker loop), không ảnh hưởng đến inference. IDQN giữ individual reward vì không có communication layer để leverage shared signal.
+\textbf{Shared reward (GAT-MARL)}: để khuyến khích cooperative behavior trong quá trình \textit{training}, reward mỗi agent GAT được tính theo dạng hybrid: $r_i^{\text{train}} = 0.7 \cdot r_i + 0.3 \cdot \bar{r}$, trong đó $\bar{r} = \frac{1}{N}\sum_{j} r_j$ là mean reward toàn mạng. Thiết kế này giữ lại 70\% tín hiệu individual để Q-values không collapse về nhau (mỗi agent vẫn phân biệt được khi mình hoạt động tốt hay kém), đồng thời 30\% global mean thúc đẩy coordination. Cơ chế này chỉ áp dụng ở tầng \texttt{train\_parallel.py} (worker loop), không ảnh hưởng đến inference. IDQN giữ individual reward vì không có communication layer để leverage shared signal.
 
 % ══════════════════════════════════════════════════════════════════════════════
 %  4. KIẾN TRÚC MÔ HÌNH
@@ -222,12 +224,12 @@ Kiến trúc theo hướng tiếp cận của CoLight~\cite{CoLight2019} với p
 
 \begin{figure}[h]
     \centering
-    % [TODO: Chèn hình kiến trúc GAT-MARL]
     \fbox{\parbox{0.9\linewidth}{\centering\vspace{1em}
     \small
-    \texttt{obs\_i (d\_s)} $\rightarrow$ \texttt{[LocalEncoder]} $\rightarrow$ \texttt{h\_i (64)}\\[0.3em]
-    \texttt{h\_1,...,h\_N} $\rightarrow$ \texttt{[GAT 4-head]} $\rightarrow$ \texttt{h'\_i (64)}\\[0.3em]
-    \texttt{h'\_i} $\rightarrow$ \texttt{[Q-head]} $\rightarrow$ \texttt{Q(s,a) (2)}
+    \texttt{obs\_i ($d_s$)} $\rightarrow$ \texttt{[LocalEncoder: MLP]} $\rightarrow$ $\mathbf{h}_i \in \mathbb{R}^{64}$\\[0.4em]
+    $\mathbf{h}_1,\ldots,\mathbf{h}_N$ $\xrightarrow{\text{GATConv (4 heads)}}$ $\mathbf{h}'_i \in \mathbb{R}^{64}$\\[0.4em]
+    $\mathbf{h}'_i$ $\rightarrow$ \texttt{[Q-head: MLP]} $\rightarrow$ $Q(s,\text{keep}),\; Q(s,\text{switch})$\\[0.6em]
+    \textit{(Toàn bộ agents dùng chung 1 bộ trọng số)}
     \vspace{1em}}}
     \caption{Kiến trúc GAT-MARL. Tất cả agents dùng chung bộ trọng số --- GAT tự differentiate agent qua graph topology.}
     \label{fig:architecture}
@@ -236,6 +238,8 @@ Kiến trúc theo hướng tiếp cận của CoLight~\cite{CoLight2019} với p
 \textbf{1) Local Encoder} (Shared MLP): $\texttt{Linear}(d_s, 64) \to \texttt{ReLU} \to \texttt{Linear}(64, 64) \to \texttt{ReLU}$. Mã hóa observation thô thành hidden representation $\mathbf{h}_i \in \mathbb{R}^{64}$.
 
 \textbf{2) GAT Communication Layer}: sử dụng \texttt{GATConv}~\cite{Velickovic2018} từ PyTorch Geometric~\cite{PyG2019} với 4 attention heads, \texttt{concat=False} (output giữ nguyên 64 chiều), \texttt{add\_self\_loops=True}, dropout $= 0.1$. Output $\mathbf{h}'_i$ chứa thông tin enriched từ neighbors.
+
+\textit{Lưu ý về self-loop}: với \texttt{add\_self\_loops=True}, \texttt{GATConv} tự thêm $N$ self-loop edges vào \texttt{edge\_index} trước khi tính attention, do đó $\mathcal{N}_i$ trong công thức~\eqref{eq:gat_attn} bao gồm cả node $i$. Hệ quả kỹ thuật: \texttt{\_attention\_weights} sau forward có shape $(E + N,)$ thay vì $(E,)$. Khi chuyển về attention matrix $(N \times N)$, cần augment \texttt{edge\_index} tương ứng (xem \texttt{get\_attention\_matrix()} trong \texttt{gat\_marl.py}).
 
 \textbf{3) Q-head} (Shared MLP): $\texttt{Linear}(64, 64) \to \texttt{ReLU} \to \texttt{Linear}(64, 2)$. Xuất Q-values cho 2 actions.
 
@@ -260,17 +264,7 @@ Hệ thống training parallel (Hình~\ref{fig:parallel}) theo kiến trúc Ape-
 
 \begin{figure}[h]
     \centering
-    % [TODO: Chèn hình parallel architecture]
-    \fbox{\parbox{0.9\linewidth}{\centering\vspace{1em}
-    \small
-    $N$ RolloutWorkers (CPU, SUMO)\\
-    $\downarrow$ \texttt{exp\_queue}\\
-    DrainThread $\rightarrow$ ReplayBuffer\\
-    $\downarrow$ sample\\
-    Learner (GPU, backprop)\\
-    $\downarrow$ \texttt{weight\_queues}\\
-    Workers pull weights mỗi 80 steps
-    \vspace{1em}}}
+    \includegraphics[width=\linewidth]{imgs/apex_diagram.png}
     \caption{Kiến trúc parallel training. Workers chạy SUMO trên CPU, Learner update trên GPU. DrainThread tách riêng để không bị block bởi backprop.}
     \label{fig:parallel}
 \end{figure}
@@ -299,7 +293,7 @@ Pre-allocated numpy circular buffer với threading lock:
 \begin{itemize}[leftmargin=*]
     \item Capacity: 50{,}000 transitions.
     \item Schema: $(\mathbf{s}, \mathbf{a}, \mathbf{r}, \mathbf{s}', d)$ với $\mathbf{s} \in \mathbb{R}^{N \times d_s}$.
-    \item Lock guard: \texttt{threading.Lock} bảo vệ \texttt{push()} vs \texttt{sample()} khi buffer wrap around --- cần thiết vì \texttt{nonlocal int += 1} trong Python không đảm bảo atomic trên bytecode level (\texttt{LOAD\_DEREF + IADD + STORE\_DEREF}).
+    \item Lock guard: \texttt{threading.Lock} bảo vệ \texttt{push()} vs \texttt{sample()} khi buffer wrap around --- cần thiết vì phép \texttt{nonlocal int += 1} trong Python không đảm bảo atomic trên bytecode level (\texttt{LOAD\_DEREF} $\to$ \texttt{IADD} $\to$ \texttt{STORE\_DEREF}), tránh race condition khi drain thread và learner cùng truy cập buffer.
     \item \texttt{sample()} copy data ra khỏi lock scope để tránh race condition.
 \end{itemize}
 
@@ -319,6 +313,8 @@ WarmupScheduler: linear warmup 10\% đầu rồi cosine decay:
 \end{equation}
 với $T_w = T / 10$, lr floor $= 10^{-5}$.
 
+\textbf{Tương tác với 2-phase fine-tuning}: khi finetune, optimizer state được reset hoàn toàn (momentum, second moment của Adam bị xóa), kéo theo scheduler cũng restart từ đầu. Nhờ đó, Phase~1 (freeze GAT) bắt đầu với learning rate thấp từ warmup --- tránh gradient spike khi chỉ Q-head được cập nhật. Đến Phase~2 (unfreeze toàn bộ), scheduler đã qua warmup và bắt đầu cosine decay, giúp GAT layer được fine-tune với learning rate ổn định hơn.
+
 \subsection{Chiến lược Finetune}
 \label{sec:finetune}
 
@@ -332,7 +328,7 @@ IDQN không có communication layer tách biệt --- toàn bộ network là mộ
 
 \textbf{Cơ chế load checkpoint}:
 \begin{itemize}[leftmargin=*]
-    \item \texttt{finetune=True}: chỉ load weights (warm-start), \textit{reset} optimizer state và giữ \texttt{epsilon\_start} cao để agent có thể explore map mới. Optimizer mới bắt đầu với momentum sạch, tránh bị kéo theo hướng gradient cũ.
+    \item \texttt{finetune=True}: chỉ load weights (warm-start), \textit{reset} optimizer state và giữ \texttt{epsilon\_start} cao để agent explore map mới. Optimizer bắt đầu với momentum sạch, tránh bị kéo theo hướng gradient cũ.
     \item \texttt{resume=True}: load toàn bộ state (weights + optimizer + epsilon + update counter), tiếp tục training chính xác từ điểm dừng trước.
 \end{itemize}
 
@@ -375,7 +371,8 @@ Thành phần waiting time đóng góp $56.0$, pressure đóng góp $0.96$ --- t
 \begin{align*}
     \hat{w} &= 80 / 120 = 0.667 \\
     \hat{p} &= 3.2 / 5 = 0.640 \\
-    r &= -\left(0.7 \times 0.667 + 0.3 \times 0.640\right) \times 5 = -(0.467 + 0.192) \times 5 = -3.29
+    r &= -(0.7 \times 0.667 + 0.3 \times 0.640) \times 5 \\
+      &= -(0.467 + 0.192) \times 5 = -3.29
 \end{align*}
 Thành phần waiting time đóng góp $0.467 \times 5 = 2.33$, pressure đóng góp $0.192 \times 5 = 0.96$ --- tỉ lệ thực tế là $\mathbf{71{:}29}$, gần đúng với $\alpha{:}\beta = 70{:}30$.
 
@@ -391,13 +388,13 @@ Hàm \texttt{get\_edge\_lanes()} trả về số lane thực tế cho từng edg
 
 \subsection{Cooperative Shared Reward}
 
-GAT-MARL dùng shared reward $r^{\text{shared}} = \text{mean}(r_1, ..., r_N)$ để khuyến khích cooperative behavior, nhất quán với communication qua GAT. IDQN giữ individual reward vì không có cơ chế coordination.
+GAT-MARL dùng hybrid reward $r_i^{\text{train}} = 0.7 \cdot r_i + 0.3 \cdot \bar{r}$ (với $\bar{r} = \text{mean}(r_1, \ldots, r_N)$) để vừa giữ tín hiệu phân biệt per-agent vừa khuyến khích cooperative behavior, nhất quán với communication qua GAT. IDQN giữ individual reward vì không có cơ chế coordination.
 
 \textbf{Lưu ý phân biệt}: hàm \texttt{compute\_global\_reward()} trong \texttt{reward.py} tính tổng reward toàn mạng và chỉ dùng cho \textbf{logging/evaluation} (ghi vào CSV để theo dõi tiến trình). Signal dùng để \textbf{train} là shared reward được tính ở tầng worker loop trong \texttt{train\_parallel.py} --- hai giá trị này nhất quán về ý nghĩa nhưng tách biệt về vai trò.
 
 \subsection{Route Distribution}
 
-Mỗi episode lấy ngẫu nhiên kịch bản \texttt{peak} (70\%) hoặc \texttt{night} (30\%). Volume có thể scale từ $0.5\times$ đến $1.8\times$ để mô phỏng các mức lưu lượng khác nhau.
+Mỗi episode lấy ngẫu nhiên kịch bản \texttt{peak\_morning} (35\%), \texttt{peak\_evening} (35\%), hoặc \texttt{night} (30\%). Volume có thể scale từ $0.5\times$ đến $1.8\times$ để mô phỏng các mức lưu lượng khác nhau.
 
 \subsection{Obstacle Injection}
 
@@ -405,7 +402,7 @@ Mô phỏng sự cố thực tế (công trình, xe hỏng) bằng cách inject 
 
 \subsection{Temp File Cleanup}
 
-Khi scale volume, file route tạm được tạo với \texttt{delete=False} và được dọn dẹp tự động trong \texttt{reset()} và \texttt{close()}, tránh disk leak qua nhiều episodes.
+Khi scale volume, file route tạm được tạo với \texttt{delete=False} và dọn dẹp tự động trong \texttt{reset()} và \texttt{close()}, tránh disk leak qua nhiều episodes.
 
 % ══════════════════════════════════════════════════════════════════════════════
 %  7. THỰC NGHIỆM VÀ KẾT QUẢ
@@ -436,7 +433,7 @@ GAT heads & 4 & \texttt{concat=False} \\
 Grad clip & 10.0 & Max norm \\
 Reward scale $S$ & 5.0 & \\
 $\alpha / \beta$ & 0.7 / 0.3 & Wait / Pressure \\
-Workers & 2 & Parallel training \\
+Workers & 2 & Default \texttt{train\_parallel} \\
 $\Delta t$ & 5s & Decision interval \\
 SIM\_END & 1800s & 30 phút/episode \\
 Min replay size & 1{,}000 & Warm-start trước khi update \\
@@ -454,10 +451,7 @@ UTD ratio $R$ & 8 & Updates per transition \\
 
 \begin{figure}[h]
     \centering
-    % [TODO: Chèn hình learning curves]
-    \fbox{\parbox{0.9\linewidth}{\centering\vspace{3em}
-    \textit{[TODO: Learning curves --- Global Reward, Loss, Avg Speed vs Episode]}
-    \vspace{3em}}}
+    \includegraphics[width=\linewidth]{imgs/live_demo_mydinh.png}
     \caption{Learning curves so sánh GAT-MARL, IDQN, và Fixed-time trên map Mỹ Đình (500 episodes, parallel training 2 workers).}
     \label{fig:learning_curves}
 \end{figure}
@@ -473,15 +467,16 @@ UTD ratio $R$ & 8 & Updates per transition \\
 \centering
 \caption{So sánh hiệu năng 3 phương pháp (50 episodes cuối, map Mỹ Đình)}
 \label{tab:results}
-\begin{tabular}{lccc}
+\setlength{\tabcolsep}{4pt}
+\begin{tabular}{lp{1.6cm}p{1.6cm}p{1.6cm}}
 \toprule
 \textbf{Metric} & \textbf{Fixed} & \textbf{IDQN} & \textbf{GAT-MARL} \\
 \midrule
-Avg Wait (s) $\downarrow$ & [TODO] & [TODO] & [TODO] \\
-Avg Speed (km/h) $\uparrow$ & [TODO] & [TODO] & [TODO] \\
-Throughput $\uparrow$ & [TODO] & [TODO] & [TODO] \\
-Teleport $\downarrow$ & [TODO] & [TODO] & [TODO] \\
-Global Reward $\uparrow$ & [TODO] & [TODO] & [TODO] \\
+Avg Wait (s) $\downarrow$      & $5.18 \pm 4.09$  & $3.99 \pm 3.83$   & $4.46 \pm 4.20$ \\
+Avg Speed (km/h) $\uparrow$    & $18.90 \pm 7.82$ & $21.91 \pm 11.12$ & $18.68 \pm 9.81$ \\
+Throughput $\uparrow$          & $2251 \pm 902$   & $1829 \pm 823$    & $1946 \pm 746$ \\
+Teleport $\downarrow$          & $0.00$           & $0.00$            & $0.00$ \\
+Reward $\uparrow$              & $-363.6 \pm 217.4$  & $-260.0 \pm 171.8$   & $-340.2 \pm 312.1$ \\
 \bottomrule
 \end{tabular}
 \end{table}
@@ -496,13 +491,14 @@ Global Reward $\uparrow$ & [TODO] & [TODO] & [TODO] \\
 \centering
 \caption{Hiệu năng khi có vật cản (obstacle\_prob = 0.4)}
 \label{tab:obstacle}
-\begin{tabular}{lccc}
+\setlength{\tabcolsep}{4pt}
+\begin{tabular}{lp{1.5cm}p{1.5cm}p{1.6cm}}
 \toprule
 & \textbf{Fixed} & \textbf{IDQN} & \textbf{GAT-MARL} \\
 \midrule
-Reward (no obs) & [TODO] & [TODO] & [TODO] \\
-Reward (with obs) & [TODO] & [TODO] & [TODO] \\
-$\Delta$ Reward & [TODO] & [TODO] & [TODO] \\
+Reward (no obs)   & $-300.6 \pm 77.3$  & $-222.1 \pm 74.2$  & $-238.9 \pm 63.8$ \\
+Reward (with obs) & $-458.0 \pm 311.6$ & $-348.5 \pm 279.1$ & $-480.0 \pm 444.4$ \\
+$\Delta$ Reward   & $-157.4$           & $-126.4$           & $-241.1$ \\
 \bottomrule
 \end{tabular}
 \end{table}
@@ -515,9 +511,7 @@ $\Delta$ Reward & [TODO] & [TODO] & [TODO] \\
 
 \begin{figure}[h]
     \centering
-    \fbox{\parbox{0.9\linewidth}{\centering\vspace{3em}
-    \textit{[TODO: Attention heatmap 8$\times$8 --- cho thấy agent chú ý neighbor nào khi traffic cao]}
-    \vspace{3em}}}
+    \includegraphics[width=\linewidth]{imgs/attention_mydinh.png}
     \caption{Attention weights giữa 8 ngã tư tại một thời điểm peak traffic. Giá trị cao (đậm) cho thấy agent $i$ chú ý mạnh đến neighbor $j$.}
     \label{fig:attention}
 \end{figure}
@@ -533,40 +527,60 @@ $\Delta$ Reward & [TODO] & [TODO] & [TODO] \\
 
 \begin{figure}[!t]
     \centering
-    \includegraphics[width=\linewidth]{map_uet.png}
+    \includegraphics[width=\linewidth]{imgs/map_uet.png}
     \caption{Topology mạng lưới giao thông khu vực UET (15 ngã tư).}
     \label{fig:uet_topology}
 \end{figure}
 
 \begin{table}[!t]
 \centering
-\caption{So sánh hội tụ trên map UET (15 ngã tư)}
+\caption{So sánh hiệu năng và hội tụ trên map UET (15 ngã tư, 50 eps cuối)}
 \label{tab:transfer}
-\begin{tabular}{p{2.4cm} c p{2.2cm}}
+\setlength{\tabcolsep}{4pt}
+\begin{tabular}{p{2.0cm} c c p{1.8cm}}
 \toprule
-\textbf{Phương pháp} & \textbf{Episodes} & \textbf{Chiến lược} \\
+\textbf{Phương pháp} & \textbf{Eps hội tụ} & \textbf{Reward} & \textbf{Chiến lược} \\
 \midrule
-GAT-MARL (finetune) & [TODO] & Freeze/unfreeze 2-phase \\
-IDQN (scratch)      & [TODO] & Train lại từ đầu \\
-Fixed-time          & ---    & Không học \\
+GAT-MARL (finetune) & \textbf{6}  & $-648.4 \pm 320.3$ & Freeze/unfreeze 2-phase \\
+IDQN (scratch)      & 43          & $-689.1 \pm 324.5$ & Train lại từ đầu \\
+Fixed-time          & ---         & $-767.7 \pm 300.8$ & Không học \\
 \bottomrule
 \end{tabular}
 \end{table}
 
 GAT-MARL tận dụng checkpoint từ Mỹ Đình qua cơ chế \textbf{2-phase fine-tuning} (Section~\ref{sec:finetune}): GAT layer giữ lại \textit{graph topology knowledge} đã học --- cách aggregate thông tin từ neighbors --- và chỉ cần re-calibrate Q-head cho distribution mới. IDQN không có communication layer tách biệt nên phải train lại từ đầu, dẫn đến thời gian hội tụ dài hơn đáng kể trên mạng 15 ngã tư.
 
+\subsection{Dashboard Giám sát Real-time}
+
+Hệ thống đi kèm dashboard web real-time (FastAPI + WebSocket backend, React + Vite frontend) cho phép quan sát và so sánh trực tiếp ba phương pháp \textbf{Fixed-time}, \textbf{IDQN}, và \textbf{GAT-MARL} chạy song song trên cùng một episode SUMO (Hình~\ref{fig:dashboard}).
+
+\begin{figure}[h]
+    \centering
+    \includegraphics[width=\linewidth]{imgs/live_demo_mydinh.png}
+    \caption{Dashboard real-time trên map Mỹ Đình: ba phương pháp (Fixed-time, IDQN, GAT-MARL) chạy song song, hiển thị reward tích lũy, tốc độ trung bình, và trạng thái từng ngã tư theo thời gian thực.}
+    \label{fig:dashboard}
+\end{figure}
+
+Dashboard cập nhật qua WebSocket mỗi decision step ($\Delta t = 5$s), hiển thị các metric: global reward tích lũy, average speed (km/h), waiting time trung bình, và số lần teleport. Tab \textit{Attention Viewer} hiển thị attention heatmap $N \times N$ từ GAT layer sau mỗi forward pass, cho phép quan sát trực quan agent nào đang chú ý đến neighbor nào tại thời điểm traffic cao.
+
 % ══════════════════════════════════════════════════════════════════════════════
 %  8. THẢO LUẬN
 % ══════════════════════════════════════════════════════════════════════════════
 \section{Thảo luận}
 
-\textbf{Ưu điểm của GAT communication}: so với IDQN, GAT-MARL cho phép mỗi agent nhận thông tin từ neighbors, giúp phối hợp pha đèn giữa các ngã tư liền kề. Điều này đặc biệt có giá trị trên các trục arterial như Hồ Tùng Mậu hay Phạm Hùng, nơi hiệu ứng ``green wave'' có thể cải thiện đáng kể throughput.
+\textbf{Phân tích hiệu năng GAT-MARL so với IDQN}: kết quả thực nghiệm trên map Mỹ Đình cho thấy GAT-MARL (Global Reward $-340$) chưa vượt được IDQN ($-260$) sau 500 episodes, dù cả hai đều tốt hơn Fixed-time ($-364$). Phân tích training dynamics chỉ ra hai nguyên nhân chính, có căn cứ từ log:
+
+\textit{(1) Credit assignment bất ổn do hybrid reward}: GAT-MARL dùng reward $0.7 r_i + 0.3\bar{r}$. Trong các episodes có obstacle (30\% tổng số), $\bar{r}$ giảm sâu kéo theo Q-values của toàn bộ agents, gây loss spike và reward âm cực đoan (min $= -1525$ so với $-882$ của IDQN). Điều này giải thích tại sao reward GAT-MARL có phân phối bimodal: một số episodes rất tốt ($\sim -113$, tương đương IDQN) nhưng xen kẽ các episodes thảm họa.
+
+\textit{(2) GAT chưa ổn định trên graph nhỏ}: với chỉ $N=8$ ngã tư, attention mechanism ít không gian để differentiate --- 4 heads có thể học các pattern trùng lặp. Biểu hiện: loss GAT vẫn tăng đều (0.005 $\to$ 0.032) sau 500 episodes trong khi reward không cải thiện, cho thấy model đang overfit vào một số neighbor patterns thay vì generalize. Đây cũng lý giải tại sao GAT-MARL lại hội tụ rất nhanh trên UET (15 ngã tư) --- graph đủ lớn để attention có ý nghĩa hơn.
+
+Kết quả chuyển giao sang UET (GAT hội tụ ep~6 vs IDQN ep~43, nhanh hơn 7×) xác nhận rằng kiến trúc GAT-MARL học được \textit{cấu trúc graph} tốt, nhưng cần graph đủ phức tạp để phát huy. Hướng khắc phục: tăng số episodes training, bổ sung prioritized experience replay để giảm ảnh hưởng của obstacle episodes cực đoan.
 
 \textbf{Parameter sharing}: toàn bộ agents dùng chung 1 bộ trọng số (encoder, GAT, Q-head). Ưu điểm: (1) giảm $N\times$ số tham số cần học, (2) transfer learning tự nhiên khi thêm/bớt ngã tư, (3) mỗi transition huấn luyện cho tất cả agents. Nhược điểm: agent không có identity riêng --- GAT layer phần nào khắc phục bằng cách differentiate qua graph topology.
 
 \textbf{Reward design}: hybrid waiting time + pressure hoạt động tốt hơn pure pressure vì waiting time phản ánh trực tiếp trải nghiệm người dùng, trong khi pressure giữ vai trò regularizer tránh spillback. Normalize về $[0, 1]$ trước khi kết hợp đảm bảo $\alpha, \beta$ thực sự phản ánh tỉ lệ mong muốn.
 
-\textbf{Trade-off của shared reward}: shared reward thúc đẩy cooperative behavior nhưng đánh đổi bằng credit assignment: khi một ngã tư hoạt động kém (ví dụ do sự cố), reward của toàn mạng bị kéo xuống, ảnh hưởng đến tốc độ hội tụ của các agent còn lại. Đây là trade-off giữa coordination và credit assignment --- một vấn đề cổ điển trong MARL. Prioritized experience replay (hướng phát triển tiếp theo) có thể giảm thiểu ảnh hưởng này bằng cách ưu tiên sample các transition có TD-error lớn.
+\textbf{Trade-off của hybrid reward}: thiết kế $0.7 \cdot r_i + 0.3 \cdot \bar{r}$ là kết quả của sự đánh đổi giữa \textit{coordination} và \textit{credit assignment}. Pure shared reward ($\bar{r}$ thuần túy) tối đa hóa coordination nhưng làm mờ tín hiệu: mỗi agent không phân biệt được khi hành động của mình tốt hay kém, dẫn đến Q-values của các ngã tư có cùng neighbors hội tụ về nhau và gradient hiệu quả bị triệt tiêu. Ngược lại, pure individual reward không tận dụng được communication layer. Hệ số 0.7/0.3 giữ 70\% tín hiệu per-agent để Q-values vẫn differentiate được giữa các ngã tư, đồng thời 30\% global mean cung cấp cooperative signal đủ để GAT attention weights học được pattern phối hợp có ý nghĩa. Tuy nhiên, khi một ngã tư gặp sự cố, $\bar{r}$ giảm vẫn kéo reward các agent khác xuống (dù ít hơn pure shared). Prioritized experience replay (hướng phát triển tiếp theo) có thể giảm thiểu ảnh hưởng này bằng cách ưu tiên sample các transition có TD-error lớn.
 
 \textbf{Hạn chế}: (1) action space chỉ 2 chiều (keep/switch) --- chưa hỗ trợ nhiều phase phức tạp; (2) chưa có prioritized experience replay; (3) chưa kiểm chứng trên mạng lưới lớn hơn 15 ngã tư hoặc kịch bản multi-city.
 
@@ -577,7 +591,7 @@ GAT-MARL tận dụng checkpoint từ Mỹ Đình qua cơ chế \textbf{2-phase 
 
 Báo cáo trình bày hệ thống GAT-MARL --- kết hợp Graph Attention Network với Multi-Agent Deep Q-Learning --- được xây dựng và kiểm chứng trên hai mạng lưới thực tế: \textbf{Mỹ Đình} (8 ngã tư) và \textbf{UET} (15 ngã tư). Các đóng góp kỹ thuật bao gồm: reward function hybrid với normalization, parallel training với fixed-role epsilon workers, dynamic lane detection, obstacle injection, và cơ chế 2-phase fine-tuning cho phép chuyển giao kiến thức sang topology mới mà không cần train lại từ đầu.
 
-Thực nghiệm chuyển giao từ Mỹ Đình sang UET cho thấy GAT-MARL hội tụ nhanh hơn đáng kể so với IDQN trên mạng 15 ngã tư, xác nhận giá trị của việc tách biệt communication layer trong thiết kế kiến trúc MARL.
+Thực nghiệm trên map Mỹ Đình (50 episodes cuối) cho thấy cả hai phương pháp RL đều vượt trội so với Fixed-time về Global Reward ($-260$ và $-340$ so với $-364$) và Avg Wait ($3.99$s và $4.46$s so với $5.18$s). Thực nghiệm chuyển giao từ Mỹ Đình sang UET cho thấy GAT-MARL hội tụ chỉ sau \textbf{6 episodes} (6.17h) so với IDQN cần \textbf{43 episodes} (15.41h) khi train from scratch, xác nhận giá trị của việc tách biệt communication layer trong thiết kế kiến trúc MARL.
 
 Hướng phát triển tiếp theo: (1) mở rộng lên mạng lưới $>$15 ngã tư, (2) bổ sung prioritized experience replay, (3) thử nghiệm action space đa phase, (4) tích hợp dữ liệu giao thông thực từ camera.
 
@@ -589,25 +603,21 @@ Hướng phát triển tiếp theo: (1) mở rộng lên mạng lưới $>$15 ng
 \begin{table}[!h]
 \centering
 \small
-\caption*{Bảng phân công công việc nhóm 13}
 \begin{tabular}{p{2.8cm} p{5cm}}
 \toprule
 \textbf{Thành viên} & \textbf{Công việc} \\
 \midrule
 Đặng Quang Minh
 &
-% [TODO: Điền công việc của Minh]
-\textit{[Ví dụ: Thiết kế kiến trúc GAT-MARL, cài đặt training pipeline, viết báo cáo]} \\[0.8em]
+Thiết kế kiến trúc GAT-MARL, cài đặt training pipeline, viết báo cáo \\[0.8em]
 
 Ngô Trọng Hiệp
 &
-% [TODO: Điền công việc của Hiệp]
-\textit{[Ví dụ: Xây dựng môi trường SUMO, thiết kế reward function, thực nghiệm]} \\[0.8em]
+Xây dựng môi trường SUMO, thiết kế reward function, thực nghiệm \\[0.8em]
 
 Khổng Quang Huy
 &
-% [TODO: Điền công việc của Huy]
-\textit{[Ví dụ: Xây dựng dashboard, cài đặt IDQN baseline, phân tích kết quả]} \\
+Xây dựng dashboard, cài đặt IDQN baseline, phân tích kết quả \\
 \bottomrule
 \end{tabular}
 \end{table}
@@ -660,16 +670,6 @@ arXiv:1803.00933.
 P.~A.~López, M.~Behrisch, L.~Bieker-Walz, J.~Erdmann, Y.-P.~Flötteröd, R.~Hilbrich, L.~Lücken, J.~Rummel, P.~Wagner, and E.~Wießner,
 ``Microscopic traffic simulation using SUMO,''
 in \textit{Proc. IEEE 21st Int. Conf. Intell. Transp. Syst. (ITSC)}, 2018, pp.~2575--2582.
-
-\bibitem{EfficientPressure2022}
-K.~Wu, H.~Wei, and Z.~Li,
-``Efficient pressure: Improving efficiency for signalized intersections,''
-arXiv:2112.02336, 2021.
-
-\bibitem{AttendLight2020}
-A.~Oroojlooy, M.~Nazari, D.~Hajinezhad, and J.~Silva,
-``AttendLight: Universal attention-based reinforcement learning model for traffic signal control,''
-arXiv:2010.05772, 2020.
 
 \bibitem{PyG2019}
 M.~Fey and J.~E.~Lenssen,

@@ -115,11 +115,15 @@ function MiniChart({ data, metricKey, label, color, accidentEps }) {
 
 // ── RealtimeTab ───────────────────────────────────────────────────────────────
 function RealtimeTab() {
-  const [model,     setModel]     = useState("gat_marl");
-  const [rows,      setRows]      = useState([]);
-  const [total,     setTotal]     = useState(500);
-  const [status,    setStatus]    = useState("loading"); // loading | ok | no_data | error
-  const [lastPoll,  setLastPoll]  = useState(null);
+  const [model,         setModel]         = useState("gat_marl");
+  const [rows,          setRows]          = useState([]);
+  const [total,         setTotal]         = useState(500);
+  const [status,        setStatus]        = useState("loading"); // loading | ok | no_data | error
+  const [lastPoll,      setLastPoll]      = useState(null);
+  const [logSource,     setLogSource]     = useState("training"); // "training" | "finetune"
+  const [hasFinetune,   setHasFinetune]   = useState(false);
+  const [finetuneMeta,  setFinetuneMeta]  = useState(null);
+  const [finetuneRows,  setFinetuneRows]  = useState([]);
   const timerRef = useRef(null);
 
   const poll = useCallback(async () => {
@@ -129,6 +133,9 @@ function RealtimeTab() {
       setStatus(data.status === "ok" && data.rows.length > 0 ? "ok" : data.status);
       setRows(data.rows || []);
       setTotal(data.total_episodes || 500);
+      setHasFinetune(!!data.has_finetune);
+      setFinetuneMeta(data.finetune_meta || null);
+      setFinetuneRows(data.finetune_data || []);
       setLastPoll(new Date());
     } catch {
       setStatus("error");
@@ -136,18 +143,28 @@ function RealtimeTab() {
   }, [model]);
 
   useEffect(() => {
-    setRows([]); setStatus("loading");
+    setRows([]); setStatus("loading"); setLogSource("training"); // đổi model → luôn về Training log mặc định
     poll();
     timerRef.current = setInterval(poll, POLL_INTERVAL);
     return () => clearInterval(timerRef.current);
   }, [poll]);
 
-  const current  = rows.length;
-  const best     = rows.length ? Math.max(...rows.map(r => r.global_reward)).toFixed(2) : "—";
-  const eta      = calcETA(rows, total);
-  const accs     = rows.filter(r => r.had_accident).map(r => r.episode);
+  const showFinetune = logSource === "finetune" && hasFinetune;
+  const displayRows  = showFinetune ? finetuneRows : rows;
+  // Model có thể chỉ có finetune_log (vd: finetune thẳng lên topology mới, chưa
+  // từng train fresh ở đó) — lúc đó "status" (dựa trên training_log) sẽ là "no_data"
+  // dù finetune có dữ liệu. effectiveStatus tách riêng theo log source đang xem.
+  const effectiveStatus = showFinetune
+    ? (finetuneRows.length > 0 ? "ok" : (status === "error" ? "error" : "no_data"))
+    : status;
+
+  const current  = displayRows.length;
+  const best     = displayRows.length ? Math.max(...displayRows.map(r => r.global_reward)).toFixed(2) : "—";
+  const eta      = showFinetune ? null : calcETA(rows, total); // ETA chỉ có ý nghĩa cho training (biết target episodes)
+  // had_obstacle (parallel) / had_accident (single) — endpoint trả "had_obstacle", giữ fallback cho an toàn
+  const accs     = displayRows.filter(r => r.had_obstacle || r.had_accident).map(r => r.episode);
   const lastSec  = lastPoll ? Math.round((Date.now() - lastPoll) / 1000) : null;
-  const isTraining = status === "ok" && current < total;
+  const isTraining = !showFinetune && status === "ok" && current < total;
 
   return (
     <div className="realtime-tab">
@@ -165,29 +182,55 @@ function RealtimeTab() {
               {MODEL_LABELS[m]}
             </button>
           ))}
+
+          {/* Chỉ gat_marl mới có finetune_log — ẩn hoàn toàn với idqn/fixed_time */}
+          {model === "gat_marl" && hasFinetune && (
+            <div className="tab-bar rt-logsource-tabs">
+              <button
+                className={`tab-btn ${logSource === "training" ? "tab-btn--active" : ""}`}
+                onClick={() => setLogSource("training")}
+              >
+                Training log
+              </button>
+              <button
+                className={`tab-btn ${logSource === "finetune" ? "tab-btn--active" : ""}`}
+                onClick={() => setLogSource("finetune")}
+              >
+                Finetune log
+              </button>
+            </div>
+          )}
         </div>
         <div className="rt-status">
           {isTraining && <span className="rt-dot rt-dot--live"/>}
           <span className="rt-status-text">
-            {status === "loading"  && "Đang tải..."}
-            {status === "no_data" && "Chưa có log — bắt đầu training trước"}
-            {status === "error"   && "Không đọc được log"}
-            {status === "ok"      && (isTraining ? "Đang train" : "Hoàn thành")}
+            {effectiveStatus === "loading"  && "Đang tải..."}
+            {effectiveStatus === "no_data" && (showFinetune ? "Chưa có finetune log" : "Chưa có log — bắt đầu training trước")}
+            {effectiveStatus === "error"   && "Không đọc được log"}
+            {effectiveStatus === "ok"      && (isTraining ? "Đang train" : "Hoàn thành")}
           </span>
           {lastSec !== null && status === "ok" &&
             <span className="rt-last-poll">Cập nhật: {lastSec}s trước</span>}
         </div>
       </div>
 
+      {/* Metadata finetune — chỉ hiện khi đang xem Finetune log */}
+      {showFinetune && finetuneMeta && (
+        <div className="rt-finetune-banner">
+          Finetuned from: <code>{(finetuneMeta.finetune_from || "—").split("/").pop()}</code>
+          {" → topology: "}<code>{finetuneMeta.topology || "—"}</code>
+        </div>
+      )}
+
       {/* No data state */}
-      {(status === "no_data" || status === "error") && (
+      {(effectiveStatus === "no_data" || effectiveStatus === "error") && (
         <div className="results-empty">
           <div className="empty-icon">📈</div>
           <div className="empty-title">
-            {status === "no_data" ? "Chưa có log training" : "Lỗi đọc log"}
+            {effectiveStatus === "no_data" ? "Chưa có log training" : "Lỗi đọc log"}
           </div>
           <div className="empty-sub">
-            {status === "no_data"
+            {effectiveStatus === "no_data"
               ? "Chạy training rồi quay lại đây, trang tự cập nhật mỗi 15 giây"
               : "Kiểm tra server có đang chạy không"}
           </div>
@@ -195,13 +238,13 @@ function RealtimeTab() {
       )}
 
       {/* Charts */}
-      {status === "ok" && rows.length > 0 && (
+      {effectiveStatus === "ok" && displayRows.length > 0 && (
         <>
           <div className="charts-grid-2x2">
             {REALTIME_METRICS.map(({ key, label }) => (
               <MiniChart
                 key={key}
-                data={rows}
+                data={displayRows}
                 metricKey={key}
                 label={label}
                 color={MODEL_COLORS[model]}
@@ -214,7 +257,7 @@ function RealtimeTab() {
           <div className="rt-stats-row">
             <div className="rt-stat">
               <span className="rt-stat-label">Episode</span>
-              <span className="rt-stat-value">{current} / {total}</span>
+              <span className="rt-stat-value">{current}{!showFinetune && ` / ${total}`}</span>
             </div>
             <div className="rt-stat">
               <span className="rt-stat-label">Best Reward</span>
@@ -226,15 +269,15 @@ function RealtimeTab() {
             </div>
             <div className="rt-stat">
               <span className="rt-stat-label">Teleported</span>
-              <span className="rt-stat-value" style={{ color: rows.length ? (rows[rows.length-1].vehicles_teleported > 0 ? "#ef4444" : "var(--text)") : "var(--text)" }}>
-                {rows.length ? rows[rows.length-1].vehicles_teleported : 0}
+              <span className="rt-stat-value" style={{ color: displayRows.length ? (displayRows[displayRows.length-1].vehicles_teleported > 0 ? "#ef4444" : "var(--text)") : "var(--text)" }}>
+                {displayRows.length ? displayRows[displayRows.length-1].vehicles_teleported : 0}
               </span>
             </div>
             <div className="rt-stat">
               <span className="rt-stat-label">LR</span>
               <span className="rt-stat-value">
-                {rows.length && rows[rows.length-1].learning_rate
-                  ? rows[rows.length-1].learning_rate.toExponential(1)
+                {displayRows.length && displayRows[displayRows.length-1].learning_rate
+                  ? displayRows[displayRows.length-1].learning_rate.toExponential(1)
                   : "—"}
               </span>
             </div>
@@ -285,7 +328,7 @@ function CompareTab() {
       <div className="empty-icon">📊</div>
       <div className="empty-title">Chưa có dữ liệu so sánh</div>
       <div className="empty-sub">Train xong cả 2 model rồi chạy merge_logs.py</div>
-      <code className="empty-cmd">python training/merge_logs.py</code>
+      <code className="empty-cmd">python scripts/merge_logs.py</code>
     </div>
   );
 

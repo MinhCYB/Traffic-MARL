@@ -310,45 +310,138 @@ async def startup():
 
 # ── Run ───────────────────────────────────────────────────────────────────────
 
-# ── Training log endpoint ──────────────────────────────────────────────────────
+# ── Training / finetune log endpoints ────────────────────────────────────────
 
 import csv as _csv
+import json as _json
 from pathlib import Path
-from training.config import LOG_DIR, NUM_EPISODES
+from training.config import ROOT_DIR, LOG_DIR, NUM_EPISODES
+
+# Field order chuẩn — fallback khi file CSV bị thiếu header (vd: file log cũ bị
+# ghi đè do log_file_mode detect sai resume). Phải khớp fieldnames trong
+# training/train.py và training/train_parallel.py.
+_DEFAULT_FIELDNAMES = [
+    "episode", "worker_id", "total_steps", "global_reward",
+    "avg_speed", "avg_waiting_time", "throughput",
+    "loss", "epsilon", "duration_s",
+    "had_obstacle", "obstacle_edges", "obstacle_count",
+    "vehicles_teleported", "learning_rate",
+]
+
+
+def _read_log_csv(path: Path) -> tuple[dict, list[dict]]:
+    """
+    Đọc 1 file log CSV (training_log.csv hoặc finetune_log.csv).
+    - Skip các dòng comment '#...' ở đầu file (metadata finetune_from/topology).
+    - Fallback dùng _DEFAULT_FIELDNAMES nếu file thiếu header.
+    Trả (metadata: dict, rows: list[dict]) — rows giữ format response cũ (không đổi
+    để FE hiện tại không bị break).
+    """
+    if not path.exists():
+        return {}, []
+
+    meta: dict = {}
+    data_lines: list[str] = []
+    with open(path, newline="") as f:
+        for line in f:
+            stripped = line.lstrip()
+            if stripped.startswith("#"):
+                body = stripped[1:].strip()
+                if ":" in body:
+                    k, _, v = body.partition(":")
+                    meta[k.strip()] = v.strip()
+                continue
+            data_lines.append(line)
+
+    if not data_lines:
+        return meta, []
+
+    first_field = data_lines[0].split(",", 1)[0].strip()
+    if first_field == "episode":
+        reader = _csv.DictReader(data_lines)
+    else:
+        reader = _csv.DictReader(data_lines, fieldnames=_DEFAULT_FIELDNAMES)
+
+    rows = []
+    for row in reader:
+        rows.append({
+            "episode":              int(row["episode"]),
+            "global_reward":        float(row["global_reward"]),
+            "avg_speed":            float(row["avg_speed"]),
+            "avg_waiting_time":     float(row["avg_waiting_time"]),
+            "throughput":           float(row["throughput"]),
+            "epsilon":              float(row["epsilon"]),
+            "loss":                 float(row["loss"]) if row.get("loss") else None,
+            "duration_s":           float(row["duration_s"]) if row.get("duration_s") else None,
+            "learning_rate":         float(row["learning_rate"]) if row.get("learning_rate") else None,
+            "vehicles_teleported":  int(row["vehicles_teleported"]) if row.get("vehicles_teleported") else 0,
+            # had_obstacle (parallel) hoặc had_accident (single) — cùng nghĩa
+            "had_obstacle":         (
+                row.get("had_obstacle", row.get("had_accident", "0")) not in ("0", "False", "")
+            ),
+        })
+    return meta, rows
+
+
+@app.get("/logs/merged.json")
+async def get_merged_logs():
+    """
+    Serve logs/merged.json (output của scripts/merge_logs.py) cho dashboard CompareTab.
+
+    QUAN TRỌNG: route này phải đứng TRƯỚC @app.get("/logs/{model}") ở dưới — nếu
+    không FastAPI sẽ match "merged.json" như path-param {model} và trả no_data nhầm
+    (bug cũ: trước đây không có route riêng, request bị /logs/{model} nuốt mất).
+    """
+    merged_path = ROOT_DIR / "logs" / "merged.json"
+    if not merged_path.exists():
+        return JSONResponse(
+            {"error": "merged.json chưa tồn tại — chạy scripts/merge_logs.py trước"},
+            status_code=404,
+        )
+    try:
+        with open(merged_path, encoding="utf-8") as f:
+            return JSONResponse(_json.load(f))
+    except Exception as e:
+        return JSONResponse({"error": str(e)}, status_code=500)
+
 
 @app.get("/logs/{model}")
 async def get_training_log(model: str):
-    """Đọc CSV training log, trả JSON cho dashboard real-time chart."""
-    log_path = LOG_DIR / model / "training_log.csv"
-    if not log_path.exists():
-        return JSONResponse({"status": "no_data", "rows": [], "total_episodes": NUM_EPISODES})
+    """
+    Đọc CSV training log (+ finetune log nếu có), trả JSON cho dashboard real-time chart.
+
+    Response:
+        status, rows, total_episodes               — giữ nguyên như cũ (backward compat)
+        has_finetune: bool                          — true nếu model này có finetune_log.csv
+        finetune_meta: {finetune_from, topology}    — chỉ có khi has_finetune=true
+        finetune_data: [...]                        — chỉ có khi has_finetune=true
+    """
+    model_dir     = LOG_DIR / model
+    train_path    = model_dir / "training_log.csv"
+    finetune_path = model_dir / "finetune_log.csv"
+    has_finetune  = finetune_path.exists()
+
     try:
-        rows = []
-        with open(log_path, newline="") as f:
-            for row in _csv.DictReader(f):
-                rows.append({
-                    "episode":              int(row["episode"]),
-                    "global_reward":        float(row["global_reward"]),
-                    "avg_speed":            float(row["avg_speed"]),
-                    "avg_waiting_time":     float(row["avg_waiting_time"]),
-                    "throughput":           float(row["throughput"]),
-                    "epsilon":              float(row["epsilon"]),
-                    "loss":                 float(row["loss"]) if row.get("loss") else None,
-                    "duration_s":           float(row["duration_s"]) if row.get("duration_s") else None,
-                    "learning_rate":         float(row["learning_rate"]) if row.get("learning_rate") else None,
-                    "vehicles_teleported":  int(row["vehicles_teleported"]) if row.get("vehicles_teleported") else 0,
-                    # had_obstacle (parallel) hoặc had_accident (single) — cùng nghĩa
-                    "had_obstacle":         (
-                        row.get("had_obstacle", row.get("had_accident", "0")) not in ("0", "False", "")
-                    ),
-                })
-        return JSONResponse({
-            "status": "ok",
+        _, rows = _read_log_csv(train_path)
+        result = {
+            "status": "ok" if rows else "no_data",
             "rows": rows,
             "total_episodes": NUM_EPISODES,
-        })
+            "has_finetune": has_finetune,
+        }
+        if has_finetune:
+            ft_meta, ft_rows = _read_log_csv(finetune_path)
+            result["finetune_meta"] = {
+                "finetune_from": ft_meta.get("finetune_from"),
+                "topology":      ft_meta.get("topology"),
+            }
+            result["finetune_data"] = ft_rows
+        return JSONResponse(result)
     except Exception as e:
-        return JSONResponse({"status": "error", "message": str(e), "rows": [], "total_episodes": NUM_EPISODES})
+        return JSONResponse({
+            "status": "error", "message": str(e), "rows": [],
+            "total_episodes": NUM_EPISODES, "has_finetune": has_finetune,
+        })
 
 
 if __name__ == "__main__":

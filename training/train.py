@@ -415,22 +415,21 @@ if __name__ == "__main__":
     
     # ── ĐỒNG BỘ ARGPARSE VỚI TRAIN_PARALLEL ──
     parser.add_argument(
-        "--obstacle-prob", type=float, default=0.0,
-        help="Xác suất có vật cản trong 1 episode (0.0–1.0). Default: 0.0",
+        "--obstacle-prob", type=float, default=OBSTACLE_PROB,
+        help=f"Xác suất có vật cản trong 1 episode (0.0–1.0). Default: {OBSTACLE_PROB}",
     )
     parser.add_argument(
-        "--obstacle-max-count", type=int, default=3,
-        help="Tối đa bao nhiêu vật cản đồng thời. Default: 3",
+        "--obstacle-max-count", type=int, default=OBSTACLE_MAX_COUNT,
+        help=f"Tối đa bao nhiêu vật cản đồng thời. Default: {OBSTACLE_MAX_COUNT}",
     )
     parser.add_argument(
-        "--obstacle-duration-min", type=int, default=300,
-        help="Thời gian tối thiểu mỗi vật cản (giây). Default: 300",
+        "--obstacle-duration-min", type=int, default=OBSTACLE_DURATION_MIN,
+        help=f"Thời gian tối thiểu mỗi vật cản (giây). Default: {OBSTACLE_DURATION_MIN}",
     )
     parser.add_argument(
-        "--obstacle-duration-max", type=int, default=None,
-        help="Thời gian tối đa mỗi vật cản (giây). None = xuyên suốt. Default: None",
+        "--obstacle-duration-max", type=int, default=OBSTACLE_DURATION_MAX,
+        help=f"Thời gian tối đa mỗi vật cản (giây). None = xuyên suốt episode. Default: {OBSTACLE_DURATION_MAX}",
     )
-
     args = parser.parse_args()
     
     train(

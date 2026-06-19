@@ -23,6 +23,7 @@
 \usepackage{xcolor}
 \usepackage{listings}
 \usepackage{multicol}
+\usetikzlibrary{positioning}
 
 % ── Colors ────────────────────────────────────────────────────────────────────
 \definecolor{primary}{RGB}{25, 60, 120}
@@ -96,20 +97,139 @@
         \midrule
         Agents $N$ & 8 ngã tư (Mỹ Đình) \\
         Observation & Queue, density, phase, $\Delta t$ \\
-        Action & Keep / Switch pha \\
+        Action & GIữ / Đổi pha \\
         Reward & $-(\alpha\hat{w}_i + \beta\hat{p}_i)\times S$ \\
         \bottomrule
       \end{tabular}
 
     \column{0.5\textwidth}
-      \textbf{Thách thức — Non-stationarity:}\\
+      \textbf{Thách thức — Môi trường không ổn định:}\\
       Khi agents đồng thời cập nhật policy, môi trường
       trở nên non-stationary từ góc nhìn mỗi agent
       $\Rightarrow$ Independent Q-Learning không hội tụ.
   \end{columns}
 \end{frame}
 
+
+\begin{frame}{Môi trường mô phỏng SUMO}
+  \begin{columns}
+    \column{0.5\textwidth}
+      \textbf{Hai mạng lưới thực tế tại Hà Nội:}
+      \begin{itemize}
+        \item \textbf{Mỹ Đình} — 8 ngã tư\\
+              Arterial: Hồ Tùng Mậu, Lê Đức Thọ, Phạm Hùng\\
+              Secondary: Hàm Nghi, Nguyễn Hoàng, \ldots
+        \item \textbf{UET} — 15 ngã tư\\
+              Phức tạp hơn, dùng để kiểm chứng transfer learning
+      \end{itemize}
+      \vspace{0.4em}
+      \textbf{Cấu hình:} 1800s/episode, $\Delta t = 5$s,\\
+      3 kịch bản lưu lượng: sáng / chiều / đêm.
+
+    \column{0.5\textwidth}
+      % [GỢI Ý ẢNH] Hai ảnh topology cạnh nhau:
+      \begin{center}
+        \includegraphics[width=0.48\linewidth]{imgs/map_mydinh.png}
+        \hfill
+        \includegraphics[width=0.48\linewidth]{imgs/map_uet.png}\\
+        \small Mỹ Đình (8 ngã tư) \hfill UET (15 ngã tư)
+      \end{center}
+  \end{columns}
+\end{frame}
+
 % ══════════════════════════════════════════════════════════════════════════════
+\section{Từ IDQN đến GAT-MARL}
+% ══════════════════════════════════════════════════════════════════════════════
+\begin{frame}{Bước 1 — IDQN: Independent DQN}
+  \begin{columns}[T] % Thêm [T] để ép 2 cột bắt đầu từ trên cùng
+    \column{0.48\textwidth} % Chỉnh tỷ lệ để cột trái gọn hơn xíu
+      \textbf{Ý tưởng:} Mỗi ngã tư là một DQN agent\\
+      học \textit{hoàn toàn độc lập}.
+
+      \vspace{0.4em}
+      \textbf{Kiến trúc (mỗi agent):}
+      \begin{equation*}
+        \text{obs}_i \xrightarrow{\text{MLP}}
+        \mathbf{h}_i \xrightarrow{\text{MLP}}
+        Q(\text{Giữ}),\, Q(\text{Đổi})
+      \end{equation*}
+
+      \vspace{0.2em}
+      \begin{itemize}
+        \item $\text{obs}_i \in \mathbb{R}^{21}$: queue, density, phase, $\Delta t$
+        \item 3 lớp Linear + ReLU: $21 \to 64 \to 64 \to 2$
+        \item \textit{Parameter sharing:} 1 bộ trọng số\\
+              dùng chung cho $N$ agents
+        \item Không có communication — không cần\\
+              biết hàng xóm đang làm gì
+      \end{itemize}
+
+    \column{0.52\textwidth}
+      \begin{center}
+      \begin{tikzpicture}[
+          scale=0.9, transform shape, % <--- Thu nhỏ toàn bộ hình về 90%
+          node distance=0.4cm,        % <--- Rút ngắn khoảng cách giữa các hộp
+          box/.style={draw, rounded corners=3pt,
+                      minimum width=2.6cm, minimum height=0.5cm,
+                      font=\small, align=center},
+          arr/.style={->, thick}
+        ]
+        \node[box, fill=gray!15]  (obs)  {$\text{obs}_i\ (21{,})$};
+        \node[box, fill=blue!12,  below=of obs]  (h1)   {Linear $21{\to}64$ + ReLU};
+        \node[box, fill=blue!12,  below=of h1]   (h2)   {Linear $64{\to}64$ + ReLU};
+        \node[box, fill=orange!20,below=of h2]   (qhead){Linear $64{\to}2$};
+        \node[box, fill=green!15, below=of qhead](act)  {$Q(\text{giữ}),\ Q(\text{đổi})$};
+
+        \draw[arr] (obs)   -- (h1);
+        \draw[arr] (h1)    -- (h2);
+        \draw[arr] (h2)    -- (qhead);
+        \draw[arr] (qhead) -- (act);
+
+        \node[right=0.2cm of h1,  font=\tiny, text=gray] {shared};
+        \node[right=0.2cm of h2,  font=\tiny, text=gray] {shared};
+        \node[right=0.2cm of qhead,font=\tiny,text=gray] {shared};
+      \end{tikzpicture}
+      \end{center}
+
+      \vspace{0.1em} % Ép khoảng cách trước block ngắn lại
+      \begin{block}{Kết quả trên Mỹ Đình}
+        \small Reward: $-260$ \quad Wait: $3.99$s \quad Speed: $21.9$ m/s\\
+        \textit{Vượt Fixed-time, nhưng không scale lên topology lớn.}
+      \end{block}
+  \end{columns}
+\end{frame}
+
+% ── Frame 2: Hạn chế IDQN → động lực GAT-MARL (Bản nén) ────────────────
+\begin{frame}{Hạn chế IDQN — Động lực phát triển GAT-MARL}
+  
+  \begin{tabular}{p{0.45\textwidth} p{0.5\textwidth}}
+    \textbf{3 điểm yếu cốt lõi của IDQN:} & \textbf{GAT-MARL giải quyết từng điểm:} \\
+    
+    \vspace{-0.5em}
+    \begin{enumerate}
+      \small
+      \item \textbf{Không coordination}: Chỉ nhìn bản thân, không biết hàng xóm.
+      \item \textbf{Non-stationarity}: Cập nhật đồng thời $\Rightarrow$ khó hội tụ.
+      \item \textbf{Không scale}: Đổi topology phải train lại.
+    \end{enumerate}
+    & 
+    \vspace{-0.5em}
+    \small
+    \begin{itemize}
+        \item \textbf{GAT layer}: Aggregate thông tin neighbors.
+        \item \textbf{Shared policy}: Tránh môi trường bất ổn.
+        \item \textbf{Parameter sharing}: Tổng quát hóa qua graph.
+    \end{itemize} \\
+  \end{tabular}
+
+  \vspace{0.2em}
+  \begin{alertblock}{Điểm khác biệt duy nhất}
+    \small IDQN: \texttt{Encoder $\to$ Q-head} \quad|\quad GAT-MARL: \texttt{Encoder $\to$ \textbf{GAT} $\to$ Q-head}\\
+    Thêm đúng 1 layer — nhưng cho phép agents giao tiếp với nhau qua graph.
+  \end{alertblock}
+\end{frame}
+
+══════════════════════════════════════════════════════════════════════════════
 \section{Kiến trúc GAT-MARL}
 % ══════════════════════════════════════════════════════════════════════════════
 
@@ -245,31 +365,6 @@
 \section{Môi trường thực nghiệm}
 % ══════════════════════════════════════════════════════════════════════════════
 
-\begin{frame}{Môi trường mô phỏng SUMO}
-  \begin{columns}
-    \column{0.5\textwidth}
-      \textbf{Hai mạng lưới thực tế tại Hà Nội:}
-      \begin{itemize}
-        \item \textbf{Mỹ Đình} — 8 ngã tư\\
-              Arterial: Hồ Tùng Mậu, Lê Đức Thọ, Phạm Hùng\\
-              Secondary: Hàm Nghi, Nguyễn Hoàng, \ldots
-        \item \textbf{UET} — 15 ngã tư\\
-              Phức tạp hơn, dùng để kiểm chứng transfer learning
-      \end{itemize}
-      \vspace{0.4em}
-      \textbf{Cấu hình:} 1800s/episode, $\Delta t = 5$s,\\
-      3 kịch bản lưu lượng: sáng / chiều / đêm.
-
-    \column{0.5\textwidth}
-      % [GỢI Ý ẢNH] Hai ảnh topology cạnh nhau:
-      \begin{center}
-        \includegraphics[width=0.48\linewidth]{imgs/map_mydinh.png}
-        \hfill
-        \includegraphics[width=0.48\linewidth]{imgs/map_uet.png}\\
-        \small Mỹ Đình (8 ngã tư) \hfill UET (15 ngã tư)
-      \end{center}
-  \end{columns}
-\end{frame}
 
 % ══════════════════════════════════════════════════════════════════════════════
 \section{Kết quả thực nghiệm}

@@ -71,7 +71,7 @@ Workers (CPU, SUMO)         Learner (GPU)
 └──────────────┘ pull/80    └──────────────┘
 ```
 
-<!-- [TODO: screenshot dashboard Live Demo — 3 panels hiển thị Fixed / IDQN / GAT-MARL side-by-side, kèm bản đồ ngã tư, metrics panel, và attention arrows] -->
+
 
 ---
 
@@ -249,24 +249,18 @@ python -m training.train --model gat_marl
 ### Override obstacle
 
 ```bash
-python -m training.train_parallel --model gat_marl --num-workers 2 \
-    --obstacle-prob 0.5 \
-    --obstacle-max-count 2 \
-    --obstacle-duration-min 200 \
-    --obstacle-duration-max 600
+python -m training.train_parallel --model gat_marl --num-workers 2 --obstacle-prob 0.5 --obstacle-max-count 2 --obstacle-duration-min 200 --obstacle-duration-max 600
 ```
 
 ### Resume / Finetune
 
 ```bash
 # Resume — tiếp tục train, log append
-python -m training.train_parallel --model gat_marl --num-workers 2 \
-    --resume checkpoints/final/gat_marl_mydinh_best.pt
+python -m training.train_parallel --model gat_marl --num-workers 2 --resume checkpoints/final/gat_marl_mydinh_best.pt
 
 # Finetune sang topology khác (freeze GAT 20 ep đầu)
 # Đổi TOPOLOGY = "uet" trong training/config.py trước khi chạy
-python -m training.train_parallel --model gat_marl --num-workers 2 \
-    --finetune checkpoints/final/gat_marl_mydinh_best.pt
+python -m training.train_parallel --model gat_marl --num-workers 2 --finetune checkpoints/final/gat_marl_mydinh_best.pt
 ```
 
 Khi `STATE_DIM` của checkpoint khác với topology hiện tại, Local Encoder tự reset (random init) — GAT layer và Q-head vẫn được giữ lại từ checkpoint gốc.
@@ -312,7 +306,6 @@ Khi `STATE_DIM` của checkpoint khác với topology hiện tại, Local Encode
 | `BATCH_SIZE` | 64 | |
 | `REPLAY_BUFFER_SIZE` | 50,000 | Circular, pre-allocated numpy |
 | `TARGET_UPDATE_FREQ` | 400 | Gradient updates |
-| `SYNC_EVERY` | 50 | Sync weights worker → learner |
 | `REWARD_SCALE` | 5.0 | Scale reward signal |
 | `GRAD_CLIP` | 10.0 | Max gradient norm |
 | `SIM_END` | 1800 | Giây — 1 episode = 30 phút |
@@ -331,7 +324,7 @@ python scripts/merge_logs.py
 
 Đọc `logs/<topology>/gat_marl/training_log.csv`, `idqn/...`, `fixed_time/...` → tạo `logs/merged.json` cho dashboard.
 
-<!-- [TODO: screenshot trang Results — learning curves, bảng so sánh metrics, attention heatmap] -->
+![Learning Curves](docs/imgs/learning_curves_mydinh.png)
 
 ---
 
@@ -366,7 +359,7 @@ Thêm `--gui` để mở cửa sổ SUMO trực quan:
 python -m workers.worker_gat --gui
 ```
 
-<!-- [TODO: screenshot Live Demo với 3 panels song song, xe chạy trên bản đồ, attention arrows] -->
+![Live Demo](docs/imgs/live_demo_mydinh.png)
 
 ---
 

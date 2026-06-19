@@ -130,8 +130,9 @@
       dùng chung 1 bộ trọng số.
 
     \column{0.55\textwidth}
-      % [GỢI Ý ẢNH] Sơ đồ kiến trúc — dùng ảnh có sẵn:
-      \includegraphics[width=\linewidth]{imgs/gat_marl_architecture.png}
+      \begin{center}
+        \includegraphics[width=\linewidth,height=0.72\textheight,keepaspectratio]{imgs/gat_marl_architecture.png}
+      \end{center}
   \end{columns}
 \end{frame}
 
@@ -153,10 +154,8 @@
       \end{itemize}
 
     \column{0.5\textwidth}
-      % [GỢI Ý ẢNH] Attention heatmap 8×8 giữa các ngã tư Mỹ Đình —
-      % thể hiện agent nào đang "chú ý" neighbor nào tại giờ cao điểm:
-      \includegraphics[width=\linewidth]{imgs/attention_mydinh.png}
       \begin{center}
+        \includegraphics[width=\linewidth,height=0.65\textheight,keepaspectratio]{imgs/attention_mydinh.png}\\
         \small Attention heatmap tại giờ cao điểm
       \end{center}
   \end{columns}
@@ -210,8 +209,9 @@
       Buffer \textit{luôn} đa dạng từ đầu đến cuối training.
 
     \column{0.55\textwidth}
-      % [GỢI Ý ẢNH] Sơ đồ Ape-X Workers → Queue → Learner:
-      \includegraphics[width=\linewidth]{imgs/apex_diagram.png}
+      \begin{center}
+        \includegraphics[width=\linewidth,height=0.72\textheight,keepaspectratio]{imgs/apex_diagram.png}
+      \end{center}
   \end{columns}
 \end{frame}
 
@@ -236,23 +236,7 @@
       % "Freeze" → "Unfreeze", hoặc ảnh checkpoint flow.
       % Có thể vẽ bằng TikZ:
       \begin{center}
-        \begin{tikzpicture}[scale=0.85, every node/.style={font=\small}]
-          \draw[fill=primary!20, rounded corners] (0,2) rectangle (3,3)
-            node[midway] {Encoder};
-          \draw[fill=accent!30, rounded corners] (0,1) rectangle (3,2)
-            node[midway] {\textbf{GAT} (frozen)};
-          \draw[fill=primary!20, rounded corners] (0,0) rectangle (3,1)
-            node[midway] {Q-head (update)};
-          \node[right] at (3.1, 1.5) {\footnotesize Phase 1};
-          \draw[->, thick, accent] (3.6,1.5) -- (4.4,1.5);
-          \draw[fill=primary!20, rounded corners] (4.5,2) rectangle (7.5,3)
-            node[midway] {Encoder};
-          \draw[fill=primary!40, rounded corners] (4.5,1) rectangle (7.5,2)
-            node[midway] {\textbf{GAT} (unfreeze)};
-          \draw[fill=primary!20, rounded corners] (4.5,0) rectangle (7.5,1)
-            node[midway] {Q-head};
-          \node[right] at (7.6, 1.5) {\footnotesize Phase 2};
-        \end{tikzpicture}
+            \includegraphics[width=\linewidth]{imgs/finetune_diagram.png}
       \end{center}
   \end{columns}
 \end{frame}
@@ -294,8 +278,9 @@
 \begin{frame}{Kết quả — Map Mỹ Đình (500 episodes)}
   \begin{columns}
     \column{0.55\textwidth}
-      % [GỢI Ý ẢNH] Learning curves 3 phương pháp:
-      \includegraphics[width=\linewidth]{imgs/learning_curves_mydinh.png}
+      \begin{center}
+        \includegraphics[width=\linewidth,height=0.7\textheight,keepaspectratio]{imgs/learning_curves_mydinh.png}
+      \end{center}
 
     \column{0.45\textwidth}
       \small
@@ -340,10 +325,8 @@
       nhờ tái sử dụng graph topology knowledge từ Mỹ Đình.
 
     \column{0.5\textwidth}
-      % [GỢI Ý ẢNH] Learning curve so sánh GAT finetune vs IDQN scratch
-      % trên map UET (nếu có ảnh riêng). Nếu không, dùng ảnh topology UET:
-      \includegraphics[width=\linewidth]{imgs/map_uet.png}
       \begin{center}
+        \includegraphics[width=\linewidth,height=0.6\textheight,keepaspectratio]{imgs/map_uet.png}\\
         \small Map UET — 15 ngã tư
       \end{center}
   \end{columns}
@@ -353,7 +336,7 @@
 \begin{frame}{Dashboard Real-time}
   % [GỢI Ý ẢNH] Screenshot dashboard live demo — 3 panels song song:
   \begin{center}
-    \includegraphics[width=0.9\linewidth]{imgs/live_demo_mydinh.png}
+    \includegraphics[width=0.9\linewidth,height=0.7\textheight,keepaspectratio]{imgs/live_demo_mydinh.png}
   \end{center}
   \vspace{0.2em}
   \small FastAPI + WebSocket backend / React + Vite frontend.
@@ -399,7 +382,7 @@
     \begin{itemize}
       \item \textbf{Reward hybrid} với normalization đảm bảo $\alpha{:}\beta = 70{:}30$ thực sự
       \item \textbf{Parallel training} Ape-X style với fixed-role epsilon workers
-      \item \textbf{2-phase fine-tuning}: GAT-MARL hội tụ sau 20 ep thay vì 25 ep của IDQN khi chuyển topology
+      \item \textbf{2-phase fine-tuning}: GAT-MARL finetune \textbf{200 ep} đạt kết quả tốt hơn IDQN train từ đầu \textbf{500 ep} --- ít tài nguyên hơn, hiệu quả hơn
       \item \textbf{Dashboard real-time} so sánh 3 phương pháp song song
     \end{itemize}
   \end{block}
